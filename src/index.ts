@@ -115,10 +115,7 @@ async function handleViewNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  const title = storage.extractTitle(note.content);
-  const html = storage.renderMarkdown(note.content);
-
-  return htmlResponse(NotePage({ id, title, html }));
+  return htmlResponse(NotePage({ note }));
 }
 
 function handleNewNote(): Response {

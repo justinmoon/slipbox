@@ -1,24 +1,33 @@
 import Html from '@kitajs/html';
+import { escapeHtml } from '@kitajs/html';
+
 import { Layout } from './Layout';
 import { Header } from './Header';
+import { marked } from 'marked';
+import { Note } from '../types.js';
 
 interface NotePageProps {
-  id: string;
-  title: string;
-  html: string;
+  note: Note;
 }
 
-export const NotePage = ({ id, title, html }: NotePageProps) => (
-  <Layout title={`${title} - Slipbox`}>
-    <div id="app">
-      <Header>
-        <a href={`/edit/${id}`}>Edit</a>
-        <button data-on-click={`if(confirm('Delete this note?')) @delete('/note/${id}')`}>Delete</button>
-      </Header>
+export const NotePage = ({ note }: NotePageProps) => {
+  const html = marked(note.content, {
+    gfm: true,
+    breaks: true
+  }) as string;
 
-      <main>
-        <article class="note-content" innerHTML={html} />
-      </main>
-    </div>
-  </Layout>
-);
+  return (
+    <Layout title="Note - Slipbox">
+      <div id="app">
+        <Header>
+          <a href={`/edit/${note.id}`}>Edit</a>
+          <button data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
+        </Header>
+
+        <main>
+          {html}
+        </main>
+      </div>
+    </Layout>
+  );
+};
