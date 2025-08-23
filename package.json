@@ -1,0 +1,34 @@
+{
+  "name": "slipbox-datastar",
+  "version": "1.0.0",
+  "description": "Zettelkasten-style note-taking app built with Datastar framework",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "dependencies": {
+    "@starfederation/datastar-sdk": "1.0.0-RC.2",
+    "@types/express": "^5.0.3",
+    "@types/marked": "^5.0.2",
+    "@types/uuid": "^10.0.0",
+    "express": "^5.1.0",
+    "marked": "^16.2.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.2"
+  }
+}
