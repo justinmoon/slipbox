@@ -1,11 +1,13 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Header } from './Header';
+import { Layout } from './Layout.js';
+import { Header } from './Header.js';
 
 export const NewNotePage = () => (
   <Layout title="New Note - Slipbox">
     <div id="app" data-signals-content="''" data-signals-saving="false">
       <Header>
+        <a href="/">Home</a>
+        <a href="/reader">Reader</a>
         <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
           <span data-show="!$saving">Create</span>
           <span data-show="$saving">Creating...</span>

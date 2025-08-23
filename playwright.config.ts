@@ -1,4 +1,29 @@
 import { defineConfig, devices } from '@playwright/test';
+import net from 'net';
+
+// Function to find an available port
+async function getAvailablePort(startPort = 3000): Promise<number> {
+  const checkPort = (port: number): Promise<number | null> => {
+    return new Promise((resolve) => {
+      const server = net.createServer();
+      server.listen(port, () => {
+        server.once('close', () => resolve(port));
+        server.close();
+      });
+      server.on('error', () => resolve(null));
+    });
+  };
+
+  let port = startPort;
+  while (port < 65535) {
+    const available = await checkPort(port);
+    if (available) return available;
+    port++;
+  }
+  throw new Error('No available ports found');
+}
+
+const port = 3003; // Use a fixed port for now to debug
 
 export default defineConfig({
   testDir: './tests',
@@ -12,7 +37,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
   },
 
@@ -24,8 +49,9 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'bun run dev',
-    port: 3000,
+    command: `PORT=${port} bun src/index.ts`,
+    port: port,
     reuseExistingServer: !process.env.CI,
+    timeout: 10000,
   },
 });
