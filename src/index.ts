@@ -4,6 +4,12 @@ import { config } from './config.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+// Templates
+import { HomePage } from './templates/HomePage';
+import { NotePage } from './templates/NotePage';
+import { NewNotePage } from './templates/NewNotePage';
+import { EditNotePage } from './templates/EditNotePage';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -46,7 +52,7 @@ Bun.serve({
         return handleHome(url);
       
       case '/search':
-        return handleSearch(req, url);
+        return handleSearch(url);
       
       case '/new':
         return handleNewNote();
@@ -90,72 +96,10 @@ async function handleHome(url: URL): Promise<Response> {
 
   const { notes, totalPages, currentPage } = await storage.listNotes(page, pageSize);
   
-  return htmlResponse(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Slipbox</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@starfederation/datastar@1.0.0-RC.5/bundles/datastar.min.js"></script>
-</head>
-<body>
-  <div id="app" data-signals-search="''" data-signals-searchResults="[]" data-signals-showSearch="false">
-    <header>
-      <h1><a href="/">Slipbox</a></h1>
-      <nav>
-        <a href="/new">New Note</a>
-        <button data-on-click="$showSearch = !$showSearch">Search</button>
-      </nav>
-    </header>
-
-    <div id="search-container" data-show="$showSearch">
-      <input 
-        type="text" 
-        placeholder="Search notes..." 
-        data-bind="search"
-        data-on-input.debounce_300ms="@get('/search?q=' + encodeURIComponent($search))"
-        data-on-keydown.escape="$showSearch = false; $search = ''"
-        autofocus
-      />
-      <div id="search-results" data-show="$searchResults.length > 0">
-        <template data-for="result of $searchResults">
-          <a data-attributes-href="'/note/' + $result.id" class="search-result">
-            <h3 data-text="$result.title"></h3>
-            <p data-text="$result.preview"></p>
-          </a>
-        </template>
-      </div>
-    </div>
-
-    <main>
-      <h2>All Notes</h2>
-      <div class="notes-grid">
-        ${notes.map(note => `
-          <article class="note-card">
-            <h3><a href="/note/${note.id}">${note.title}</a></h3>
-            <p>${note.preview}</p>
-            <time>${note.modified.toLocaleDateString()}</time>
-          </article>
-        `).join('')}
-      </div>
-
-      ${totalPages > 1 ? `
-        <nav class="pagination">
-          ${currentPage > 1 ? `<a href="/?page=${currentPage - 1}">Previous</a>` : ''}
-          <span>Page ${currentPage} of ${totalPages}</span>
-          ${currentPage < totalPages ? `<a href="/?page=${currentPage + 1}">Next</a>` : ''}
-        </nav>
-      ` : ''}
-    </main>
-  </div>
-</body>
-</html>
-  `);
+  return htmlResponse(HomePage({ notes, totalPages, currentPage }));
 }
 
-async function handleSearch(_req: Request, url: URL): Promise<Response> {
+async function handleSearch(url: URL): Promise<Response> {
   const query = url.searchParams.get('q') || '';
   const results = await storage.searchNotes(query);
 
@@ -174,76 +118,11 @@ async function handleViewNote(id: string): Promise<Response> {
   const title = storage.extractTitle(note.content);
   const html = storage.renderMarkdown(note.content);
 
-  return htmlResponse(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} - Slipbox</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@starfederation/datastar@1.0.0-RC.5/bundles/datastar.min.js"></script>
-</head>
-<body>
-  <div id="app">
-    <header>
-      <h1><a href="/">Slipbox</a></h1>
-      <nav>
-        <a href="/edit/${note.id}">Edit</a>
-        <button data-on-click="if(confirm('Delete this note?')) @delete('/note/${note.id}')">Delete</button>
-      </nav>
-    </header>
-
-    <main>
-      <article class="note-content">
-        ${html}
-      </article>
-    </main>
-  </div>
-</body>
-</html>
-  `);
+  return htmlResponse(NotePage({ id, title, html }));
 }
 
 function handleNewNote(): Response {
-  return htmlResponse(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Note - Slipbox</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@starfederation/datastar@1.0.0-RC.5/bundles/datastar.min.js"></script>
-</head>
-<body>
-  <div id="app" data-signals-content="''" data-signals-saving="false">
-    <header>
-      <h1><a href="/">Slipbox</a></h1>
-      <nav>
-        <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
-          <span data-show="!$saving">Create</span>
-          <span data-show="$saving">Creating...</span>
-        </button>
-        <a href="/">Cancel</a>
-      </nav>
-    </header>
-
-    <main>
-      <div class="editor">
-        <textarea 
-          data-bind="content"
-          placeholder="Start writing..."
-          data-on-keydown.ctrl.s.prevent="@post('/note/new')"
-          data-on-keydown.meta.s.prevent="@post('/note/new')"
-          autofocus
-        ></textarea>
-      </div>
-    </main>
-  </div>
-</body>
-</html>
-  `);
+  return htmlResponse(NewNotePage());
 }
 
 async function handleCreateNote(req: Request): Promise<Response> {
@@ -268,52 +147,7 @@ async function handleEditNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return htmlResponse(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Edit Note - Slipbox</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@starfederation/datastar@1.0.0-RC.5/bundles/datastar.min.js"></script>
-</head>
-<body>
-  <div id="app" 
-    data-signals-content="${note.content.replace(/"/g, '&quot;')}" 
-    data-signals-saving="false"
-    data-on-load="
-      const draft = localStorage.getItem('draft-${note.id}');
-      if (draft && draft !== $content && confirm('Restore unsaved draft?')) {
-        $content = draft;
-      }
-    ">
-    <header>
-      <h1><a href="/">Slipbox</a></h1>
-      <nav>
-        <button data-on-click="@post('/note/${note.id}')" data-attributes-disabled="$saving">
-          <span data-show="!$saving">Save</span>
-          <span data-show="$saving">Saving...</span>
-        </button>
-        <a href="/note/${note.id}">Cancel</a>
-      </nav>
-    </header>
-
-    <main>
-      <div class="editor">
-        <textarea 
-          data-bind="content"
-          data-on-keydown.ctrl.s.prevent="@post('/note/${note.id}')"
-          data-on-keydown.meta.s.prevent="@post('/note/${note.id}')"
-          data-effect="localStorage.setItem('draft-${note.id}', $content)"
-          autofocus
-        ></textarea>
-      </div>
-    </main>
-  </div>
-</body>
-</html>
-  `);
+  return htmlResponse(EditNotePage({ id, content: note.content }));
 }
 
 async function handleUpdateNote(req: Request, id: string): Promise<Response> {

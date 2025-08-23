@@ -8,7 +8,9 @@
     "build": "bun build src/index.ts --outdir dist --target bun",
     "start": "bun dist/index.js",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "keywords": [],
   "author": "",
@@ -18,7 +20,10 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@starfederation/datastar-sdk": "1.0.0-RC.2",
+    "@kitajs/html": "^4.2.9",
+    "@kitajs/ts-html-plugin": "^4.1.2",
+    "@starfederation/datastar": "1.0.0-beta.11",
+    "@starfederation/datastar-sdk": "1.0.0-beta.11",
     "@types/express": "^5.0.3",
     "@types/marked": "^5.0.2",
     "@types/uuid": "^10.0.0",
@@ -27,7 +32,9 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/bun": "latest",
+    "playwright": "^1.55.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.2"
   }

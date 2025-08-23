@@ -1,5 +1,14 @@
 /* Newspaper-style CSS for Slipbox */
 
+/* Data attributes */
+[data-show="false"] {
+  display: none !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
 /* Reset and Base */
 * {
   box-sizing: border-box;
