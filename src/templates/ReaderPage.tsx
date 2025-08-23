@@ -29,7 +29,7 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
         ) : (
           <div class="books-grid">
             {epubFiles.map(book => (
-              <div class="book-card" data-on-click={`@get('/reader/open/${encodeURIComponent(book.name)}')`}>
+              <div class="book-card" data-on-click={`@get('/reader/open/${encodeURIComponent(book.name)}')`} style="cursor: pointer;">
                 <h3>{book.name}</h3>
                 <div class="book-meta">
                   <span class="book-size">{(book.size / 1024 / 1024).toFixed(2)} MB</span>

@@ -123,6 +123,7 @@ Bun.serve({
     // Reader routes
     if (path.startsWith('/reader/open/')) {
       const bookName = decodeURIComponent(path.slice(13));
+      console.log('Opening book:', bookName);
       return handleOpenBook(bookName);
     }
 
@@ -245,8 +246,10 @@ async function handleReader(): Promise<Response> {
 }
 
 async function handleOpenBook(bookName: string): Promise<Response> {
+  console.log('handleOpenBook called for:', bookName);
   return ServerSentEventGenerator.stream((stream) => {
     stream.executeScript(`
+      console.log('Script executing for book:', '${bookName}');
       document.getElementById('library').classList.add('hidden');
       const readerDiv = document.getElementById('reader');
       readerDiv.classList.remove('hidden');
