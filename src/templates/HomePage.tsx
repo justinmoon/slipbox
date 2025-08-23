@@ -29,7 +29,6 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
         <div id="search-results" class="hidden" data-class-hidden="$searchResults.length === 0">
           <template data-for="result of $searchResults">
             <a data-attributes-href="'/note/' + $result.id" class="search-result" data-on-click="$showSearch = false">
-              <h3 data-text="$result.title"></h3>
               <p data-text="$result.preview"></p>
             </a>
           </template>
@@ -40,11 +39,12 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
         <h2>All Notes</h2>
         <div class="notes-grid">
           {notes.map(note => (
-            <article class="note-card">
-              <h3><a href={`/note/${note.id}`}>{note.title}</a></h3>
-              <p>{note.preview}</p>
-              <time>{note.modified.toLocaleDateString()}</time>
-            </article>
+            <a href={`/note/${note.id}`} class="note-card-link">
+              <article class="note-card">
+                <p>{note.preview}</p>
+                <time>{note.modified.toLocaleDateString()}</time>
+              </article>
+            </a>
           ))}
         </div>
 

@@ -25,24 +25,11 @@ export class NoteStorage {
     return join(this.notesDir, `${id}.md`);
   }
 
-  extractTitle(content: string): string {
-    const lines = content.split('\n');
-    if (lines.length === 0) return 'Untitled';
-    
-    let firstLine = lines[0].trim();
-    if (firstLine.startsWith('#')) {
-      firstLine = firstLine.replace(/^#+\s*/, '');
-    }
-    
-    return firstLine || 'Untitled';
-  }
-
   private createPreview(content: string): string {
-    const lines = content.split('\n').filter(line => line.trim());
-    const previewLines = lines.slice(0, 3).join(' ');
-    return previewLines.length > config.maxPreviewLength 
-      ? previewLines.substring(0, config.maxPreviewLength) + '...'
-      : previewLines;
+    const preview = content.trim();
+    return preview.length > config.maxPreviewLength 
+      ? preview.substring(0, config.maxPreviewLength) + '...'
+      : preview;
   }
 
   async createNote(content: string = ''): Promise<Note> {
@@ -119,7 +106,6 @@ export class NoteStorage {
         
         return {
           id,
-          title: this.extractTitle(content),
           preview: this.createPreview(content),
           created: stats.birthtime,
           modified: stats.mtime
@@ -160,7 +146,6 @@ export class NoteStorage {
         if (matchCount > 0) {
           return {
             id,
-            title: this.extractTitle(content),
             preview: this.createPreview(content),
             matchCount
           };

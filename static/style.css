@@ -127,26 +127,29 @@ main {
   margin: 2rem 0;
 }
 
+.note-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
 .note-card {
   border: 1px solid #111;
   padding: 1rem;
   transition: transform 0.2s;
+  height: 100%;
 }
 
-.note-card:hover {
+.note-card-link:hover .note-card {
   transform: translateY(-2px);
   box-shadow: 3px 3px 0 #111;
 }
 
-.note-card h3 {
-  font-size: 1.2rem;
-  margin: 0 0 0.5rem;
-}
-
 .note-card p {
-  font-size: 0.9rem;
+  font-size: 1rem;
   text-align: left;
-  color: #444;
+  color: #111;
+  margin: 0 0 0.5rem;
 }
 
 .note-card time {
@@ -256,13 +259,10 @@ main {
   transform: translateX(5px);
 }
 
-.search-result h3 {
-  margin: 0 0 0.5rem;
-}
-
 .search-result p {
-  color: #666;
+  color: #111;
   text-align: left;
+  margin: 0;
 }
 
 /* Pagination */
