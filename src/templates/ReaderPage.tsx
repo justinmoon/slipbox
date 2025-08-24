@@ -29,22 +29,19 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
         ) : (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {epubFiles.map(book => (
-              <div class="card cursor-pointer" data-on-click={`@get('/reader/open/${encodeURIComponent(book.name)}')`}>
-                <h3 class="text-xl font-bold mb-2">{book.name}</h3>
-                <div class="flex justify-between text-sm text-gray-600">
-                  <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
-                  <span class="italic">{book.modified.toLocaleDateString()}</span>
+              <a href={`/reader/book/${encodeURIComponent(book.name)}`} class="book-card-link no-underline text-inherit">
+                <div class="card cursor-pointer">
+                  <h3 class="text-xl font-bold mb-2">{book.name}</h3>
+                  <div class="flex justify-between text-sm text-gray-600">
+                    <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <span class="italic">{book.modified.toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         )}
       </div>
-      
-      <div id="reader" class="min-h-[60vh] hidden"></div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3/dist/epub.js"></script>
-    <script src="/static/epub-reader.js"></script>
   </Layout>
 );

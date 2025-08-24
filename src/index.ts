@@ -11,6 +11,7 @@ import { NotePage } from './templates/NotePage.js';
 import { NewNotePage } from './templates/NewNotePage.js';
 import { EditNotePage } from './templates/EditNotePage.js';
 import { ReaderPage } from './templates/ReaderPage.js';
+import { EpubReaderPage } from './templates/EpubReaderPage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -121,10 +122,10 @@ Bun.serve({
     }
 
     // Reader routes
-    if (path.startsWith('/reader/open/')) {
+    if (path.startsWith('/reader/book/')) {
       const bookName = decodeURIComponent(path.slice(13));
       console.log('Opening book:', bookName);
-      return handleOpenBook(bookName);
+      return handleBookReader(bookName);
     }
 
     // Serve EPUB files
@@ -242,26 +243,19 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }));
 }
 
-async function handleOpenBook(bookName: string): Promise<Response> {
-  console.log('handleOpenBook called for:', bookName);
-  return ServerSentEventGenerator.stream((stream) => {
-    stream.executeScript(`
-      console.log('Script executing for book:', '${bookName}');
-      document.getElementById('library').classList.add('hidden');
-      const readerDiv = document.getElementById('reader');
-      readerDiv.classList.remove('hidden');
-      
-      // Create epub-reader element if it doesn't exist
-      let epubReader = readerDiv.querySelector('epub-reader');
-      if (!epubReader) {
-        epubReader = document.createElement('epub-reader');
-        readerDiv.appendChild(epubReader);
-      }
-      
-      // Load the book
-      epubReader.loadBook('/epub/${encodeURIComponent(bookName)}');
-    `);
-  });
+async function handleBookReader(bookName: string): Promise<Response> {
+  console.log('handleBookReader called for:', bookName);
+  
+  // Verify the book exists
+  const epubPath = join(EPUBS_DIR, bookName + '.epub');
+  const file = Bun.file(epubPath);
+  
+  if (!(await file.exists())) {
+    return notFound();
+  }
+  
+  const bookUrl = `/epub/${encodeURIComponent(bookName)}`;
+  return htmlResponse(EpubReaderPage({ bookName, bookUrl }));
 }
 
 async function handleServeEpub(req: Request, bookName: string): Promise<Response> {
