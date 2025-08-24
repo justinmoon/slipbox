@@ -12,15 +12,23 @@ RUN bun install --frozen-lockfile --production
 COPY src ./src
 COPY static ./static
 COPY tsconfig.json ./
-
 # Build the application
 RUN bun build src/index.ts --outdir dist --target bun
+
+# Copy migrations for database setup AFTER build
+RUN mkdir -p dist/db
+COPY src/db/migrations ./dist/db/migrations
+
+# Debug: List migration files
+RUN ls -la dist/db/migrations/meta/
 
 # Create a non-root user
 RUN adduser -D -u 1001 appuser
 
-# Create notes directory
-RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
+# Create notes directory and ensure proper permissions
+RUN mkdir -p /app/data && \
+    chown -R appuser:appuser /app/data && \
+    chown -R appuser:appuser /app/dist
 
 USER appuser
 

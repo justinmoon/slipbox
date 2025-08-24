@@ -12,8 +12,7 @@ export const Layout = ({ title, children }: LayoutProps) => (
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>{title}</title>
       <link rel="stylesheet" href={`/static/style.css?v=${Date.now()}`} />
-      <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.5/bundles/datastar.js"></script>
-      <script src="/static/inline-search.js" defer></script>
+      <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"></script>
     </head>
     <body>{children}</body>
   </html>
