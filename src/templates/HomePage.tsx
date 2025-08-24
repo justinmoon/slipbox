@@ -26,7 +26,7 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
             autofocus
             class="input text-xl"
             data-bind="query"
-            data-on-input.debounce_500ms="@get('/search?q=' + encodeURIComponent($query))"
+            {...{ 'data-on-input.debounce_500ms': "@get('/search?q=' + encodeURIComponent($query))" }}
           />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
