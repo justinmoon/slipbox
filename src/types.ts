@@ -3,6 +3,7 @@ export interface Note {
   content: string;
   created: Date;
   modified: Date;
+  html?: string;
 }
 
 export interface NoteMetadata {

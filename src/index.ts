@@ -1,22 +1,26 @@
 import { ServerSentEventGenerator } from '@starfederation/datastar-sdk/web';
-import { NoteStorage } from './storage.js';
-import { config } from './config.js';
+import { NoteStorage } from './storage';
+import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdir, stat } from 'fs/promises';
+import { fileStorage } from './services/file-storage';
 
 // Templates
-import { HomePage } from './templates/HomePage.js';
-import { NotePage } from './templates/NotePage.js';
-import { NewNotePage } from './templates/NewNotePage.js';
-import { EditNotePage } from './templates/EditNotePage.js';
-import { ReaderPage } from './templates/ReaderPage.js';
+import { HomePage } from './templates/HomePage';
+import { NotePage } from './templates/NotePage';
+import { NewNotePage } from './templates/NewNotePage';
+import { EditNotePage } from './templates/EditNotePage';
+import { ReaderPage } from './templates/ReaderPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const storage = new NoteStorage();
 const EPUBS_DIR = join(__dirname, '..', 'epubs');
+
+// Initialize storage services
+await fileStorage.initialize();
 
 interface EpubFile {
   name: string;
@@ -103,7 +107,7 @@ Bun.serve({
     }
 
     // Dynamic routes
-    const noteMatch = path.match(/^\/note\/([a-f0-9-]+)$/);
+    const noteMatch = path.match(/^\/note\/([a-f0-9-]+\.md)$/);
     if (noteMatch) {
       const id = noteMatch[1];
       if (req.method === 'GET') {
@@ -115,7 +119,7 @@ Bun.serve({
       }
     }
 
-    const editMatch = path.match(/^\/edit\/([a-f0-9-]+)$/);
+    const editMatch = path.match(/^\/edit\/([a-f0-9-]+\.md)$/);
     if (editMatch) {
       return handleEditNote(editMatch[1]);
     }
@@ -133,6 +137,26 @@ Bun.serve({
       return handleServeEpub(req, bookName);
     }
 
+    // File upload/download routes
+    if (path === '/api/files/upload' && req.method === 'POST') {
+      return handleFileUpload(req);
+    }
+    
+    const fileMatch = path.match(/^\/api\/files\/([a-f0-9-]+)$/);
+    if (fileMatch) {
+      const fileId = fileMatch[1];
+      if (req.method === 'GET') {
+        return handleFileDownload(fileId);
+      } else if (req.method === 'DELETE') {
+        return handleFileDelete(fileId);
+      }
+    }
+    
+    const fileUrlMatch = path.match(/^\/api\/files\/([a-f0-9-]+)\/url$/);
+    if (fileUrlMatch) {
+      return handleGetFileUrl(fileUrlMatch[1]);
+    }
+
     return notFound();
   }
 });
@@ -147,7 +171,7 @@ async function handleHome(url: URL): Promise<Response> {
 
   const { notes, totalPages, currentPage } = await storage.listNotes(page, pageSize);
   
-  return htmlResponse(HomePage({ notes, totalPages, currentPage }));
+  return htmlResponse(HomePage({ notes, totalPages, currentPage }) as string);
 }
 
 async function handleSearch(url: URL): Promise<Response> {
@@ -166,11 +190,11 @@ async function handleViewNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return htmlResponse(NotePage({ note }));
+  return htmlResponse(NotePage({ note }) as string);
 }
 
 function handleNewNote(): Response {
-  return htmlResponse(NewNotePage());
+  return htmlResponse(NewNotePage() as string);
 }
 
 async function handleCreateNote(req: Request): Promise<Response> {
@@ -195,7 +219,7 @@ async function handleEditNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return htmlResponse(EditNotePage({ id, content: note.content }));
+  return htmlResponse(EditNotePage({ id, content: note.content }) as string);
 }
 
 async function handleUpdateNote(req: Request, id: string): Promise<Response> {
@@ -239,7 +263,7 @@ async function handleDeleteNote(id: string): Promise<Response> {
 // Reader handlers
 async function handleReader(): Promise<Response> {
   const epubFiles = await getEpubFiles();
-  return htmlResponse(ReaderPage({ epubFiles }));
+  return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
 async function handleOpenBook(bookName: string): Promise<Response> {
@@ -312,6 +336,83 @@ async function handleServeEpub(req: Request, bookName: string): Promise<Response
       "Accept-Ranges": "bytes",
     }
   });
+}
+
+// File upload/download handlers
+async function handleFileUpload(req: Request): Promise<Response> {
+  try {
+    const formData = await req.formData();
+    const file = formData.get('file') as unknown as File;
+    const noteId = formData.get('noteId') as string | null;
+    
+    if (!file) {
+      return new Response('No file provided', { status: 400 });
+    }
+    
+    const savedFile = await fileStorage.uploadFile(
+      file,
+      file.name,
+      file.type || 'application/octet-stream',
+      { noteId: noteId || undefined }
+    );
+    
+    return new Response(JSON.stringify(savedFile), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    return new Response('Upload failed', { status: 500 });
+  }
+}
+
+async function handleFileDownload(fileId: string): Promise<Response> {
+  try {
+    const result = await fileStorage.downloadFile(fileId);
+    if (!result) {
+      return notFound();
+    }
+    
+    return new Response(result.buffer, {
+      headers: {
+        'Content-Type': result.file.mimeType,
+        'Content-Disposition': `attachment; filename="${result.file.originalName}"`,
+        'Content-Length': result.file.size.toString()
+      }
+    });
+  } catch (error) {
+    console.error('File download error:', error);
+    return new Response('Download failed', { status: 500 });
+  }
+}
+
+async function handleFileDelete(fileId: string): Promise<Response> {
+  try {
+    const success = await fileStorage.deleteFile(fileId);
+    if (!success) {
+      return notFound();
+    }
+    
+    return new Response('File deleted', { status: 200 });
+  } catch (error) {
+    console.error('File delete error:', error);
+    return new Response('Delete failed', { status: 500 });
+  }
+}
+
+async function handleGetFileUrl(fileId: string): Promise<Response> {
+  try {
+    const url = await fileStorage.getFileUrl(fileId);
+    if (!url) {
+      return notFound();
+    }
+    
+    return new Response(JSON.stringify({ url }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Get file URL error:', error);
+    return new Response('Failed to get URL', { status: 500 });
+  }
 }
 
 console.log(`Slipbox server running at http://localhost:${config.port}`);

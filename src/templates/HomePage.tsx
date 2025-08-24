@@ -1,7 +1,7 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Header } from './Header.js';
-import { NoteMetadata } from '../types.js';
+import { Layout } from './Layout';
+import { Header } from './Header';
+import { NoteMetadata } from '../types';
 
 interface HomePageProps {
   notes: NoteMetadata[];

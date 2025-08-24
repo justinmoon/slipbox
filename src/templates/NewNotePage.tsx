@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Header } from './Header.js';
+import { Layout } from './Layout';
+import { Header } from './Header';
 
 export const NewNotePage = () => (
   <Layout title="New Note - Slipbox">
