@@ -5,8 +5,7 @@ import { config } from './config';
 export class NoteStorage {
 
   async createNote(content: string = ''): Promise<Note> {
-    const title = this.extractTitle(content);
-    const dbNote = await sqliteNoteStorage.createNote(title, content);
+    const dbNote = await sqliteNoteStorage.createNote(content);
     
     return {
       id: dbNote.id,
@@ -14,13 +13,6 @@ export class NoteStorage {
       created: dbNote.createdAt,
       modified: dbNote.updatedAt
     };
-  }
-
-  private extractTitle(content: string): string {
-    const lines = content.trim().split('\n');
-    const firstLine = lines[0] || '';
-    const titleMatch = firstLine.match(/^#+\s+(.+)/);
-    return titleMatch ? titleMatch[1] : firstLine.slice(0, 50);
   }
 
   async getNote(id: string): Promise<Note | null> {
@@ -37,8 +29,7 @@ export class NoteStorage {
   }
 
   async updateNote(id: string, content: string): Promise<Note | null> {
-    const title = this.extractTitle(content);
-    const dbNote = await sqliteNoteStorage.updateNote(id, title, content);
+    const dbNote = await sqliteNoteStorage.updateNote(id, content);
     if (!dbNote) return null;
     
     return {
@@ -66,7 +57,7 @@ export class NoteStorage {
     
     const notes: NoteMetadata[] = dbNotes.map(note => ({
       id: note.id,
-      preview: note.preview,
+      content: note.content,
       created: note.createdAt,
       modified: note.updatedAt
     }));
@@ -92,7 +83,7 @@ export class NoteStorage {
       
       return {
         id: note.id,
-        preview: note.preview,
+        content: note.content,
         matchCount
       };
     });

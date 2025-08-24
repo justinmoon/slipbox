@@ -30,7 +30,7 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
           {notes.map(note => (
             <a href={`/note/${note.id}`} class="note-card-link">
               <article class="note-card">
-                <p>{note.preview}</p>
+                <p>{note.content}</p>
                 <time>{note.modified.toLocaleDateString()}</time>
               </article>
             </a>

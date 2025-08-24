@@ -15,24 +15,21 @@ export interface ListNotesOptions {
 }
 
 export class SqliteNoteStorage {
-  async createNote(title: string, content: string): Promise<Note> {
+  async createNote(content: string): Promise<Note> {
     const id = `${uuidv4()}.md`;
-    const preview = this.generatePreview(content);
     const wordCount = this.countWords(content);
     const charCount = content.length;
 
     const [note] = await db.insert(notes).values({
       id,
-      title,
       content,
-      preview,
       wordCount,
       charCount,
     }).returning();
 
     await db.insert(noteSearchIndex).values({
       id,
-      content: `${title} ${content}`.toLowerCase(),
+      content: content.toLowerCase(),
     });
 
     return note;
@@ -49,8 +46,7 @@ export class SqliteNoteStorage {
     };
   }
 
-  async updateNote(id: string, title: string, content: string): Promise<Note | null> {
-    const preview = this.generatePreview(content);
+  async updateNote(id: string, content: string): Promise<Note | null> {
     const wordCount = this.countWords(content);
     const charCount = content.length;
     const updatedAt = new Date();
@@ -58,9 +54,7 @@ export class SqliteNoteStorage {
     const [updatedNote] = await db
       .update(notes)
       .set({
-        title,
         content,
-        preview,
         wordCount,
         charCount,
         updatedAt,
@@ -73,7 +67,7 @@ export class SqliteNoteStorage {
     await db
       .update(noteSearchIndex)
       .set({
-        content: `${title} ${content}`.toLowerCase(),
+        content: content.toLowerCase(),
       })
       .where(eq(noteSearchIndex.id, id));
 
@@ -171,19 +165,6 @@ export class SqliteNoteStorage {
 
   async renderMarkdown(content: string): Promise<string> {
     return await marked(content);
-  }
-
-  private generatePreview(content: string, maxLength: number = 150): string {
-    const stripped = content
-      .replace(/^#+\s+/gm, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/[*_~`]/g, '')
-      .replace(/\n+/g, ' ')
-      .trim();
-
-    if (stripped.length <= maxLength) return stripped;
-    
-    return stripped.substring(0, maxLength).trim() + '...';
   }
 
   private countWords(content: string): number {

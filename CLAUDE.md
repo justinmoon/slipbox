@@ -1,2 +1,3 @@
 - Pages should be re-loadable. Don't have pure client-side state if we can avoid it. For exmple, when rendering an epub we should try to keep the id and page number etc in the url so that it can be reloaded at any time ... obviously we won't be perfect here, but let's not be obnoxious ...
-
+- Every page should look great on desktop and mobile
+- The notes in our app DO NOT have previews or titles. Don't add these fields.

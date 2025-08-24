@@ -3,9 +3,7 @@ import { sql } from 'drizzle-orm';
 
 export const notes = sqliteTable('notes', {
   id: text('id').primaryKey(),
-  title: text('title').notNull(),
   content: text('content').notNull(),
-  preview: text('preview').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
   wordCount: integer('word_count').notNull().default(0),

@@ -26,21 +26,6 @@ async function migrateNotes() {
         const content = await readFile(path, 'utf-8');
         const stats = await stat(path);
         
-        // Extract title from content
-        const lines = content.trim().split('\n');
-        const firstLine = lines[0] || '';
-        const titleMatch = firstLine.match(/^#+\s+(.+)/);
-        const title = titleMatch ? titleMatch[1] : firstLine.slice(0, 50);
-        
-        // Generate preview
-        const preview = content
-          .replace(/^#+\s+/gm, '')
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-          .replace(/[*_~`]/g, '')
-          .replace(/\n+/g, ' ')
-          .trim()
-          .substring(0, 150);
-        
         // Count words
         const wordCount = content
           .replace(/[^\w\s]/g, ' ')
@@ -50,9 +35,7 @@ async function migrateNotes() {
         // Insert into database
         await db.insert(notes).values({
           id,
-          title,
           content,
-          preview: preview.length > 150 ? preview + '...' : preview,
           wordCount,
           charCount: content.length,
           createdAt: stats.birthtime,
@@ -62,7 +45,7 @@ async function migrateNotes() {
         // Insert into search index
         await db.insert(noteSearchIndex).values({
           id,
-          content: `${title} ${content}`.toLowerCase(),
+          content: content.toLowerCase(),
         }).onConflictDoNothing();
         
         migratedCount++;

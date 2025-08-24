@@ -131,6 +131,7 @@ main {
   text-decoration: none;
   color: inherit;
   display: block;
+  height: 100%;
 }
 
 .note-card {
@@ -138,6 +139,9 @@ main {
   padding: 1rem;
   transition: transform 0.2s;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .note-card-link:hover .note-card {
@@ -150,6 +154,10 @@ main {
   text-align: left;
   color: #111;
   margin: 0 0 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 6em;
+  line-height: 1.5em;
 }
 
 .note-card time {
