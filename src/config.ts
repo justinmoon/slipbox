@@ -8,6 +8,5 @@ export const config = {
   minPageSize: 5,
   maxPageSize: 50,
   searchDebounceMs: 300,
-  maxPreviewLength: 100,
-  secretKey: process.env.SECRET_KEY || 'dev-secret-key-change-in-production'
+  maxPreviewLength: 100
 };
