@@ -14,6 +14,7 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
     <div id="app">
       <Header>
         <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
         <a href="/new">New Note</a>
       </Header>
 

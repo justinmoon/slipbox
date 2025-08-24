@@ -23,6 +23,7 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
       <Header>
         <a href="/">Home</a>
         <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
         <button data-on-click={`@post('/note/${id}')`} data-attributes-disabled="$saving">
           <span data-show="!$saving">Save</span>
           <span data-show="$saving">Saving...</span>

@@ -3,8 +3,8 @@ import { Layout } from './Layout';
 import { Header } from './Header';
 
 interface EpubFile {
+  id: string;
   name: string;
-  path: string;
   size: number;
   modified: Date;
 }
@@ -19,17 +19,18 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
       <Header>
         <a href="/">Notes</a>
         <a href="/new">New Note</a>
+        <a href="/upload">Upload</a>
         <button id="search-button">Search</button>
       </Header>
 
       <div id="library" class="library-view">
         <h2>Your Library</h2>
         {epubFiles.length === 0 ? (
-          <p class="no-books">No EPUB files found. Add some to the epubs/ directory.</p>
+          <p class="no-books">No EPUB files found. Upload some using the Upload page.</p>
         ) : (
           <div class="books-grid">
             {epubFiles.map(book => (
-              <div class="book-card" data-on-click={`@get('/reader/open/${encodeURIComponent(book.name)}')`} style="cursor: pointer;">
+              <div class="book-card" data-on-click={`@get('/reader/open/${encodeURIComponent(book.id)}')`} style="cursor: pointer;">
                 <h3>{book.name}</h3>
                 <div class="book-meta">
                   <span class="book-size">{(book.size / 1024 / 1024).toFixed(2)} MB</span>

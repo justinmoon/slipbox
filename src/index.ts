@@ -3,7 +3,6 @@ import { NoteStorage } from './storage';
 import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdir, stat } from 'fs/promises';
 import { fileStorage } from './services/file-storage';
 
 // Templates
@@ -12,44 +11,40 @@ import { NotePage } from './templates/NotePage';
 import { NewNotePage } from './templates/NewNotePage';
 import { EditNotePage } from './templates/EditNotePage';
 import { ReaderPage } from './templates/ReaderPage';
+import { UploadPage } from './templates/UploadPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const storage = new NoteStorage();
-const EPUBS_DIR = join(__dirname, '..', 'epubs');
 
 // Initialize storage services
 await fileStorage.initialize();
 
 interface EpubFile {
+  id: string;
   name: string;
-  path: string;
   size: number;
   modified: Date;
 }
 
 async function getEpubFiles(): Promise<EpubFile[]> {
   try {
-    const files = await readdir(EPUBS_DIR);
-    const epubFiles: EpubFile[] = [];
+    const { files } = await fileStorage.getAllFiles(100, 0);
     
-    for (const file of files) {
-      if (file.endsWith('.epub')) {
-        const filePath = join(EPUBS_DIR, file);
-        const stats = await stat(filePath);
-        epubFiles.push({
-          name: file.replace('.epub', ''),
-          path: filePath,
-          size: stats.size,
-          modified: stats.mtime
-        });
-      }
-    }
+    // Filter for EPUB files
+    const epubFiles = files
+      .filter(file => file.originalName.toLowerCase().endsWith('.epub'))
+      .map(file => ({
+        id: file.id,
+        name: file.originalName.replace(/\.epub$/i, ''),
+        size: file.size,
+        modified: file.uploadedAt
+      }));
     
     return epubFiles.sort((a, b) => b.modified.getTime() - a.modified.getTime());
   } catch (error) {
-    console.error("Error reading EPUB directory:", error);
+    console.error("Error fetching EPUB files:", error);
     return [];
   }
 }
@@ -104,6 +99,9 @@ Bun.serve({
         
       case '/reader':
         return handleReader();
+        
+      case '/upload':
+        return handleUpload();
     }
 
     // Dynamic routes
@@ -126,15 +124,15 @@ Bun.serve({
 
     // Reader routes
     if (path.startsWith('/reader/open/')) {
-      const bookName = decodeURIComponent(path.slice(13));
-      console.log('Opening book:', bookName);
-      return handleOpenBook(bookName);
+      const fileId = decodeURIComponent(path.slice(13));
+      console.log('Opening book:', fileId);
+      return handleOpenBook(fileId);
     }
 
-    // Serve EPUB files
+    // Serve EPUB files from Tigris
     if (path.startsWith('/epub/')) {
-      const bookName = decodeURIComponent(path.slice(6));
-      return handleServeEpub(req, bookName);
+      const fileId = decodeURIComponent(path.slice(6));
+      return handleServeEpub(req, fileId);
     }
 
     // File upload/download routes
@@ -238,12 +236,9 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
 
   return ServerSentEventGenerator.stream((stream) => {
     stream.patchSignals(JSON.stringify({ saving: false }));
+    stream.executeScript(`localStorage.removeItem('draft-${id}')`);
     stream.patchElements(`
-      <div class="notification">Note saved!</div>
-      <script>
-        localStorage.removeItem('draft-${id}');
-        setTimeout(() => document.querySelector('.notification')?.remove(), 2000);
-      </script>
+      <div class="notification" data-on-load="setTimeout(() => $el.remove(), 2000)">Note saved!</div>
     `);
   });
 }
@@ -266,11 +261,16 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
-async function handleOpenBook(bookName: string): Promise<Response> {
-  console.log('handleOpenBook called for:', bookName);
+// Upload handler
+function handleUpload(): Response {
+  return htmlResponse(UploadPage() as string);
+}
+
+async function handleOpenBook(fileId: string): Promise<Response> {
+  console.log('handleOpenBook called for:', fileId);
   return ServerSentEventGenerator.stream((stream) => {
     stream.executeScript(`
-      console.log('Script executing for book:', '${bookName}');
+      console.log('Script executing for book:', '${fileId}');
       document.getElementById('library').classList.add('hidden');
       const readerDiv = document.getElementById('reader');
       readerDiv.classList.remove('hidden');
@@ -283,59 +283,75 @@ async function handleOpenBook(bookName: string): Promise<Response> {
       }
       
       // Load the book
-      epubReader.loadBook('/epub/${encodeURIComponent(bookName)}');
+      epubReader.loadBook('/epub/${encodeURIComponent(fileId)}');
     `);
   });
 }
 
-async function handleServeEpub(req: Request, bookName: string): Promise<Response> {
-  const epubPath = join(EPUBS_DIR, bookName + '.epub');
-  const file = Bun.file(epubPath);
-  
-  if (!(await file.exists())) {
-    return notFound();
-  }
+async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
+  try {
+    const fileInfo = await fileStorage.getFile(fileId);
+    if (!fileInfo || !fileInfo.originalName.toLowerCase().endsWith('.epub')) {
+      return notFound();
+    }
 
-  // Enable CORS for epub.js
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-    "Access-Control-Allow-Headers": "Range",
-  };
-  
-  // Handle OPTIONS requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
-  }
-  
-  // Handle range requests for epub.js
-  const rangeHeader = req.headers.get("range");
-  if (rangeHeader) {
-    const fileSize = file.size;
-    const range = rangeHeader.replace(/bytes=/, "").split("-");
-    const start = parseInt(range[0], 10);
-    const end = range[1] ? parseInt(range[1], 10) : fileSize - 1;
+    // Enable CORS for epub.js
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "Range",
+    };
     
-    return new Response(file.slice(start, end + 1), {
-      status: 206,
+    // Handle OPTIONS requests
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers });
+    }
+    
+    // Handle range requests for epub.js
+    const rangeHeader = req.headers.get("range");
+    if (rangeHeader) {
+      // For range requests, we need to download the file and serve the requested range
+      const result = await fileStorage.downloadFile(fileId);
+      if (!result) {
+        return notFound();
+      }
+      
+      const { buffer } = result;
+      const fileSize = buffer.length;
+      const range = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(range[0], 10);
+      const end = range[1] ? parseInt(range[1], 10) : fileSize - 1;
+      
+      return new Response(buffer.slice(start, end + 1), {
+        status: 206,
+        headers: {
+          ...headers,
+          "Content-Type": "application/epub+zip",
+          "Content-Length": (end - start + 1).toString(),
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+        }
+      });
+    }
+    
+    // For regular requests, download and serve the full file
+    const result = await fileStorage.downloadFile(fileId);
+    if (!result) {
+      return notFound();
+    }
+    
+    return new Response(result.buffer, {
       headers: {
         ...headers,
         "Content-Type": "application/epub+zip",
-        "Content-Length": (end - start + 1).toString(),
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Content-Disposition": `inline; filename="${fileInfo.originalName}"`,
         "Accept-Ranges": "bytes",
       }
     });
+  } catch (error) {
+    console.error('Error serving EPUB:', error);
+    return new Response('Error serving file', { status: 500 });
   }
-  
-  return new Response(file, {
-    headers: {
-      ...headers,
-      "Content-Type": "application/epub+zip",
-      "Content-Disposition": `inline; filename="${bookName}.epub"`,
-      "Accept-Ranges": "bytes",
-    }
-  });
 }
 
 // File upload/download handlers

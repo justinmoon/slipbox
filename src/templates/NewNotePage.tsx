@@ -8,6 +8,7 @@ export const NewNotePage = () => (
       <Header>
         <a href="/">Home</a>
         <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
         <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
           <span data-show="!$saving">Create</span>
           <span data-show="$saving">Creating...</span>
