@@ -1,7 +1,7 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Header } from './Header';
-import { NoteMetadata } from '../types';
+import { Layout } from './Layout.js';
+import { Header } from './Header.js';
+import { NoteMetadata } from '../types.js';
 
 interface HomePageProps {
   notes: NoteMetadata[];
@@ -13,6 +13,7 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
   <Layout title="Slipbox">
     <div id="app" data-signals-search="''" data-signals-searchresults="[]" data-signals-showsearch="false">
       <Header>
+        <a href="/reader">Reader</a>
         <a href="/new">New Note</a>
         <button id="search-button">Search</button>
       </Header>

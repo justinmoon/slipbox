@@ -21,6 +21,7 @@ export const NotePage = ({ note }: NotePageProps) => {
       <div id="app">
         <Header>
           <a href={`/edit/${note.id}`}>Edit</a>
+          <a href="/reader">Reader</a>
           <button data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
         </Header>
 

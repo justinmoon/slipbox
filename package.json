@@ -4,7 +4,7 @@
   "description": "Zettelkasten-style note-taking app built with Datastar framework",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "bun scripts/dev.js",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "start": "bun dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -23,7 +23,7 @@
     "@kitajs/html": "^4.2.9",
     "@kitajs/ts-html-plugin": "^4.1.2",
     "@starfederation/datastar": "1.0.0-beta.11",
-    "@starfederation/datastar-sdk": "1.0.0-beta.11",
+    "@starfederation/datastar-sdk": "1.0.0-RC.2",
     "@types/express": "^5.0.3",
     "@types/marked": "^5.0.2",
     "@types/uuid": "^10.0.0",
