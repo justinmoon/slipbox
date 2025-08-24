@@ -11,32 +11,20 @@ interface HomePageProps {
 
 export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
   <Layout title="Slipbox">
-    <div id="app" data-signals-search="''" data-signals-searchresults="[]" data-signals-showsearch="false">
+    <div id="app">
       <Header>
         <a href="/new">New Note</a>
-        <button id="search-button">Search</button>
       </Header>
 
-      <div id="search-container" class="hidden" data-class-hidden="!$showSearch" {...{ 'data-on-click.self': "$showSearch = false" }}>
-        <input 
-          type="text" 
-          placeholder="Search notes..." 
-          data-bind="search"
-          {...{ 'data-on-input.debounce_300ms': "@get('/search?q=' + encodeURIComponent($search))" }}
-          {...{ 'data-on-keydown.escape': "$showSearch = false; $search = ''" }}
-          autofocus
-        />
-        <div id="search-results" class="hidden" data-class-hidden="$searchResults.length === 0">
-          <template data-for="result of $searchResults">
-            <a data-attributes-href="'/note/' + $result.id" class="search-result" data-on-click="$showSearch = false">
-              <p data-text="$result.preview"></p>
-            </a>
-          </template>
-        </div>
-      </div>
-
       <main>
-        <h2>All Notes</h2>
+        <div class="search-header">
+          <input 
+            type="text" 
+            placeholder="Search notes..." 
+            autofocus
+            class="search-input"
+          />
+        </div>
         <div class="notes-grid">
           {notes.map(note => (
             <a href={`/note/${note.id}`} class="note-card-link">
