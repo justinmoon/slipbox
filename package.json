@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "bun scripts/dev.js",
-    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build": "bun build src/index.ts --outdir dist --target bun && npm run build:static",
+    "build:static": "tsc -p tsconfig.static.json",
     "start": "bun dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.static.json --noEmit",
     "clean": "rimraf dist",
     "test": "playwright test",
     "test:ui": "playwright test --ui"

@@ -35,6 +35,11 @@ async function main() {
       env: { ...process.env, PORT: port.toString() },
       stdio: 'inherit'
     });
+    
+    // Start watching static TypeScript files
+    const staticWatch = spawn('node', ['scripts/watch-static.js'], {
+      stdio: 'inherit'
+    });
 
     // Wait a moment for server to start
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -51,6 +56,7 @@ async function main() {
     // Handle exit
     process.on('SIGINT', () => {
       server.kill();
+      staticWatch.kill();
       process.exit();
     });
 
