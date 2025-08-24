@@ -18,14 +18,14 @@ export const NotePage = ({ note }: NotePageProps) => {
 
   return (
     <Layout title="Note - Slipbox">
-      <div id="app">
+      <div id="app" class="container">
         <Header>
-          <a href={`/edit/${note.id}`}>Edit</a>
-          <a href="/reader">Reader</a>
-          <button data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
+          <a href={`/edit/${note.id}`} class="btn">Edit</a>
+          <a href="/reader" class="btn">Reader</a>
+          <button class="btn" data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
         </Header>
 
-        <main>
+        <main class="min-h-[60vh] prose prose-lg max-w-none columns-gap">
           {html}
         </main>
       </div>

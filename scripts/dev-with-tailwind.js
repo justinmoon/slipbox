@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'child_process';
 import net from 'net';
+import { existsSync, mkdirSync } from 'fs';
 
 // Find an available port
 async function getAvailablePort(startPort = 3000) {
@@ -27,6 +28,20 @@ async function getAvailablePort(startPort = 3000) {
 // Main
 async function main() {
   try {
+    // Ensure static directory exists
+    if (!existsSync('static')) {
+      mkdirSync('static');
+    }
+
+    // Start Tailwind CSS watcher
+    console.log('Starting Tailwind CSS watcher...');
+    const tailwind = spawn('bunx', ['tailwindcss', '-i', './src/input.css', '-o', './static/style.css', '--watch'], {
+      stdio: 'inherit'
+    });
+
+    // Wait a moment for initial CSS build
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     const port = await getAvailablePort();
     console.log(`Starting server on port ${port}...`);
     
@@ -50,6 +65,7 @@ async function main() {
 
     // Handle exit
     process.on('SIGINT', () => {
+      tailwind.kill();
       server.kill();
       process.exit();
     });

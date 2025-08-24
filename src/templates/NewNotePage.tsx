@@ -4,20 +4,21 @@ import { Header } from './Header.js';
 
 export const NewNotePage = () => (
   <Layout title="New Note - Slipbox">
-    <div id="app" data-signals-content="''" data-signals-saving="false">
+    <div id="app" class="container" data-signals-content="''" data-signals-saving="false">
       <Header>
-        <a href="/">Home</a>
-        <a href="/reader">Reader</a>
-        <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
+        <a href="/" class="btn">Home</a>
+        <a href="/reader" class="btn">Reader</a>
+        <button class="btn disabled:opacity-50 disabled:cursor-not-allowed" data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
           <span data-show="!$saving">Create</span>
           <span data-show="$saving">Creating...</span>
         </button>
-        <a href="/">Cancel</a>
+        <a href="/" class="btn">Cancel</a>
       </Header>
 
-      <main>
-        <div class="editor">
+      <main class="min-h-[60vh]">
+        <div class="w-full">
           <textarea 
+            class="w-full h-[80vh] font-mono text-base leading-relaxed p-4 border-2 border-dark bg-off-white resize-y focus:outline-none focus:ring-2 focus:ring-dark focus:ring-offset-2"
             data-bind="content"
             placeholder="Start writing..."
             {...{ 'data-on-keydown.ctrl.s.prevent': "@post('/note/new')" }}

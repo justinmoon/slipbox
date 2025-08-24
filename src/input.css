@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-off-white text-dark text-base leading-relaxed;
+  }
+  
+  body {
+    @apply font-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-bold leading-tight my-4;
+  }
+
+  h1 {
+    @apply text-4xl border-b-4 border-double border-dark pb-2 mb-4;
+  }
+
+  h2 {
+    @apply text-3xl border-b border-dark pb-1;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+
+  p {
+    @apply my-3 text-justify;
+    hyphens: auto;
+  }
+
+  a {
+    @apply text-dark underline hover:no-underline;
+  }
+
+  button, input[type="submit"] {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .container {
+    @apply max-w-6xl mx-auto px-4;
+  }
+
+  .btn {
+    @apply px-4 py-2 bg-dark text-off-white border border-dark transition-transform hover:-translate-y-0.5;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 bg-off-white border-2 border-dark focus:outline-none focus:ring-2 focus:ring-dark;
+  }
+
+  .card {
+    @apply bg-off-white border-2 border-dark p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg;
+  }
+
+  .notification {
+    @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-dark text-off-white px-6 py-4 shadow-lg z-50;
+  }
+
+  .no-results {
+    @apply text-center italic text-gray-600 py-8 col-span-full;
+  }
+
+  /* Reader specific styles */
+  .reader-header {
+    @apply flex justify-between items-center mb-6 pb-4 border-b-2 border-dark;
+  }
+
+  .reader-btn {
+    @apply px-3 py-1 bg-dark text-off-white border border-dark transition-transform hover:-translate-y-0.5 text-sm;
+  }
+
+  .reader-title {
+    @apply text-2xl font-bold;
+  }
+
+  .reader-controls {
+    @apply flex gap-2;
+  }
+
+  .reader-content {
+    @apply border-2 border-dark p-4 bg-white;
+  }
+}
+
+@layer utilities {
+  .columns-gap {
+    @apply columns-1 gap-8 md:columns-2;
+    column-rule: 1px solid #ddd;
+  }
+  
+  .prose h1,
+  .prose h2 {
+    column-span: all;
+  }
+  
+  .prose pre {
+    column-span: all;
+    @apply bg-gray-100 border border-gray-300 p-4 my-4 overflow-x-auto;
+  }
+  
+  .prose code {
+    @apply font-mono bg-gray-100 px-1 py-0.5;
+  }
+  
+  .prose blockquote {
+    @apply border-l-4 border-dark pl-4 my-4 italic;
+  }
+  
+  @media print {
+    .no-print {
+      @apply hidden;
+    }
+    
+    body {
+      @apply text-black bg-white;
+    }
+  }
+}
