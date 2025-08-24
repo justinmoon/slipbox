@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Header } from './Header.js';
+import { Layout } from './Layout';
+import { Header } from './Header';
 
 interface EditNotePageProps {
   id: string;
@@ -22,13 +22,14 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
       `}
     >
       <Header>
-        <a href="/" class="btn">Home</a>
-        <a href="/reader" class="btn">Reader</a>
-        <button class="btn disabled:opacity-50 disabled:cursor-not-allowed" data-on-click={`@post('/note/${id}')`} data-attributes-disabled="$saving">
+        <a href="/">Home</a>
+        <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
+        <button data-on-click={`@post('/note/${id}')`} data-attributes-disabled="$saving">
           <span data-show="!$saving">Save</span>
           <span data-show="$saving">Saving...</span>
         </button>
-        <a href={`/note/${id}`} class="btn">Cancel</a>
+        <a href={`/note/${id}`}>Cancel</a>
       </Header>
 
       <main class="min-h-[60vh]">

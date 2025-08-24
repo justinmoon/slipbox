@@ -1,52 +1,51 @@
 import { ServerSentEventGenerator } from '@starfederation/datastar-sdk/web';
-import { NoteStorage } from './storage.js';
-import { config } from './config.js';
+import { NoteStorage } from './storage';
+import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdir, stat } from 'fs/promises';
+import { fileStorage } from './services/file-storage';
 
 // Templates
-import { HomePage } from './templates/HomePage.js';
-import { NotePage } from './templates/NotePage.js';
-import { NewNotePage } from './templates/NewNotePage.js';
-import { EditNotePage } from './templates/EditNotePage.js';
-import { ReaderPage } from './templates/ReaderPage.js';
-import { EpubReaderPage } from './templates/EpubReaderPage.js';
+import { HomePage } from './templates/HomePage';
+import { NotePage } from './templates/NotePage';
+import { NewNotePage } from './templates/NewNotePage';
+import { EditNotePage } from './templates/EditNotePage';
+import { ReaderPage } from './templates/ReaderPage';
+import { EpubReaderPage } from './templates/EpubReaderPage';
+import { UploadPage } from './templates/UploadPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const storage = new NoteStorage();
-const EPUBS_DIR = join(__dirname, '..', 'epubs');
+
+// Initialize storage services
+await fileStorage.initialize();
 
 interface EpubFile {
+  id: string;
   name: string;
-  path: string;
   size: number;
   modified: Date;
 }
 
 async function getEpubFiles(): Promise<EpubFile[]> {
   try {
-    const files = await readdir(EPUBS_DIR);
-    const epubFiles: EpubFile[] = [];
+    const { files } = await fileStorage.getAllFiles(100, 0);
     
-    for (const file of files) {
-      if (file.endsWith('.epub')) {
-        const filePath = join(EPUBS_DIR, file);
-        const stats = await stat(filePath);
-        epubFiles.push({
-          name: file.replace('.epub', ''),
-          path: filePath,
-          size: stats.size,
-          modified: stats.mtime
-        });
-      }
-    }
+    // Filter for EPUB files
+    const epubFiles = files
+      .filter(file => file.originalName.toLowerCase().endsWith('.epub'))
+      .map(file => ({
+        id: file.id,
+        name: file.originalName.replace(/\.epub$/i, ''),
+        size: file.size,
+        modified: file.uploadedAt
+      }));
     
     return epubFiles.sort((a, b) => b.modified.getTime() - a.modified.getTime());
   } catch (error) {
-    console.error("Error reading EPUB directory:", error);
+    console.error("Error fetching EPUB files:", error);
     return [];
   }
 }
@@ -101,10 +100,13 @@ Bun.serve({
         
       case '/reader':
         return handleReader();
+        
+      case '/upload':
+        return handleUpload();
     }
 
     // Dynamic routes
-    const noteMatch = path.match(/^\/note\/([a-f0-9-]+)$/);
+    const noteMatch = path.match(/^\/note\/([a-f0-9-]+\.md)$/);
     if (noteMatch) {
       const id = noteMatch[1];
       if (req.method === 'GET') {
@@ -116,7 +118,7 @@ Bun.serve({
       }
     }
 
-    const editMatch = path.match(/^\/edit\/([a-f0-9-]+)$/);
+    const editMatch = path.match(/^\/edit\/([a-f0-9-]+\.md)$/);
     if (editMatch) {
       return handleEditNote(editMatch[1]);
     }
@@ -127,11 +129,37 @@ Bun.serve({
       console.log('Opening book:', bookName);
       return handleBookReader(bookName);
     }
+    
+    if (path.startsWith('/reader/open/')) {
+      const fileId = decodeURIComponent(path.slice(13));
+      console.log('Opening book:', fileId);
+      return handleOpenBook(fileId);
+    }
 
-    // Serve EPUB files
+    // Serve EPUB files from Tigris
     if (path.startsWith('/epub/')) {
-      const bookName = decodeURIComponent(path.slice(6));
-      return handleServeEpub(req, bookName);
+      const fileId = decodeURIComponent(path.slice(6));
+      return handleServeEpub(req, fileId);
+    }
+
+    // File upload/download routes
+    if (path === '/api/files/upload' && req.method === 'POST') {
+      return handleFileUpload(req);
+    }
+    
+    const fileMatch = path.match(/^\/api\/files\/([a-f0-9-]+)$/);
+    if (fileMatch) {
+      const fileId = fileMatch[1];
+      if (req.method === 'GET') {
+        return handleFileDownload(fileId);
+      } else if (req.method === 'DELETE') {
+        return handleFileDelete(fileId);
+      }
+    }
+    
+    const fileUrlMatch = path.match(/^\/api\/files\/([a-f0-9-]+)\/url$/);
+    if (fileUrlMatch) {
+      return handleGetFileUrl(fileUrlMatch[1]);
     }
 
     return notFound();
@@ -148,15 +176,54 @@ async function handleHome(url: URL): Promise<Response> {
 
   const { notes, totalPages, currentPage } = await storage.listNotes(page, pageSize);
   
-  return htmlResponse(HomePage({ notes, totalPages, currentPage }));
+  return htmlResponse(HomePage({ notes, totalPages, currentPage }) as string);
 }
 
 async function handleSearch(url: URL): Promise<Response> {
   const query = url.searchParams.get('q') || '';
-  const results = await storage.searchNotes(query);
+  
+  if (!query.trim()) {
+    // Return to regular paginated view
+    const { notes, totalPages, currentPage } = await storage.listNotes(1, config.defaultPageSize);
+    return ServerSentEventGenerator.stream((stream) => {
+      stream.patchElements(
+        `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
+          ${notes.map(note => `
+            <a href="/note/${note.id}" class="no-underline text-inherit block h-full">
+              <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
+                <p class="text-base text-dark mb-2 overflow-hidden line-clamp-3">${note.content}</p>
+                <time class="text-sm text-gray-600 italic">${note.modified.toLocaleDateString()}</time>
+              </article>
+            </a>
+          `).join('')}
+        </div>`
+      );
+    });
+  }
 
-  return new Response(JSON.stringify(results), {
-    headers: { 'Content-Type': 'application/json' }
+  const results = await storage.searchNotes(query);
+  
+  return ServerSentEventGenerator.stream((stream) => {
+    if (results.length === 0) {
+      stream.patchElements(
+        `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
+          <p class="col-span-full text-center italic text-gray-600 py-8">No notes found matching "${query}"</p>
+        </div>`
+      );
+    } else {
+      stream.patchElements(
+        `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
+          ${results.map(result => `
+            <a href="/note/${result.id}" class="no-underline text-inherit block h-full">
+              <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
+                <p class="text-base text-dark mb-2 overflow-hidden line-clamp-3">${result.content}</p>
+                <span class="text-sm text-gray-600 italic">${result.matchCount} match${result.matchCount !== 1 ? 'es' : ''}</span>
+              </article>
+            </a>
+          `).join('')}
+        </div>`
+      );
+    }
   });
 }
 
@@ -167,11 +234,12 @@ async function handleViewNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return htmlResponse(NotePage({ note }));
+  const html = await storage.renderMarkdown(note.content);
+  return htmlResponse(NotePage({ note, html }) as string);
 }
 
 function handleNewNote(): Response {
-  return htmlResponse(NewNotePage());
+  return htmlResponse(NewNotePage() as string);
 }
 
 async function handleCreateNote(req: Request): Promise<Response> {
@@ -196,7 +264,7 @@ async function handleEditNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return htmlResponse(EditNotePage({ id, content: note.content }));
+  return htmlResponse(EditNotePage({ id, content: note.content }) as string);
 }
 
 async function handleUpdateNote(req: Request, id: string): Promise<Response> {
@@ -215,12 +283,9 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
 
   return ServerSentEventGenerator.stream((stream) => {
     stream.patchSignals(JSON.stringify({ saving: false }));
+    stream.executeScript(`localStorage.removeItem('draft-${id}')`);
     stream.patchElements(`
-      <div class="notification">Note saved!</div>
-      <script>
-        localStorage.removeItem('draft-${id}');
-        setTimeout(() => document.querySelector('.notification')?.remove(), 2000);
-      </script>
+      <div class="notification" data-on-load="setTimeout(() => $el.remove(), 2000)">Note saved!</div>
     `);
   });
 }
@@ -240,72 +305,192 @@ async function handleDeleteNote(id: string): Promise<Response> {
 // Reader handlers
 async function handleReader(): Promise<Response> {
   const epubFiles = await getEpubFiles();
-  return htmlResponse(ReaderPage({ epubFiles }));
+  return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
 async function handleBookReader(bookName: string): Promise<Response> {
   console.log('handleBookReader called for:', bookName);
   
-  // Verify the book exists
-  const epubPath = join(EPUBS_DIR, bookName + '.epub');
-  const file = Bun.file(epubPath);
+  // Get file info from Tigris storage by name
+  const { files } = await fileStorage.getAllFiles(100, 0);
+  const file = files.find(f => f.originalName === `${bookName}.epub`);
   
-  if (!(await file.exists())) {
+  if (!file) {
     return notFound();
   }
   
-  const bookUrl = `/epub/${encodeURIComponent(bookName)}`;
-  return htmlResponse(EpubReaderPage({ bookName, bookUrl }));
+  const bookUrl = `/epub/${encodeURIComponent(file.id)}`;
+  return htmlResponse(EpubReaderPage({ bookName, bookUrl }) as string);
 }
 
-async function handleServeEpub(req: Request, bookName: string): Promise<Response> {
-  const epubPath = join(EPUBS_DIR, bookName + '.epub');
-  const file = Bun.file(epubPath);
-  
-  if (!(await file.exists())) {
-    return notFound();
-  }
+// Upload handler
+function handleUpload(): Response {
+  return htmlResponse(UploadPage() as string);
+}
 
-  // Enable CORS for epub.js
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-    "Access-Control-Allow-Headers": "Range",
-  };
-  
-  // Handle OPTIONS requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
-  }
-  
-  // Handle range requests for epub.js
-  const rangeHeader = req.headers.get("range");
-  if (rangeHeader) {
-    const fileSize = file.size;
-    const range = rangeHeader.replace(/bytes=/, "").split("-");
-    const start = parseInt(range[0], 10);
-    const end = range[1] ? parseInt(range[1], 10) : fileSize - 1;
+async function handleOpenBook(fileId: string): Promise<Response> {
+  console.log('handleOpenBook called for:', fileId);
+  return ServerSentEventGenerator.stream((stream) => {
+    stream.executeScript(`
+      console.log('Script executing for book:', '${fileId}');
+      document.getElementById('library').classList.add('hidden');
+      const readerDiv = document.getElementById('reader');
+      readerDiv.classList.remove('hidden');
+      
+      // Create epub-reader element if it doesn't exist
+      let epubReader = readerDiv.querySelector('epub-reader');
+      if (!epubReader) {
+        epubReader = document.createElement('epub-reader');
+        readerDiv.appendChild(epubReader);
+      }
+      
+      // Load the book
+      epubReader.loadBook('/epub/${encodeURIComponent(fileId)}');
+    `);
+  });
+}
+
+async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
+  try {
+    const fileInfo = await fileStorage.getFile(fileId);
+    if (!fileInfo || !fileInfo.originalName.toLowerCase().endsWith('.epub')) {
+      return notFound();
+    }
+
+    // Enable CORS for epub.js
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "Range",
+    };
     
-    return new Response(file.slice(start, end + 1), {
-      status: 206,
+    // Handle OPTIONS requests
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers });
+    }
+    
+    // Handle range requests for epub.js
+    const rangeHeader = req.headers.get("range");
+    if (rangeHeader) {
+      // For range requests, we need to download the file and serve the requested range
+      const result = await fileStorage.downloadFile(fileId);
+      if (!result) {
+        return notFound();
+      }
+      
+      const { buffer } = result;
+      const fileSize = buffer.length;
+      const range = rangeHeader.replace(/bytes=/, "").split("-");
+      const start = parseInt(range[0], 10);
+      const end = range[1] ? parseInt(range[1], 10) : fileSize - 1;
+      
+      return new Response(buffer.slice(start, end + 1), {
+        status: 206,
+        headers: {
+          ...headers,
+          "Content-Type": "application/epub+zip",
+          "Content-Length": (end - start + 1).toString(),
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+        }
+      });
+    }
+    
+    // For regular requests, download and serve the full file
+    const result = await fileStorage.downloadFile(fileId);
+    if (!result) {
+      return notFound();
+    }
+    
+    return new Response(result.buffer, {
       headers: {
         ...headers,
         "Content-Type": "application/epub+zip",
-        "Content-Length": (end - start + 1).toString(),
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Content-Disposition": `inline; filename="${fileInfo.originalName}"`,
         "Accept-Ranges": "bytes",
       }
     });
+  } catch (error) {
+    console.error('Error serving EPUB:', error);
+    return new Response('Error serving file', { status: 500 });
   }
-  
-  return new Response(file, {
-    headers: {
-      ...headers,
-      "Content-Type": "application/epub+zip",
-      "Content-Disposition": `inline; filename="${bookName}.epub"`,
-      "Accept-Ranges": "bytes",
+}
+
+// File upload/download handlers
+async function handleFileUpload(req: Request): Promise<Response> {
+  try {
+    const formData = await req.formData();
+    const file = formData.get('file') as unknown as File;
+    const noteId = formData.get('noteId') as string | null;
+    
+    if (!file) {
+      return new Response('No file provided', { status: 400 });
     }
-  });
+    
+    const savedFile = await fileStorage.uploadFile(
+      file,
+      file.name,
+      file.type || 'application/octet-stream',
+      { noteId: noteId || undefined }
+    );
+    
+    return new Response(JSON.stringify(savedFile), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    return new Response('Upload failed', { status: 500 });
+  }
+}
+
+async function handleFileDownload(fileId: string): Promise<Response> {
+  try {
+    const result = await fileStorage.downloadFile(fileId);
+    if (!result) {
+      return notFound();
+    }
+    
+    return new Response(result.buffer, {
+      headers: {
+        'Content-Type': result.file.mimeType,
+        'Content-Disposition': `attachment; filename="${result.file.originalName}"`,
+        'Content-Length': result.file.size.toString()
+      }
+    });
+  } catch (error) {
+    console.error('File download error:', error);
+    return new Response('Download failed', { status: 500 });
+  }
+}
+
+async function handleFileDelete(fileId: string): Promise<Response> {
+  try {
+    const success = await fileStorage.deleteFile(fileId);
+    if (!success) {
+      return notFound();
+    }
+    
+    return new Response('File deleted', { status: 200 });
+  } catch (error) {
+    console.error('File delete error:', error);
+    return new Response('Delete failed', { status: 500 });
+  }
+}
+
+async function handleGetFileUrl(fileId: string): Promise<Response> {
+  try {
+    const url = await fileStorage.getFileUrl(fileId);
+    if (!url) {
+      return notFound();
+    }
+    
+    return new Response(JSON.stringify({ url }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Get file URL error:', error);
+    return new Response('Failed to get URL', { status: 500 });
+  }
 }
 
 console.log(`Slipbox server running at http://localhost:${config.port}`);

@@ -1,31 +1,26 @@
 import Html from '@kitajs/html';
-import { escapeHtml } from '@kitajs/html';
 
 import { Layout } from './Layout';
 import { Header } from './Header';
-import { marked } from 'marked';
-import { Note } from '../types.js';
+import { Note } from '../types';
 
 interface NotePageProps {
   note: Note;
+  html: string;
 }
 
-export const NotePage = ({ note }: NotePageProps) => {
-  const html = marked(note.content, {
-    gfm: true,
-    breaks: true
-  }) as string;
-
+export const NotePage = ({ note, html }: NotePageProps) => {
   return (
     <Layout title="Note - Slipbox">
       <div id="app" class="container">
         <Header>
-          <a href={`/edit/${note.id}`} class="btn">Edit</a>
-          <a href="/reader" class="btn">Reader</a>
-          <button class="btn" data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
+          <a href={`/edit/${note.id}`}>Edit</a>
+          <a href="/reader">Reader</a>
+          <a href="/upload">Upload</a>
+          <button data-on-click={`if(confirm('Delete this note?')) @delete('/note/${note.id}')`}>Delete</button>
         </Header>
 
-        <main class="min-h-[60vh] prose prose-lg max-w-none columns-gap">
+        <main class="prose prose-lg max-w-none md:columns-2 md:gap-8 mx-auto px-4">
           {html}
         </main>
       </div>

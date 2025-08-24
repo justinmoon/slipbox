@@ -1,7 +1,7 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Header } from './Header.js';
-import { NoteMetadata } from '../types.js';
+import { Layout } from './Layout';
+import { Header } from './Header';
+import { NoteMetadata } from '../types';
 
 interface HomePageProps {
   notes: NoteMetadata[];
@@ -11,10 +11,11 @@ interface HomePageProps {
 
 export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
   <Layout title="Slipbox">
-    <div id="app" class="container">
+    <div id="app" class="container" data-signals-query="">
       <Header>
-        <a href="/reader" class="btn">Reader</a>
-        <a href="/new" class="btn">New Note</a>
+        <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
+        <a href="/new">New Note</a>
       </Header>
 
       <main class="min-h-[60vh]">
@@ -23,14 +24,16 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
             type="text" 
             placeholder="Search notes..." 
             autofocus
-            class="input text-xl search-input"
+            class="input text-xl"
+            data-bind="query"
+            data-on-input.debounce_500ms="@get('/search?q=' + encodeURIComponent($query))"
           />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           {notes.map(note => (
-            <a href={`/note/${note.id}`} class="no-underline text-dark block group">
-              <article class="card h-full group-hover:shadow-[3px_3px_0_#111]">
-                <p class="text-base text-left text-dark mb-2">{note.preview}</p>
+            <a href={`/note/${note.id}`} class="no-underline text-inherit block h-full">
+              <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
+                <p class="text-base text-dark mb-2 overflow-hidden line-clamp-3">{note.content}</p>
                 <time class="text-sm text-gray-600 italic">{note.modified.toLocaleDateString()}</time>
               </article>
             </a>
@@ -39,9 +42,9 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
 
         {totalPages > 1 && (
           <nav class="flex justify-center items-center gap-4 mt-8 py-4 border-t-2 border-dark">
-            {currentPage > 1 && <a href={`/?page=${currentPage - 1}`} class="btn">Previous</a>}
+            {currentPage > 1 && <a href={`/?page=${currentPage - 1}`}>Previous</a>}
             <span class="font-serif">Page {currentPage} of {totalPages}</span>
-            {currentPage < totalPages && <a href={`/?page=${currentPage + 1}`} class="btn">Next</a>}
+            {currentPage < totalPages && <a href={`/?page=${currentPage + 1}`}>Next</a>}
           </nav>
         )}
       </main>

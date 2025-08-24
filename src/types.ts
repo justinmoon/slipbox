@@ -7,13 +7,13 @@ export interface Note {
 
 export interface NoteMetadata {
   id: string;
-  preview: string;
+  content: string;
   created: Date;
   modified: Date;
 }
 
 export interface SearchResult {
   id: string;
-  preview: string;
+  content: string;
   matchCount: number;
 }

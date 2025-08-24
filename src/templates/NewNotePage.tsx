@@ -1,18 +1,19 @@
 import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Header } from './Header.js';
+import { Layout } from './Layout';
+import { Header } from './Header';
 
 export const NewNotePage = () => (
   <Layout title="New Note - Slipbox">
     <div id="app" class="container" data-signals-content="''" data-signals-saving="false">
       <Header>
-        <a href="/" class="btn">Home</a>
-        <a href="/reader" class="btn">Reader</a>
-        <button class="btn disabled:opacity-50 disabled:cursor-not-allowed" data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
+        <a href="/">Home</a>
+        <a href="/reader">Reader</a>
+        <a href="/upload">Upload</a>
+        <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
           <span data-show="!$saving">Create</span>
           <span data-show="$saving">Creating...</span>
         </button>
-        <a href="/" class="btn">Cancel</a>
+        <a href="/">Cancel</a>
       </Header>
 
       <main class="min-h-[60vh]">
