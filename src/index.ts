@@ -154,8 +154,8 @@ async function handleSearch(url: URL): Promise<Response> {
   const query = url.searchParams.get('q') || '';
   const results = await storage.searchNotes(query);
 
-  return ServerSentEventGenerator.stream((stream) => {
-    stream.patchSignals(JSON.stringify({ searchResults: results }));
+  return new Response(JSON.stringify(results), {
+    headers: { 'Content-Type': 'application/json' }
   });
 }
 

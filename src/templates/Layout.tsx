@@ -13,7 +13,7 @@ export const Layout = ({ title, children }: LayoutProps) => (
       <title>{title}</title>
       <link rel="stylesheet" href="/static/style.css" />
       <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.5/bundles/datastar.js"></script>
-      <script src="/static/search-modal.js"></script>
+      <script src="/static/inline-search.js" defer></script>
     </head>
     <body>{children}</body>
   </html>

@@ -7,16 +7,7 @@ test('basic page load', async ({ page }) => {
   // Check if page loads
   await expect(page).toHaveTitle(/Slipbox/);
   
-  // Check if search button exists
-  const searchButton = page.locator('#search-button');
-  await expect(searchButton).toBeVisible();
-  
-  // Check if search container exists
-  const searchContainer = page.locator('#search-container');
-  const exists = await searchContainer.count() > 0;
-  console.log('Search container exists:', exists);
-  
-  // Check initial state
-  const isVisible = await searchContainer.isVisible();
-  console.log('Search container initially visible:', isVisible);
+  // Basic elements should exist
+  await expect(page.locator('header')).toBeVisible();
+  await expect(page.locator('.notes-grid')).toBeVisible();
 });
