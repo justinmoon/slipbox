@@ -1,3 +1,11 @@
+# To copy to fly
+
+```
+fly machine start e825d64fe7dd58 -a slipbox
+fly proxy 10022:22 -a slipbox
+find ~/slipbox -type f ! -name "*.md" -exec scp -P 10022 {} root@localhost:/data/ \;
+```
+
 # Slipbox - Datastar Edition
 
 A Zettelkasten-style note-taking app built with Datastar framework and Bun.
