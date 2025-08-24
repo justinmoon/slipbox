@@ -23,10 +23,10 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
             type="text" 
             placeholder="Search notes..." 
             autofocus
-            class="input text-xl"
+            class="input text-xl search-input"
           />
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           {notes.map(note => (
             <a href={`/note/${note.id}`} class="no-underline text-dark block group">
               <article class="card h-full group-hover:shadow-[3px_3px_0_#111]">
