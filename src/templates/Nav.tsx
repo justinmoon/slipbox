@@ -11,7 +11,8 @@ export const Nav = ({ currentPage, hideableClass = 'nav-hideable', isHidden = fa
     { href: '/', label: 'Notes', page: 'home' },
     { href: '/reader', label: 'Reader', page: 'reader' },
     { href: '/upload', label: 'Upload', page: 'upload' },
-    { href: '/new', label: 'New Note', page: 'new' }
+    { href: '/new', label: 'New Note', page: 'new' },
+    { href: '/logout', label: 'Logout', page: 'logout' }
   ];
 
   return (

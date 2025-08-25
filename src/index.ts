@@ -13,6 +13,7 @@ import { EditNotePage } from './templates/EditNotePage';
 import { ReaderPage } from './templates/ReaderPage';
 import { EpubReaderPage } from './templates/EpubReaderPage';
 import { UploadPage } from './templates/UploadPage';
+import { LoginPage } from './templates/LoginPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +22,40 @@ const storage = new NoteStorage();
 
 // Initialize storage services
 await fileStorage.initialize();
+
+// Simple in-memory session storage
+const sessions = new Map<string, { expires: number }>();
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const PASSWORD = 'Golf1234';
+
+// Generate session token
+function generateSessionToken(): string {
+  return crypto.randomUUID();
+}
+
+// Check if session is valid
+function isValidSession(token: string | null): boolean {
+  if (!token) return false;
+  const session = sessions.get(token);
+  if (!session) return false;
+  if (Date.now() > session.expires) {
+    sessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+// Get session token from cookie
+function getSessionToken(req: Request): string | null {
+  const cookieHeader = req.headers.get('Cookie');
+  if (!cookieHeader) return null;
+  
+  const cookies = cookieHeader.split(';').map(c => c.trim());
+  const sessionCookie = cookies.find(c => c.startsWith('session='));
+  if (!sessionCookie) return null;
+  
+  return sessionCookie.split('=')[1];
+}
 
 interface EpubFile {
   id: string;
@@ -68,12 +103,35 @@ function notFound(): Response {
   return new Response('Not found', { status: 404 });
 }
 
+// Check if request needs authentication
+function needsAuth(path: string): boolean {
+  // Login page doesn't need auth
+  if (path === '/login') return false;
+  // Static files don't need auth
+  if (path.startsWith('/static/')) return false;
+  return true;
+}
+
 // Main server
 Bun.serve({
   port: config.port,
   async fetch(req: Request) {
     const url = new URL(req.url);
     const path = url.pathname;
+    
+    // Check authentication for protected routes
+    if (needsAuth(path)) {
+      const sessionToken = getSessionToken(req);
+      if (!isValidSession(sessionToken)) {
+        // Redirect to login page
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': '/login'
+          }
+        });
+      }
+    }
 
     // Static files (only needed in development, production uses embedded CSS)
     if (path.startsWith('/static/')) {
@@ -83,6 +141,17 @@ Bun.serve({
 
     // Routes
     switch (path) {
+      case '/login':
+        if (req.method === 'GET') {
+          return handleLoginPage();
+        } else if (req.method === 'POST') {
+          return handleLogin(req);
+        }
+        break;
+        
+      case '/logout':
+        return handleLogout(req);
+        
       case '/':
         return handleHome(url);
       
@@ -161,6 +230,48 @@ Bun.serve({
 });
 
 // Route handlers
+function handleLoginPage(): Response {
+  return htmlResponse(LoginPage({}) as string);
+}
+
+async function handleLogin(req: Request): Promise<Response> {
+  const formData = await req.formData();
+  const password = formData.get('password') as string;
+  
+  if (password === PASSWORD) {
+    // Create session
+    const token = generateSessionToken();
+    sessions.set(token, { expires: Date.now() + SESSION_DURATION });
+    
+    // Redirect to home with session cookie
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': '/',
+        'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
+      }
+    });
+  } else {
+    // Show error
+    return htmlResponse(LoginPage({ error: 'Invalid password' }) as string);
+  }
+}
+
+function handleLogout(req: Request): Response {
+  const sessionToken = getSessionToken(req);
+  if (sessionToken) {
+    sessions.delete(sessionToken);
+  }
+  
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': '/login',
+      'Set-Cookie': 'session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+    }
+  });
+}
+
 async function handleHome(url: URL): Promise<Response> {
   const page = parseInt(url.searchParams.get('page') || '1');
   const pageSize = Math.min(
