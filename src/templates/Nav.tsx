@@ -33,18 +33,6 @@ export const Nav = ({ currentPage, hideableClass = 'nav-hideable', isHidden = fa
           </a>
         ))}
       </nav>
-      <button 
-        id="nav-toggle"
-        class="fixed top-4 right-4 z-50 p-2 bg-off-white border-2 border-dark hover:shadow-[2px_2px_0_#111] transition-shadow"
-        aria-label="Toggle navigation"
-        data-on-click="@toggleNav()"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      </button>
     </header>
   );
 };
