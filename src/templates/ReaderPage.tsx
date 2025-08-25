@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Header } from './Header';
+import { Nav, NavScript } from './Nav';
 
 interface EpubFile {
   id: string;
@@ -16,12 +16,7 @@ interface ReaderPageProps {
 export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
   <Layout title="Slipbox Reader">
     <div id="app" class="container">
-      <Header>
-        <a href="/">Notes</a>
-        <a href="/new">New Note</a>
-        <a href="/upload">Upload</a>
-        <button id="search-button">Search</button>
-      </Header>
+      <Nav currentPage="reader" />
 
       <div id="library" class="min-h-[60vh]">
         <h2 class="text-3xl font-bold mb-6 pb-2 border-b-2 border-dark">Your Library</h2>
@@ -42,5 +37,6 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
         )}
       </div>
     </div>
+    <NavScript />
   </Layout>
 );

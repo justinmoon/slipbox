@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Header } from './Header';
+import { Nav, NavScript } from './Nav';
 
 interface EditNotePageProps {
   id: string;
@@ -21,16 +21,14 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
         }
       `}
     >
-      <Header>
-        <a href="/">Home</a>
-        <a href="/reader">Reader</a>
-        <a href="/upload">Upload</a>
-        <button data-on-click={`@post('/note/${id}')`} data-attributes-disabled="$saving">
+      <Nav currentPage="edit" />
+      <div class="flex gap-4 mb-4">
+        <button data-on-click={`@post('/note/${id}')`} data-attributes-disabled="$saving" class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow">
           <span data-show="!$saving">Save</span>
           <span data-show="$saving">Saving...</span>
         </button>
-        <a href={`/note/${id}`}>Cancel</a>
-      </Header>
+        <a href={`/note/${id}`} class="px-4 py-2 border-2 border-dark hover:shadow-[3px_3px_0_#111] transition-shadow">Cancel</a>
+      </div>
 
       <main class="min-h-[60vh]">
         <div class="w-full">
@@ -45,5 +43,6 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
         </div>
       </main>
     </div>
+    <NavScript />
   </Layout>
 );
