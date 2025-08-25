@@ -1,0 +1,42 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Setup test data directory
+        run: |
+          mkdir -p ~/.slipbox-dev
+          echo "Test data directory created"
+      
+      - name: Build CSS
+        run: bun run build:css
+      
+      - name: Build static TypeScript files
+        run: bun run build:static
+      
+      - name: Install Playwright browsers
+        run: bunx playwright install chromium
+      
+      - name: Run tests
+        run: bun run test:ci
+        env:
+          CI: true
+      
