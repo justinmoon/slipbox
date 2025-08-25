@@ -6,7 +6,7 @@ on:
   check_suite:
     types: [completed]
   workflow_run:
-    workflows: ["CI"]  # Replace with your actual CI workflow name
+    workflows: ["CI", "PR Checks"]
     types: [completed]
 
 jobs:
@@ -16,49 +16,109 @@ jobs:
       github.event.pull_request.draft == false &&
       (github.event.workflow_run.conclusion == 'success' ||
       github.event.check_suite.conclusion == 'success')
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
     steps:
       - name: Check if PR is ready
         id: pr-check
         uses: actions/github-script@v7
         with:
           script: |
+            // For direct PR events
             if (context.payload.pull_request) {
-              // Direct PR event
               const isDraft = context.payload.pull_request.draft;
               if (isDraft) {
                 console.log('PR is a draft, skipping auto-merge');
                 return { shouldMerge: false };
               }
-            } else {
-              // Workflow run or check suite event - need to find associated PRs
+              return { shouldMerge: true, prNumber: context.payload.pull_request.number };
+            }
+            
+            // For workflow run events - find associated PRs
+            if (context.payload.workflow_run) {
               const { data: pulls } = await github.rest.pulls.list({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'open'
               });
               
-              // Find PRs associated with this workflow run
               for (const pr of pulls) {
                 if (pr.draft) {
                   console.log(`PR #${pr.number} is a draft, skipping`);
                   continue;
                 }
+                
                 // Check if this PR's head SHA matches the workflow run
-                if (context.payload.workflow_run && 
-                    pr.head.sha === context.payload.workflow_run.head_sha) {
-                  return { shouldMerge: true, prNumber: pr.number };
+                if (pr.head.sha === context.payload.workflow_run.head_sha) {
+                  console.log(`Found matching PR #${pr.number} for workflow run`);
+                  
+                  // Check all status checks for this PR
+                  const { data: checkRuns } = await github.rest.checks.listForRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: pr.head.sha
+                  });
+                  
+                  const allChecksPassed = checkRuns.check_runs.every(
+                    check => check.conclusion === 'success' || check.conclusion === 'skipped'
+                  );
+                  
+                  if (allChecksPassed) {
+                    return { shouldMerge: true, prNumber: pr.number };
+                  } else {
+                    console.log(`Not all checks passed for PR #${pr.number}`);
+                    return { shouldMerge: false };
+                  }
                 }
               }
             }
-            return { shouldMerge: true };
+            
+            return { shouldMerge: false };
 
       - name: Auto-merge PR
-        if: steps.pr-check.outputs.shouldMerge != 'false'
-        uses: pascalgn/merge-action@v0.15.6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.pr-check.outputs.shouldMerge == 'true'
+        uses: actions/github-script@v7
         with:
-          # Only merge if all checks pass
-          merge_method: "squash"  # or "merge" or "rebase"
-          # Optional: add a label like "ready-to-merge" to control which PRs auto-merge
-          # labels: "ready-to-merge"
+          script: |
+            const prNumber = ${{ steps.pr-check.outputs.prNumber || 'null' }};
+            
+            if (!prNumber) {
+              console.log('No PR number found, cannot merge');
+              return;
+            }
+            
+            try {
+              // Enable auto-merge for the PR
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash'
+              });
+              
+              console.log(`Successfully merged PR #${prNumber}`);
+            } catch (error) {
+              console.log(`Failed to merge PR #${prNumber}: ${error.message}`);
+              
+              // Try enabling auto-merge instead
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                
+                // Comment on the PR that tests passed
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: '✅ All CI checks have passed! This PR is ready to merge.'
+                });
+              } catch (e) {
+                console.log(`Could not comment on PR: ${e.message}`);
+              }
+            }
