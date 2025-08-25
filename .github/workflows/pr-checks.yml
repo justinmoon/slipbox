@@ -21,10 +21,10 @@ jobs:
       - name: Install dependencies
         run: bun install
       
-      - name: Setup test data directories
+      - name: Setup test data directory
         run: |
-          mkdir -p ~/.slipbox-dev/files
-          echo "Test data directories created"
+          mkdir -p ~/.slipbox-dev
+          echo "Test data directory created"
       
       - name: Build CSS
         run: bun run build:css
@@ -40,36 +40,3 @@ jobs:
         env:
           CI: true
       
-      - name: Comment test results on PR
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const { execSync } = require('child_process');
-            
-            let status = '✅ All tests passed!';
-            let details = '';
-            
-            try {
-              // Check if tests failed
-              if (process.env.TEST_FAILED === 'true') {
-                status = '❌ Some tests failed';
-              }
-            } catch (e) {
-              console.log('Could not determine test status');
-            }
-            
-            const comment = `## Test Results
-            
-            ${status}
-            
-            Tests have been run with \`bun run test:ci\`
-            `;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });

@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         run: bun install
       
-      - name: Setup test data directories
+      - name: Setup test data directory
         run: |
-          mkdir -p ~/.slipbox-dev/files
-          echo "Test data directories created"
+          mkdir -p ~/.slipbox-dev
+          echo "Test data directory created"
       
       - name: Build CSS
         run: bun run build:css
