@@ -16,7 +16,8 @@
     "clean": "rimraf dist",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:ci": "playwright test --reporter=list"
+    "test:ci": "playwright test --reporter=list",
+    "deploy": "bash scripts/deploy.sh"
   },
   "keywords": [],
   "author": "",

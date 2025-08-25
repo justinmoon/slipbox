@@ -4,3 +4,5 @@
 - Every page should look great on desktop and mobile
 - The notes in our app DO NOT have previews or titles. Don't add these fields.
 - When running tests, use `bun test:ci` or `npm run test:ci` instead of `bun test` to avoid timeouts. The regular test command starts an HTML report server that doesn't exit automatically.
+- When i ask you to make a PR, you can use `gh` cli tool to create the pr. once the PR is created, recursively wait like 30 seconds to see if it has passed or failed. if it passes it should auto-merge and your job is done. If it fails, look at the logs to see the reason for the failure, attempt to fix and repeat until CI passes or you want my help. Remember, now hacks or stupid workarounds just to get it passing. We want code that actually works.
+- No stupid workarounds or hacks to "get it working". You do this too much. We want good code that actually works.
