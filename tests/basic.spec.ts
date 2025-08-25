@@ -9,5 +9,8 @@ test('basic page load', async ({ page }) => {
   
   // Basic elements should exist
   await expect(page.locator('header')).toBeVisible();
-  await expect(page.locator('.notes-grid')).toBeVisible();
+  
+  // Notes grid should exist (even if empty)
+  const notesGrid = page.locator('.notes-grid, #notes-grid');
+  await expect(notesGrid).toBeVisible();
 });
