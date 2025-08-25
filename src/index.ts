@@ -123,22 +123,16 @@ Bun.serve({
       return handleEditNote(editMatch[1]);
     }
 
-    // Reader routes
-    if (path.startsWith('/reader/book/')) {
-      const bookName = decodeURIComponent(path.slice(13));
-      console.log('Opening book:', bookName);
-      return handleBookReader(bookName);
-    }
-    
-    if (path.startsWith('/reader/open/')) {
-      const fileId = decodeURIComponent(path.slice(13));
-      console.log('Opening book:', fileId);
-      return handleOpenBook(fileId);
+    // Reader routes - Handle the epub viewer page
+    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)$/);
+    if (epubViewerMatch) {
+      const fileId = epubViewerMatch[1];
+      return handleEpubViewer(fileId);
     }
 
-    // Serve EPUB files from storage
-    if (path.startsWith('/epub/')) {
-      const fileId = decodeURIComponent(path.slice(6));
+    // Serve EPUB file content
+    if (path.startsWith('/epub-file/')) {
+      const fileId = decodeURIComponent(path.slice(11));
       return handleServeEpub(req, fileId);
     }
 
@@ -311,46 +305,29 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
-async function handleBookReader(bookName: string): Promise<Response> {
-  console.log('handleBookReader called for:', bookName);
+async function handleEpubViewer(fileId: string): Promise<Response> {
+  console.log('handleEpubViewer called for:', fileId);
   
-  // Get file info from storage by name
-  const { files } = await fileStorage.getAllFiles(100, 0);
-  const file = files.find(f => f.originalName === `${bookName}.epub`);
-  
-  if (!file) {
+  // Get file info from storage
+  try {
+    const fileInfo = await fileStorage.getFile(fileId);
+    if (!fileInfo || !fileInfo.originalName.toLowerCase().endsWith('.epub')) {
+      return notFound();
+    }
+    
+    const bookName = fileInfo.originalName.replace(/\.epub$/i, '');
+    const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
+    
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl }) as string);
+  } catch (error) {
+    console.error('Error fetching book:', error);
     return notFound();
   }
-  
-  const bookUrl = `/epub/${encodeURIComponent(file.id)}`;
-  return htmlResponse(EpubReaderPage({ bookName, bookUrl }) as string);
 }
 
 // Upload handler
 function handleUpload(): Response {
   return htmlResponse(UploadPage() as string);
-}
-
-async function handleOpenBook(fileId: string): Promise<Response> {
-  console.log('handleOpenBook called for:', fileId);
-  return ServerSentEventGenerator.stream((stream) => {
-    stream.executeScript(`
-      console.log('Script executing for book:', '${fileId}');
-      document.getElementById('library').classList.add('hidden');
-      const readerDiv = document.getElementById('reader');
-      readerDiv.classList.remove('hidden');
-      
-      // Create epub-reader element if it doesn't exist
-      let epubReader = readerDiv.querySelector('epub-reader');
-      if (!epubReader) {
-        epubReader = document.createElement('epub-reader');
-        readerDiv.appendChild(epubReader);
-      }
-      
-      // Load the book
-      epubReader.loadBook('/epub/${encodeURIComponent(fileId)}');
-    `);
-  });
 }
 
 async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
