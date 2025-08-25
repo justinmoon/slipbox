@@ -2,7 +2,6 @@
 
 A Zettelkasten-style note-taking app built with Datastar framework and Bun.
 
-Auto-merge fixed to wait for CI completion
 
 ## Prerequisites
 
