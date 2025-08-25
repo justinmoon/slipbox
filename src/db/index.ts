@@ -4,6 +4,7 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import * as schema from './schema';
 import path from 'path';
 import fs from 'fs/promises';
+import { EMBEDDED_MIGRATIONS } from './embedded-migrations';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.env.NOTES_DIR || path.join(process.env.HOME!, '.slipbox-dev'), 'slipbox.db');
 
@@ -21,21 +22,82 @@ sqlite.exec("PRAGMA temp_store = MEMORY");
 
 export const db = drizzle(sqlite, { schema });
 
-const runMigrations = async () => {
+// Simple migration runner that checks if tables exist
+const runEmbeddedMigrations = async () => {
   try {
-    // Always use absolute path since we're bundling
-    const migrationsPath = '/app/dist/db/migrations';
+    // Check if notes table exists (indicates DB is already set up)
+    const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'").all();
     
-    console.log('Running migrations from:', migrationsPath);
-    console.log('Current working directory:', process.cwd());
-    console.log('NODE_ENV:', process.env.NODE_ENV);
+    if (tables.length > 0) {
+      console.log('Database already initialized, skipping migrations');
+      return;
+    }
     
-    await migrate(db, { migrationsFolder: migrationsPath });
-    console.log('Database migrations completed');
+    console.log('Initializing new database with embedded migrations...');
+    
+    // Parse the journal to get migration order
+    const journalContent = EMBEDDED_MIGRATIONS['meta/_journal.json'];
+    if (!journalContent) {
+      console.log('No migration journal found, skipping migrations');
+      return;
+    }
+    
+    const journal = JSON.parse(journalContent);
+    
+    // Apply migrations in order
+    for (const entry of journal.entries) {
+      const migrationFile = `${entry.tag}.sql`;
+      const migrationSql = EMBEDDED_MIGRATIONS[migrationFile];
+      
+      if (!migrationSql) {
+        console.warn(`Migration file ${migrationFile} not found in embedded migrations`);
+        continue;
+      }
+      
+      console.log(`Applying migration: ${migrationFile}`);
+      
+      // Split by statement-breakpoint markers (Drizzle's format)
+      const statements = migrationSql
+        .split('--> statement-breakpoint')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'));
+      
+      for (const statement of statements) {
+        try {
+          sqlite.exec(statement + ';');
+        } catch (e) {
+          console.error(`Failed to execute statement: ${statement}`, e);
+          throw e;
+        }
+      }
+      
+      console.log(`Migration ${migrationFile} applied successfully`);
+    }
+    
+    console.log('All embedded migrations completed');
   } catch (error) {
-    console.error('Migration failed:', error);
-    // Continue without throwing in production
+    console.error('Embedded migration failed:', error);
+    // In production, we might want to continue anyway if DB already exists
     console.log('WARNING: Migrations failed, continuing anyway...');
+  }
+};
+
+// Try to run migrations
+const runMigrations = async () => {
+  // First try embedded migrations (for compiled binaries)
+  if (Object.keys(EMBEDDED_MIGRATIONS).length > 0) {
+    await runEmbeddedMigrations();
+  } else {
+    // Fall back to file-based migrations (for development)
+    try {
+      const migrationsPath = path.join(import.meta.dir, 'migrations');
+      console.log('Running file-based migrations from:', migrationsPath);
+      await migrate(db, { migrationsFolder: migrationsPath });
+      console.log('Database migrations completed');
+    } catch (error) {
+      console.error('File-based migration failed:', error);
+      console.log('WARNING: Migrations failed, continuing anyway...');
+    }
   }
 };
 
