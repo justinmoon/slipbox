@@ -3,3 +3,4 @@
 - Do things the right way. If that isn't working, it can be better to kick it back to me and we can discuss. Sometimes you tend to thrash and create horrible workarounds. This doesn't help. Don't do it.
 - Every page should look great on desktop and mobile
 - The notes in our app DO NOT have previews or titles. Don't add these fields.
+- When running tests, use `bun test:ci` or `npm run test:ci` instead of `bun test` to avoid timeouts. The regular test command starts an HTML report server that doesn't exit automatically.
