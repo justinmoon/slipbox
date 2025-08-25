@@ -2,7 +2,7 @@
 
 A Zettelkasten-style note-taking app built with Datastar framework and Bun.
 
-Auto-merge test: timestamp 1756091220
+Auto-merge verified working!
 
 ## Prerequisites
 
