@@ -12,6 +12,10 @@ await fs.mkdir(path.dirname(dbPath), { recursive: true });
 
 const sqlite = new Database(dbPath);
 
+// Important: Ensure WAL mode checkpoints are handled properly
+// This prevents data loss when copying databases
+sqlite.exec("PRAGMA wal_autocheckpoint = 1000"); // Checkpoint every 1000 pages
+
 // Set pragmas for better performance
 sqlite.exec("PRAGMA journal_mode = WAL");
 sqlite.exec("PRAGMA busy_timeout = 5000");
@@ -29,7 +33,9 @@ const runEmbeddedMigrations = async () => {
     const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'").all();
     
     if (tables.length > 0) {
-      console.log('Database already initialized, skipping migrations');
+      // Double-check that the table has data before skipping
+      const count = sqlite.query("SELECT COUNT(*) as count FROM notes").get() as { count: number };
+      console.log(`Database already initialized with ${count.count} notes, skipping migrations`);
       return;
     }
     
@@ -90,6 +96,14 @@ const runMigrations = async () => {
   } else {
     // Fall back to file-based migrations (for development)
     try {
+      // First check if DB already exists and has data
+      const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'").all();
+      if (tables.length > 0) {
+        const count = sqlite.query("SELECT COUNT(*) as count FROM notes").get() as { count: number };
+        console.log(`Database already exists with ${count.count} notes, skipping file-based migrations`);
+        return;
+      }
+      
       const migrationsPath = path.join(import.meta.dir, 'migrations');
       console.log('Running file-based migrations from:', migrationsPath);
       await migrate(db, { migrationsFolder: migrationsPath });

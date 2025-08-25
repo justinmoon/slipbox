@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "bun scripts/dev-with-tailwind.js",
+    "reset-datadir": "./reset-datadir.sh",
     "build:css": "bunx tailwindcss -i ./src/input.css -o ./static/style.css --minify",
     "build:static": "tsc -p tsconfig.static.json",
     "build": "bun run build:css && bun build src/index.ts --outdir dist --target bun && npm run build:static",
