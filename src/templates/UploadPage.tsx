@@ -1,14 +1,11 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Header } from './Header';
+import { Nav, NavScript } from './Nav';
 
 export const UploadPage = () => (
   <Layout title="Upload File - Slipbox">
-    <div id="app">
-      <Header>
-        <a href="/reader">Reader</a>
-        <a href="/new">New Note</a>
-      </Header>
+    <div id="app" class="container">
+      <Nav currentPage="upload" />
 
       <main>
         <h2>Upload File</h2>
@@ -49,5 +46,6 @@ export const UploadPage = () => (
         </form>
       </main>
     </div>
+    <NavScript />
   </Layout>
 );

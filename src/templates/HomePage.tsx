@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Header } from './Header';
+import { Nav, NavScript } from './Nav';
 import { NoteMetadata } from '../types';
 
 interface HomePageProps {
@@ -12,11 +12,7 @@ interface HomePageProps {
 export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
   <Layout title="Slipbox">
     <div id="app" class="container" data-signals-query="">
-      <Header>
-        <a href="/reader">Reader</a>
-        <a href="/upload">Upload</a>
-        <a href="/new">New Note</a>
-      </Header>
+      <Nav currentPage="home" />
 
       <main class="min-h-[60vh]">
         <div class="mb-8">
@@ -49,5 +45,6 @@ export const HomePage = ({ notes, totalPages, currentPage }: HomePageProps) => (
         )}
       </main>
     </div>
+    <NavScript />
   </Layout>
 );

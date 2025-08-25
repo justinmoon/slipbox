@@ -1,20 +1,18 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Header } from './Header';
+import { Nav, NavScript } from './Nav';
 
 export const NewNotePage = () => (
   <Layout title="New Note - Slipbox">
     <div id="app" class="container" data-signals-content="''" data-signals-saving="false">
-      <Header>
-        <a href="/">Home</a>
-        <a href="/reader">Reader</a>
-        <a href="/upload">Upload</a>
-        <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving">
-          <span data-show="!$saving">Create</span>
+      <Nav currentPage="new" />
+      <div class="flex gap-4 mb-4">
+        <button data-on-click="@post('/note/new')" data-attributes-disabled="$saving" class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow">
+          <span data-show="!$saving">Create Note</span>
           <span data-show="$saving">Creating...</span>
         </button>
-        <a href="/">Cancel</a>
-      </Header>
+        <a href="/" class="px-4 py-2 border-2 border-dark hover:shadow-[3px_3px_0_#111] transition-shadow">Cancel</a>
+      </div>
 
       <main class="min-h-[60vh]">
         <div class="w-full">
@@ -29,5 +27,6 @@ export const NewNotePage = () => (
         </div>
       </main>
     </div>
+    <NavScript />
   </Layout>
 );
