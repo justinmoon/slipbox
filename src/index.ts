@@ -133,6 +133,38 @@ Bun.serve({
       }
     }
 
+    // Hot-reload SSE endpoint for development
+    if (path === '/hot-reload-sse' && process.env.NODE_ENV !== 'production') {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            // Send initial connection message
+            controller.enqueue(encoder.encode(':connected\n\n'));
+            
+            // Keep connection alive with periodic pings
+            const pingInterval = setInterval(() => {
+              try {
+                controller.enqueue(encoder.encode(':ping\n\n'));
+              } catch (e) {
+                clearInterval(pingInterval);
+              }
+            }, 30000);
+          },
+          cancel() {
+            // Client disconnected
+          }
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        }
+      );
+    }
+
     // Static files (only needed in development, production uses embedded CSS)
     if (path.startsWith('/static/')) {
       return serveStatic(path);
