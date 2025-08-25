@@ -25,13 +25,15 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
         ) : (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {epubFiles.map(book => (
-              <div class="border-2 border-dark bg-off-white p-6 cursor-pointer hover:shadow-[3px_3px_0_#111] transition-shadow" data-on-click={`@get('/reader/open/${encodeURIComponent(book.id)}')`}>
-                <h3 class="text-xl font-bold mb-2">{book.name}</h3>
-                <div class="flex justify-between text-sm text-gray-600">
-                  <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
-                  <span class="italic">{book.modified.toLocaleDateString()}</span>
+              <a href={`/epub/${book.id}`} class="block no-underline">
+                <div class="border-2 border-dark bg-off-white p-6 cursor-pointer hover:shadow-[3px_3px_0_#111] transition-shadow">
+                  <h3 class="text-xl font-bold mb-2">{book.name}</h3>
+                  <div class="flex justify-between text-sm text-gray-600">
+                    <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <span class="italic">{book.modified.toLocaleDateString()}</span>
+                  </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         )}
