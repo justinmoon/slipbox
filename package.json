@@ -8,6 +8,8 @@
     "build:css": "bunx tailwindcss -i ./src/input.css -o ./static/style.css --minify",
     "build:static": "tsc -p tsconfig.static.json",
     "build": "bun run build:css && bun build src/index.ts --outdir dist --target bun && npm run build:static",
+    "bin:mac": "bun build src/index.ts --compile --outfile slipbox-mac",
+    "bin:linux": "bun build src/index.ts --compile --outfile slipbox-linux --target=bun-linux-x64-modern",
     "start": "bun dist/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.static.json --noEmit",
     "clean": "rimraf dist",

@@ -23,10 +23,8 @@ export const db = drizzle(sqlite, { schema });
 
 const runMigrations = async () => {
   try {
-    // In production, migrations are copied to dist/db/migrations
-    const migrationsPath = process.env.NODE_ENV === 'production' 
-      ? path.join(process.cwd(), 'dist/db/migrations')
-      : path.join(import.meta.dir, 'migrations');
+    // Always use absolute path since we're bundling
+    const migrationsPath = '/app/dist/db/migrations';
     
     console.log('Running migrations from:', migrationsPath);
     console.log('Current working directory:', process.cwd());
@@ -36,11 +34,8 @@ const runMigrations = async () => {
     console.log('Database migrations completed');
   } catch (error) {
     console.error('Migration failed:', error);
-    // Don't throw in production - app will use whatever database state exists
-    if (process.env.NODE_ENV !== 'production') {
-      throw error;
-    }
-    console.log('Continuing without migrations in production');
+    // Continue without throwing in production
+    console.log('WARNING: Migrations failed, continuing anyway...');
   }
 };
 

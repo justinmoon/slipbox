@@ -779,6 +779,10 @@ button, input[type="submit"] {
   position: static;
 }
 
+.absolute {
+  position: absolute;
+}
+
 .col-span-full {
   grid-column: 1 / -1;
 }

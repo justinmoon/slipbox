@@ -50,7 +50,7 @@ async function getEpubFiles(): Promise<EpubFile[]> {
   }
 }
 
-// Helper to serve static files
+// Helper to serve static files (for development)
 async function serveStatic(path: string): Promise<Response> {
   const file = Bun.file(join(__dirname, '..', path));
   return new Response(file);
@@ -75,7 +75,7 @@ Bun.serve({
     const url = new URL(req.url);
     const path = url.pathname;
 
-    // Static files
+    // Static files (only needed in development, production uses embedded CSS)
     if (path.startsWith('/static/')) {
       return serveStatic(path);
     }
