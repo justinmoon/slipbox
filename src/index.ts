@@ -136,7 +136,7 @@ Bun.serve({
       return handleOpenBook(fileId);
     }
 
-    // Serve EPUB files from Tigris
+    // Serve EPUB files from storage
     if (path.startsWith('/epub/')) {
       const fileId = decodeURIComponent(path.slice(6));
       return handleServeEpub(req, fileId);
@@ -184,7 +184,7 @@ async function handleSearch(url: URL): Promise<Response> {
   
   if (!query.trim()) {
     // Return to regular paginated view
-    const { notes, totalPages, currentPage } = await storage.listNotes(1, config.defaultPageSize);
+    const { notes } = await storage.listNotes(1, config.defaultPageSize);
     return ServerSentEventGenerator.stream((stream) => {
       stream.patchElements(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
@@ -314,7 +314,7 @@ async function handleReader(): Promise<Response> {
 async function handleBookReader(bookName: string): Promise<Response> {
   console.log('handleBookReader called for:', bookName);
   
-  // Get file info from Tigris storage by name
+  // Get file info from storage by name
   const { files } = await fileStorage.getAllFiles(100, 0);
   const file = files.find(f => f.originalName === `${bookName}.epub`);
   

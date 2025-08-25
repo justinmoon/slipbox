@@ -59,12 +59,12 @@ bun run start
 ## Environment Variables
 
 - `PORT` - Server port (default: 3000)
-- `NOTES_DIR` - Directory for storing notes (default: ~/.slipbox-dev)
-- `SECRET_KEY` - Secret key for sessions (default: dev key)
+- `SLIPBOX_DATA_DIR` - Data directory for database and files (default: ~/.slipbox-dev in development, required in production)
+- `NODE_ENV` - Environment mode (development or production)
 
 ## Tech Stack
 
 - **Frontend**: Datastar framework (hypermedia-first, reactive)
 - **Backend**: Bun with TypeScript
-- **Storage**: File-based (Markdown files)
+- **Storage**: SQLite database with filesystem storage for attachments
 - **Styling**: Custom newspaper-style CSS

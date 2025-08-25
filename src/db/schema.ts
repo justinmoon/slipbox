@@ -23,8 +23,7 @@ export const files = sqliteTable('files', {
   originalName: text('original_name').notNull(),
   mimeType: text('mime_type').notNull(),
   size: integer('size').notNull(),
-  tigrisKey: text('tigris_key').notNull(),
-  tigrisBucket: text('tigris_bucket').notNull(),
+  fileKey: text('file_key').notNull(),
   uploadedAt: integer('uploaded_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
   noteId: text('note_id').references(() => notes.id, { onDelete: 'set null' }),
 }, (table) => ({

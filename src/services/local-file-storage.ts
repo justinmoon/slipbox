@@ -1,8 +1,23 @@
 import { mkdir, writeFile, readFile, unlink, access } from 'fs/promises';
 import { join } from 'path';
 import { constants } from 'fs';
+import { homedir } from 'os';
 
-const LOCAL_STORAGE_DIR = process.env.LOCAL_STORAGE_DIR || join(process.env.NOTES_DIR || join(process.env.HOME!, '.slipbox-dev'), 'files');
+// Use ~/.slipbox-dev in development, require SLIPBOX_DATA_DIR in production
+const getStorageDir = () => {
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.SLIPBOX_DATA_DIR) {
+      throw new Error('SLIPBOX_DATA_DIR environment variable is required in production');
+    }
+    return join(process.env.SLIPBOX_DATA_DIR, 'files');
+  }
+  
+  // Development: use SLIPBOX_DATA_DIR if set, otherwise ~/.slipbox-dev
+  const dataDir = process.env.SLIPBOX_DATA_DIR || join(homedir(), '.slipbox-dev');
+  return join(dataDir, 'files');
+};
+
+const LOCAL_STORAGE_DIR = getStorageDir();
 
 export class LocalFileStorage {
   async initialize() {
@@ -22,7 +37,6 @@ export class LocalFileStorage {
 
     return {
       key,
-      bucket: 'local',
       size: buffer.length,
     };
   }
@@ -46,11 +60,6 @@ export class LocalFileStorage {
   async getFileUrl(key: string, _expiresIn: number = 3600): Promise<string> {
     // For local development, return a direct URL to the file endpoint
     return `http://localhost:${process.env.PORT || 3000}/api/files/${key}`;
-  }
-
-  async listFiles(_prefix?: string, _limit: number = 100) {
-    // Simple implementation - in production you'd want proper filtering
-    return [];
   }
 
   async fileExists(key: string): Promise<boolean> {

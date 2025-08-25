@@ -75,8 +75,8 @@ export class SqliteNoteStorage {
   }
 
   async deleteNote(id: string): Promise<boolean> {
-    const result = await db.delete(notes).where(eq(notes.id, id));
-    return result.changes > 0;
+    await db.delete(notes).where(eq(notes.id, id));
+    return true;
   }
 
   async listNotes({ limit = 10, offset = 0, search }: ListNotesOptions = {}): Promise<{

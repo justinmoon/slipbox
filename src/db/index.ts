@@ -4,9 +4,24 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import * as schema from './schema';
 import path from 'path';
 import fs from 'fs/promises';
+import { homedir } from 'os';
 import { EMBEDDED_MIGRATIONS } from './embedded-migrations';
 
-const dbPath = process.env.DATABASE_PATH || path.join(process.env.NOTES_DIR || path.join(process.env.HOME!, '.slipbox-dev'), 'slipbox.db');
+// Use ~/.slipbox-dev in development, require SLIPBOX_DATA_DIR in production
+const getDbPath = () => {
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.SLIPBOX_DATA_DIR) {
+      throw new Error('SLIPBOX_DATA_DIR environment variable is required in production');
+    }
+    return path.join(process.env.SLIPBOX_DATA_DIR, 'slipbox.db');
+  }
+  
+  // Development: use ~/.slipbox-dev
+  const dataDir = process.env.SLIPBOX_DATA_DIR || path.join(homedir(), '.slipbox-dev');
+  return path.join(dataDir, 'slipbox.db');
+};
+
+const dbPath = getDbPath();
 
 await fs.mkdir(path.dirname(dbPath), { recursive: true });
 
@@ -59,8 +74,8 @@ const runEmbeddedMigrations = async () => {
       // Split by statement-breakpoint markers (Drizzle's format)
       const statements = migrationSql
         .split('--> statement-breakpoint')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0 && !s.startsWith('--'));
       
       for (const statement of statements) {
         try {
@@ -92,10 +107,16 @@ const runMigrations = async () => {
     try {
       const migrationsPath = path.join(import.meta.dir, 'migrations');
       console.log('Running file-based migrations from:', migrationsPath);
+      console.log('Database path:', dbPath);
+      console.log('NODE_ENV:', process.env.NODE_ENV);
       await migrate(db, { migrationsFolder: migrationsPath });
       console.log('Database migrations completed');
     } catch (error) {
       console.error('File-based migration failed:', error);
+      // Don't throw in production - app will use whatever database state exists
+      if (process.env.NODE_ENV !== 'production') {
+        throw error;
+      }
       console.log('WARNING: Migrations failed, continuing anyway...');
     }
   }
