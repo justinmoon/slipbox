@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "bun scripts/dev-with-tailwind.js",
+    "init": "./scripts/init.sh",
     "reset-datadir": "./scripts/reset-datadir.sh",
     "build:client": "bun scripts/build.js",
     "build": "bun run build:client && EMBED_ASSETS=true bun build src/index.ts --outdir dist --target bun",

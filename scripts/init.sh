@@ -57,87 +57,23 @@ rm -rf "$SLIPBOX_DATA_DIR"
 echo "2. Creating fresh data directory..."
 mkdir -p "$SLIPBOX_DATA_DIR"
 
-# Step 3: Copy and prepare the database
-if [ -f "$SOURCE_DIR/slipbox.db" ]; then
-    echo "3. Preparing database..."
-    
-    # Checkpoint the WAL to ensure all data is in the main database file
-    sqlite3 "$SOURCE_DIR/slipbox.db" "PRAGMA wal_checkpoint(TRUNCATE);" 2>/dev/null
-    
-    # Copy the database file
-    cp "$SOURCE_DIR/slipbox.db" "$SLIPBOX_DATA_DIR/slipbox.db"
-    
-    # Migrate schema if needed
-    echo "   Checking and migrating database schema..."
-    
-    # Check if we need to rename tigris_key to file_key
-    HAS_TIGRIS=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM pragma_table_info('files') WHERE name='tigris_key';" 2>/dev/null || echo "0")
-    if [ "$HAS_TIGRIS" = "1" ]; then
-        echo "   Migrating from tigris_key to file_key..."
-        sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "
-            BEGIN TRANSACTION;
-            ALTER TABLE files RENAME COLUMN tigris_key TO file_key;
-            COMMIT;
-        " 2>/dev/null
-    fi
-    
-    # Check if tigris_bucket column exists and drop it
-    HAS_BUCKET=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM pragma_table_info('files') WHERE name='tigris_bucket';" 2>/dev/null || echo "0")
-    if [ "$HAS_BUCKET" = "1" ]; then
-        echo "   Removing tigris_bucket column..."
-        sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "
-            BEGIN TRANSACTION;
-            CREATE TABLE files_new (
-                id TEXT PRIMARY KEY,
-                original_name TEXT NOT NULL,
-                mime_type TEXT NOT NULL,
-                size INTEGER NOT NULL,
-                file_key TEXT NOT NULL,
-                uploaded_at INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                note_id TEXT,
-                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
-            );
-            INSERT INTO files_new SELECT id, original_name, mime_type, size, file_key, uploaded_at, note_id FROM files;
-            DROP TABLE files;
-            ALTER TABLE files_new RENAME TO files;
-            CREATE INDEX files_note_id_idx ON files(note_id);
-            CREATE INDEX files_uploaded_at_idx ON files(uploaded_at);
-            COMMIT;
-        " 2>/dev/null
-    fi
-    
-    # Clear old file entries to avoid conflicts
-    echo "   Clearing old file entries..."
-    sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "DELETE FROM files;" 2>/dev/null
-    
-    NOTE_COUNT=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo "0")
-    echo "   Database ready with $NOTE_COUNT notes"
-else
-    echo "3. No database file found - creating new one..."
-    # Create a minimal database structure
-    sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "
-        CREATE TABLE IF NOT EXISTS notes (
-            id TEXT PRIMARY KEY,
-            content TEXT NOT NULL,
-            created INTEGER NOT NULL,
-            modified INTEGER NOT NULL
-        );
-        
-        CREATE TABLE IF NOT EXISTS files (
-            id TEXT PRIMARY KEY,
-            original_name TEXT NOT NULL,
-            mime_type TEXT NOT NULL,
-            size INTEGER NOT NULL,
-            file_key TEXT NOT NULL,
-            uploaded_at INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            note_id TEXT,
-            FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
-        );
-        
-        CREATE INDEX IF NOT EXISTS files_note_id_idx ON files(note_id);
-        CREATE INDEX IF NOT EXISTS files_uploaded_at_idx ON files(uploaded_at);
-    " 2>/dev/null
-fi
+# Step 3: Create fresh database and run migrations
+echo "3. Creating fresh database with migrations..."
+cd "$WORKTREE_DIR"
+npm run db:migrate 2>/dev/null || {
+    echo "   Migration failed, falling back to direct SQL..."
+    # Apply the migration directly if npm command fails
+    sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" < "$WORKTREE_DIR/src/db/migrations/0000_initial_schema.sql"
+}
+
+NOTE_COUNT=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo "0")
+echo "   Database ready with $NOTE_COUNT notes (should be 0)"
+
+# Step 3.5: Generate sample Roman Empire notes
+echo "3.5. Generating 25 Roman Empire notes..."
+bun "$WORKTREE_DIR/scripts/generate-roman-notes.js"
+NOTE_COUNT=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo "0")
+echo "   Database now has $NOTE_COUNT notes"
 
 # Step 4: Copy sample EPUB files and create database entries
 echo "4. Copying sample EPUB files and creating database entries..."
