@@ -26,23 +26,23 @@ test.describe('Search Verification Test', () => {
       const note = testNotes[i];
       console.log(`Creating note ${i + 1}/10: "${note.content.substring(0, 50)}..."`);
       
-      // Navigate to new note page
+      // Navigate to new note page (now creates empty note and redirects to edit)
       await page.goto(`${testContext.serverUrl}/new`);
       
+      // Should redirect to edit page
+      await page.waitForURL(/\/edit\/[a-f0-9-]+\.md$/);
+      
       // Wait for the textarea to be ready
-      const textarea = page.locator('textarea[data-bind="content"]');
+      const textarea = page.locator('#note-editor');
       await textarea.waitFor({ state: 'visible', timeout: 5000 });
       
       // Fill in the note content
       await textarea.fill(note.content);
       
-      // Wait for datastar binding
-      await page.waitForTimeout(300);
+      // Trigger auto-save
+      await textarea.dispatchEvent('input');
       
-      // Click create button
-      await page.click('button:has-text("Create Note")');
-      
-      // Wait for the action to complete (SSE response + potential redirect)
+      // Wait for auto-save to complete
       await page.waitForTimeout(1500);
     }
     
