@@ -11,7 +11,6 @@ import { eq } from 'drizzle-orm';
 // Templates
 import { HomePage } from './templates/HomePage';
 import { NotePage } from './templates/NotePage';
-import { NewNotePage } from './templates/NewNotePage';
 import { EditNotePage } from './templates/EditNotePage';
 import { ReaderPage } from './templates/ReaderPage';
 import { EpubReaderPage } from './templates/EpubReaderPage';
@@ -198,13 +197,8 @@ Bun.serve({
         return handleSearch(url);
       
       case '/new':
-        return handleNewNote();
-      
-      case '/note/new':
-        if (req.method === 'POST') {
-          return handleCreateNote(req);
-        }
-        break;
+        // Create empty note and redirect to edit page
+        return handleCreateEmptyNote();
         
       case '/reader':
         return handleReader();
@@ -395,24 +389,19 @@ async function handleViewNote(id: string): Promise<Response> {
   return htmlResponse(NotePage({ note, html }) as string);
 }
 
-function handleNewNote(): Response {
-  return htmlResponse(NewNotePage() as string);
-}
-
-async function handleCreateNote(req: Request): Promise<Response> {
-  const reader = await ServerSentEventGenerator.readSignals(req);
+async function handleCreateEmptyNote(): Promise<Response> {
+  // Create a new empty note
+  const note = await storage.createNote('');
   
-  if (!reader.success) {
-    return new Response('Error reading signals', { status: 400 });
-  }
-
-  const content = reader.signals.content as string || '';
-  const note = await storage.createNote(content);
-
-  return ServerSentEventGenerator.stream((stream) => {
-    stream.mergeFragments(`<meta http-equiv="refresh" content="0; url=/note/${note.id}">`);
+  // Redirect to the edit page for the new note
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': `/edit/${note.id}`
+    }
   });
 }
+
 
 async function handleEditNote(id: string): Promise<Response> {
   const note = await storage.getNote(id);
@@ -425,26 +414,24 @@ async function handleEditNote(id: string): Promise<Response> {
 }
 
 async function handleUpdateNote(req: Request, id: string): Promise<Response> {
-  const reader = await ServerSentEventGenerator.readSignals(req);
+  // Parse JSON body
+  let content: string;
   
-  if (!reader.success) {
-    return new Response('Error reading signals', { status: 400 });
+  try {
+    const body = await req.json();
+    content = body.content || '';
+  } catch (error) {
+    return new Response('Invalid request body', { status: 400 });
   }
-
-  const content = reader.signals.content as string || '';
+  
   const note = await storage.updateNote(id, content);
   
   if (!note) {
     return notFound();
   }
 
-  return ServerSentEventGenerator.stream((stream) => {
-    stream.patchSignals(JSON.stringify({ saving: false }));
-    stream.executeScript(`localStorage.removeItem('draft-${id}')`);
-    stream.mergeFragments(`
-      <div class="notification" data-on-load="setTimeout(() => $el.remove(), 2000)">Note saved!</div>
-    `);
-  });
+  // Simple success response
+  return new Response('OK', { status: 200 });
 }
 
 async function handleDeleteNote(id: string): Promise<Response> {
@@ -455,7 +442,8 @@ async function handleDeleteNote(id: string): Promise<Response> {
   }
 
   return ServerSentEventGenerator.stream((stream) => {
-    stream.mergeFragments(`<script>window.location.href = '/';</script>`)
+    // Use executeScript to navigate via JavaScript instead of meta refresh
+    stream.executeScript(`window.location.href = '/';`);
   });
 }
 
