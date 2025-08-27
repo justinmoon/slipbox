@@ -109,6 +109,8 @@ function needsAuth(path: string): boolean {
   if (path === '/login') return false;
   // Static files don't need auth
   if (path.startsWith('/static/')) return false;
+  // Hot-reload SSE doesn't need auth (development only)
+  if (path === '/hot-reload-sse') return false;
   return true;
 }
 
