@@ -286,7 +286,7 @@ Bun.serve({
         return handleHome(url);
       
       case '/search':
-        return handleSearch(url);
+        return handleSearch(url, req);
       
       case '/new':
         // Create empty note and redirect to edit page
@@ -440,64 +440,105 @@ function handleLogout(req: Request): Response {
 
 async function handleHome(url: URL): Promise<Response> {
   const page = parseInt(url.searchParams.get('page') || '1');
+  const query = url.searchParams.get('q') || '';
   const pageSize = Math.min(
     Math.max(parseInt(url.searchParams.get('limit') || String(config.defaultPageSize)), config.minPageSize),
     config.maxPageSize
   );
 
-  const { notes, totalPages, currentPage } = await storage.listNotes(page, pageSize);
+  let notes, totalPages, currentPage;
   
-  return htmlResponse(HomePage({ notes, totalPages, currentPage }) as string);
+  if (query.trim()) {
+    // If there's a search query, get search results with pagination
+    const allResults = await storage.searchNotes(query);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedResults = allResults.slice(startIndex, endIndex);
+    
+    // Convert SearchResult to NoteMetadata for display (search results don't have dates)
+    notes = paginatedResults.map(result => ({
+      id: result.id,
+      content: result.content,
+      created: new Date(), // Placeholder
+      modified: new Date(), // Placeholder
+      matchCount: result.matchCount // Add match count for display
+    } as NoteMetadata & { matchCount: number }));
+    
+    totalPages = Math.ceil(allResults.length / pageSize);
+    currentPage = page;
+  } else {
+    // Regular pagination
+    const result = await storage.listNotes(page, pageSize);
+    notes = result.notes;
+    totalPages = result.totalPages;
+    currentPage = result.currentPage;
+  }
+  
+  return htmlResponse(HomePage({ notes, totalPages, currentPage, query }) as string);
 }
 
-async function handleSearch(url: URL): Promise<Response> {
+async function handleSearch(url: URL, req: Request): Promise<Response> {
   const query = url.searchParams.get('q') || '';
+  
+  console.log(`[SEARCH] Query: "${query}"`);
   
   if (!query.trim()) {
     // Return to regular paginated view
     const { notes } = await storage.listNotes(1, config.defaultPageSize);
     return ServerSentEventGenerator.stream((stream) => {
+      const notesHtml = notes.map(note => 
+        `<a href="/note/${note.id}" class="no-underline text-inherit block h-full">
+          <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
+            <p class="text-base text-dark mb-2" style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${(note.content || '(empty note)').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            <time class="text-sm text-gray-600 italic">${note.modified.toLocaleDateString()}</time>
+          </article>
+        </a>`
+      ).join('');
+      
       stream.mergeFragments(
-        `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
-          ${notes.map(note => `
-            <a href="/note/${note.id}" class="no-underline text-inherit block h-full">
-              <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
-                <p class="text-base text-dark mb-2" style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${note.content || '(empty note)'}</p>
-                <time class="text-sm text-gray-600 italic">${note.modified.toLocaleDateString()}</time>
-              </article>
-            </a>
-          `).join('')}
-        </div>`,
-        { selector: '#notes-grid' }
+        `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">${notesHtml}</div>`,
+        { selector: '#notes-grid', mergeMode: 'morph' }
       );
     });
   }
 
   const results = await storage.searchNotes(query);
+  console.log(`[SEARCH] Found ${results.length} results`);
+  
+  // Pre-build the HTML outside the stream callback to avoid JavaScript restrictions
+  let htmlContent: string;
+  
+  if (results.length === 0) {
+    htmlContent = '<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">' +
+      '<p class="col-span-full text-center italic text-gray-600 py-8">No notes found matching "' + 
+      query.replace(/"/g, '&quot;') + '"</p></div>';
+  } else {
+    let articlesHtml = '';
+    for (const result of results) {
+      const safeContent = result.content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+      
+      const matchText = result.matchCount + ' match' + (result.matchCount !== 1 ? 'es' : '');
+      
+      articlesHtml += '<a href="/note/' + result.id + '" class="no-underline text-inherit block h-full">' +
+        '<article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">' +
+          '<p class="text-base text-dark mb-2" style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">' + safeContent + '</p>' +
+          '<span class="text-sm text-gray-600 italic">' + matchText + '</span>' +
+        '</article>' +
+      '</a>';
+    }
+    
+    htmlContent = '<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">' + 
+      articlesHtml + '</div>';
+  }
+  
+  console.log(`[SEARCH] Pre-built HTML (${htmlContent.length} chars) for ${results.length} results`);
   
   return ServerSentEventGenerator.stream((stream) => {
-    if (results.length === 0) {
-      stream.mergeFragments(
-        `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
-          <p class="col-span-full text-center italic text-gray-600 py-8">No notes found matching "${query}"</p>
-        </div>`,
-        { selector: '#notes-grid' }
-      );
-    } else {
-      stream.mergeFragments(
-        `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
-          ${results.map(result => `
-            <a href="/note/${result.id}" class="no-underline text-inherit block h-full">
-              <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
-                <p class="text-base text-dark mb-2" style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${result.content}</p>
-                <span class="text-sm text-gray-600 italic">${result.matchCount} match${result.matchCount !== 1 ? 'es' : ''}</span>
-              </article>
-            </a>
-          `).join('')}
-        </div>`,
-        { selector: '#notes-grid' }
-      );
-    }
+    stream.mergeFragments(htmlContent, { selector: '#notes-grid', mergeMode: 'morph' });
   });
 }
 
