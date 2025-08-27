@@ -9,7 +9,19 @@
 # - Ensures consistency between files on disk and database entries
 
 SOURCE_DIR="$HOME/slipbox"
-DEST_DIR="$HOME/.slipbox-dev"
+
+# Use SLIPBOX_DATA_DIR from environment or .env.local, fallback to default
+if [ -n "$SLIPBOX_DATA_DIR" ]; then
+    DEST_DIR="$SLIPBOX_DATA_DIR"
+elif [ -f "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.env.local" ]; then
+    # Try to source SLIPBOX_DATA_DIR from .env.local
+    DEST_DIR=$(grep '^SLIPBOX_DATA_DIR=' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.env.local" | cut -d '=' -f2)
+fi
+
+# Fallback to default if not set
+if [ -z "$DEST_DIR" ]; then
+    DEST_DIR="$HOME/.slipbox-dev"
+fi
 
 echo "=== Resetting Development Data Directory ==="
 echo "Source: $SOURCE_DIR"
