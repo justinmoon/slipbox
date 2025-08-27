@@ -111,6 +111,53 @@ const runMigrations = async () => {
   } else {
     // Fall back to file-based migrations (for development)
     try {
+      // Check if files table exists and fix schema if needed
+      try {
+        const filesColumns = sqlite.query("PRAGMA table_info(files)").all() as Array<{name: string}>;
+        const hasFileKey = filesColumns.some(col => col.name === 'file_key');
+        const hasTigrisKey = filesColumns.some(col => col.name === 'tigris_key');
+        
+        if (filesColumns.length > 0 && !hasFileKey && hasTigrisKey) {
+          console.log('Files table has old schema (tigris_key), migrating to new schema (file_key)...');
+          
+          // Apply the migration manually since Drizzle isn't handling it properly
+          sqlite.exec(`
+            CREATE TABLE files_new (
+              id TEXT PRIMARY KEY,
+              original_name TEXT NOT NULL,
+              mime_type TEXT NOT NULL,
+              size INTEGER NOT NULL,
+              file_key TEXT NOT NULL,
+              uploaded_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              note_id TEXT REFERENCES notes(id) ON DELETE SET NULL
+            );
+          `);
+          
+          // Copy data if any exists
+          try {
+            sqlite.exec(`
+              INSERT INTO files_new (id, original_name, mime_type, size, file_key, uploaded_at, note_id)
+              SELECT id, original_name, mime_type, size, tigris_key, uploaded_at, note_id FROM files;
+            `);
+          } catch (e) {
+            // No data to copy, that's fine
+          }
+          
+          // Replace old table
+          sqlite.exec(`DROP TABLE files;`);
+          sqlite.exec(`ALTER TABLE files_new RENAME TO files;`);
+          
+          // Recreate indexes
+          sqlite.exec(`CREATE INDEX files_note_id_idx ON files(note_id);`);
+          sqlite.exec(`CREATE INDEX files_uploaded_at_idx ON files(uploaded_at);`);
+          
+          console.log('Schema migration completed successfully');
+          return;
+        }
+      } catch (e) {
+        // Files table doesn't exist, continue with normal migration check
+      }
+      
       // First check if DB already exists and has data
       const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'").all();
       if (tables.length > 0) {
