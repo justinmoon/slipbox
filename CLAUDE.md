@@ -11,6 +11,7 @@
 - No stupid workarounds or hacks to "get it working". You do this too much. We want good code that actually works.
 - When writing documentation, you will be clear and concise. You will not be verbose, you will not be redundant.
 - NEVER delete anything from ~/slipbox or ~/slipbox-backup-do-not-delete.
+- NEVER run `rm -rf /tmp/slipbox-data-*` -- this can delete the files of other git worktrees. Only delete the specific slipbox data dir your git worktree is using.
 
 ## UI Testing
 
