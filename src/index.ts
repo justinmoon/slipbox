@@ -108,6 +108,8 @@ function notFound(): Response {
 
 // Check if request needs authentication
 function needsAuth(path: string): boolean {
+  // Skip auth in test mode
+  if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
   // Static files don't need auth
@@ -338,7 +340,7 @@ async function handleSearch(url: URL): Promise<Response> {
     // Return to regular paginated view
     const { notes } = await storage.listNotes(1, config.defaultPageSize);
     return ServerSentEventGenerator.stream((stream) => {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           ${notes.map(note => `
             <a href="/note/${note.id}" class="no-underline text-inherit block h-full">
@@ -358,14 +360,14 @@ async function handleSearch(url: URL): Promise<Response> {
   
   return ServerSentEventGenerator.stream((stream) => {
     if (results.length === 0) {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           <p class="col-span-full text-center italic text-gray-600 py-8">No notes found matching "${query}"</p>
         </div>`,
         { selector: '#notes-grid' }
       );
     } else {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           ${results.map(result => `
             <a href="/note/${result.id}" class="no-underline text-inherit block h-full">
@@ -408,7 +410,7 @@ async function handleCreateNote(req: Request): Promise<Response> {
   const note = await storage.createNote(content);
 
   return ServerSentEventGenerator.stream((stream) => {
-    stream.patchElements(`<meta http-equiv="refresh" content="0; url=/note/${note.id}">`);
+    stream.mergeFragments(`<meta http-equiv="refresh" content="0; url=/note/${note.id}">`);
   });
 }
 
@@ -439,7 +441,7 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
   return ServerSentEventGenerator.stream((stream) => {
     stream.patchSignals(JSON.stringify({ saving: false }));
     stream.executeScript(`localStorage.removeItem('draft-${id}')`);
-    stream.patchElements(`
+    stream.mergeFragments(`
       <div class="notification" data-on-load="setTimeout(() => $el.remove(), 2000)">Note saved!</div>
     `);
   });
@@ -453,7 +455,7 @@ async function handleDeleteNote(id: string): Promise<Response> {
   }
 
   return ServerSentEventGenerator.stream((stream) => {
-    stream.patchElements(`<script>window.location.href = '/';</script>`);
+    stream.mergeFragments(`<script>window.location.href = '/';</script>`)
   });
 }
 

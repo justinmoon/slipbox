@@ -35,6 +35,9 @@ jobs:
       - name: Build CSS
         run: bun run build:css
       
+      - name: Build datastar bundle
+        run: bun run build:datastar
+      
       - name: Build static TypeScript files
         run: bun run build:static
       

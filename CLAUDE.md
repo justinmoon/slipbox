@@ -6,5 +6,36 @@
 - When running tests, use `bun test:ci` or `npm run test:ci` instead of `bun test` to avoid timeouts. The regular test command starts an HTML report server that doesn't exit automatically.
 - When i ask you to make a PR, you can use `gh` cli tool to create the pr. once the PR is created, recursively wait like 30 seconds to see if it has passed or failed. if it passes it should auto-merge and your job is done. If it fails, look at the logs to see the reason for the failure, attempt to fix and repeat until CI passes or you want my help. Remember, now hacks or stupid workarounds just to get it passing. We want code that actually works. once the pr has been merged: if you are in a git worktree and a tmux session, delete the worktree, git branch and tmux window that claude code is running from.
 - No stupid workarounds or hacks to "get it working". You do this too much. We want good code that actually works.
-- As you go, take notes in CLAUDE.md about the datastar dependency. You have trouble with this dependency, so please instruct your future self on how to use it by taking excellent notes in CLAUDE.md- As you go, take notes in CLAUDE.md about the datastar dependency. You have trouble with this dependency, so please instruct your future self on how to use it by taking excellent notes in CLAUDE.md.
 - When writing documentation, you will be clear and concise. You will not be verbose, you will not be redundant.
+
+## Datastar Framework
+
+### Core Concepts
+- HTML-first reactive framework using `data-*` attributes
+- Source: ~/code/datastar/library/src/
+- Self-executes on load, no global object
+- Three plugin types: Attribute (`data-*`), Action (`@` prefix), Watcher (SSE)
+
+### Expression Syntax
+- `$` = signals (reactive state): `$query`, `$count`
+- `@` = action plugins: `@get('/api')`, `@post('/save')`
+- Modifiers: `data-on-input__debounce.500ms`
+
+### The 5 SSE Operations (Server → Client)
+1. **`mergeFragments(html, {selector, mergeMode})`** - Update DOM
+   - mergeModes: morph, inner, outer, prepend, append, before, after
+2. **`removeFragments(selector)`** - Remove DOM elements
+3. **`mergeSignals(data)`** - Update reactive state
+4. **`removeSignals(paths)`** - Remove state by path
+5. **`executeScript(code)`** - Run JS on client
+
+### Version Compatibility ⚠️
+**Client and SDK versions MUST match or SSE breaks!**
+- We use: `@starfederation/datastar@1.0.0-beta.11` + matching SDK
+- beta.11 uses `mergeFragments()` (NOT `patchElements()` - that's old)
+- Check package.json for exact versions
+
+### Common Issues
+- **"GenerateExpression" errors** → Action not registered
+- **SSE not updating DOM** → Version mismatch between client/SDK
+- **Search not working** → Wrong method name (`patchElements` vs `mergeFragments`)

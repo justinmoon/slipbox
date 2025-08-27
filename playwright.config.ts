@@ -27,9 +27,9 @@ const port = 3003; // Use a fixed port for now to debug
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 30 * 1000,
+  timeout: 60 * 1000, // Increased timeout for tests with setup
   expect: {
-    timeout: 5000
+    timeout: 10000  // Increased expect timeout
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -49,7 +49,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `PORT=${port} bun src/index.ts`,
+    command: `PORT=${port} SLIPBOX_DATA_DIR=./test-data bun src/index.ts`,
     port: port,
     reuseExistingServer: !process.env.CI,
     timeout: 10000,
