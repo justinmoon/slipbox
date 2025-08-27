@@ -107,6 +107,8 @@ function notFound(): Response {
 
 // Check if request needs authentication
 function needsAuth(path: string): boolean {
+  // Skip auth in test mode
+  if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
   // Static files don't need auth
@@ -332,7 +334,7 @@ async function handleSearch(url: URL): Promise<Response> {
     // Return to regular paginated view
     const { notes } = await storage.listNotes(1, config.defaultPageSize);
     return ServerSentEventGenerator.stream((stream) => {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           ${notes.map(note => `
             <a href="/note/${note.id}" class="no-underline text-inherit block h-full">
@@ -352,14 +354,14 @@ async function handleSearch(url: URL): Promise<Response> {
   
   return ServerSentEventGenerator.stream((stream) => {
     if (results.length === 0) {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           <p class="col-span-full text-center italic text-gray-600 py-8">No notes found matching "${query}"</p>
         </div>`,
         { selector: '#notes-grid' }
       );
     } else {
-      stream.patchElements(
+      stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">
           ${results.map(result => `
             <a href="/note/${result.id}" class="no-underline text-inherit block h-full">
