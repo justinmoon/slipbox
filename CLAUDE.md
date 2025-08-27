@@ -10,6 +10,7 @@
 - When I ask you to make a PR, create it using `gh pr create --fill`. After the PR is merged, run `scripts/post-pr-cleanup.sh` to clean up (delete local branch, remove worktree if present, close tmux pane if in tmux). Remember, no hacks or stupid workarounds just to get CI passing. We want code that actually works.
 - No stupid workarounds or hacks to "get it working". You do this too much. We want good code that actually works.
 - When writing documentation, you will be clear and concise. You will not be verbose, you will not be redundant.
+- NEVER delete anything from ~/slipbox or ~/slipbox-backup-do-not-delete.
 
 ## UI Testing
 
