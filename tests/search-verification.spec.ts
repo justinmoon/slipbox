@@ -2,9 +2,21 @@ import { expect } from '@playwright/test';
 import { test } from './helpers/setup';
 
 test.describe('Search Verification Test', () => {
-  test.skip('creates 10 notes and verifies search returns exactly 1 match', async ({ page, testContext }) => {
+  test('creates 10 notes and verifies search returns exactly 1 match', async ({ page, testContext }) => {
     console.log(`Test server running at: ${testContext.serverUrl}`);
     console.log(`Using temp directory: ${testContext.tmpDir}`);
+    
+    // Listen for console errors and all logs
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        console.error('Browser console error:', msg.text());
+      } else if (msg.type() === 'warning') {
+        console.warn('Browser console warning:', msg.text());
+      }
+    });
+    page.on('pageerror', error => {
+      console.error('Page error:', error.message);
+    });
     
     // Define 10 distinct notes - only ONE should match "unicorn"
     const testNotes = [
@@ -64,20 +76,36 @@ test.describe('Search Verification Test', () => {
     const searchInput = page.locator('input[placeholder="Search notes..."]');
     await searchInput.waitFor({ state: 'visible' });
     
+    // Wait a bit for datastar to initialize
+    await page.waitForTimeout(1000);
+    
     // Check if datastar is loaded and initialized
     const datastarInfo = await page.evaluate(() => {
       const scriptTag = document.querySelector('script[src*="datastar"]');
       // Check if data-bind attribute is present on input
-      const input = document.querySelector('input[placeholder="Search notes..."]');
+      const input = document.querySelector('input[placeholder="Search notes..."]') as HTMLInputElement;
       const hasDataBind = input?.hasAttribute('data-bind');
       const hasDataOn = input?.hasAttribute('data-on-input__debounce.500ms');
+      
+      // Check if datastar actually loaded and processed the page
+      const datastarProcessed = document.querySelector('[data-signals-query]') !== null;
+      const inputProcessed = input?.hasAttribute('data-ds-id');
+      
+      // Try to check for datastar in various ways
+      const globalLoad = typeof (window as any).load !== 'undefined';
+      const dsElements = document.querySelectorAll('[data-ds-id]').length;
       
       return {
         scriptTagPresent: scriptTag !== null,
         scriptSrc: scriptTag?.getAttribute('src') || 'not found',
         hasDataBind,
         hasDataOn,
-        inputValue: input?.value || ''
+        inputValue: input?.value || '',
+        datastarProcessed,
+        inputProcessed,
+        globalLoad,
+        dsElementsCount: dsElements,
+        inputAttributes: input ? Array.from(input.attributes).map(a => a.name) : []
       };
     });
     console.log('Datastar info:', JSON.stringify(datastarInfo, null, 2));
