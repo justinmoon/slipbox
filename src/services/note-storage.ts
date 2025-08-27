@@ -2,7 +2,6 @@ import { db } from '../db/index';
 import { notes, noteSearchIndex, Note } from '../db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { marked } from 'marked';
 
 export interface NoteWithHtml extends Note {
   html?: string;
@@ -42,7 +41,7 @@ export class SqliteNoteStorage {
 
     return {
       ...note,
-      html: await marked(note.content),
+      html: await this.renderMarkdown(note.content),
     };
   }
 
@@ -168,13 +167,17 @@ export class SqliteNoteStorage {
     const { Marked } = await import('marked');
     const markedInstance = new Marked();
     
-    // Configure marked to handle epub:// links
+    // Configure marked to handle epub links (both legacy epub:// and new filesystem format)
     const renderer = {
-      link(href: string | null | undefined, title: string | null | undefined, text: string): string | false {
+      link(token: any): string | false {
+        // In Marked v5+, the first parameter is a token object
+        const href = token.href || token;
+        const text = token.text || '';
+        
         // Ensure href is a string
         const hrefStr = String(href || '');
         
-        // Handle epub:// links specially
+        // Handle legacy epub:// links
         if (hrefStr && hrefStr.startsWith('epub://')) {
           // Parse the epub link: epub://fileId#cfi
           const match = hrefStr.match(/^epub:\/\/([^#]+)#(.+)$/);
@@ -196,6 +199,27 @@ export class SqliteNoteStorage {
             return `<a href="${webUrl}" class="epub-link" data-file-id="${fileId}" data-cfi="${cfi}">${escapedText}</a>`;
           }
         }
+        
+        // Handle new filesystem-like format: <uuid>.epub#cfi
+        const epubMatch = hrefStr.match(/^([a-f0-9-]+)\.epub#(.+)$/);
+        if (epubMatch) {
+          const [, fileId, cfi] = epubMatch;
+          // Convert to a proper web URL
+          const webUrl = `/epub/${fileId}#${cfi}`;
+          // Escape the text to prevent XSS
+          const escapedText = text.replace(/[&<>"']/g, (char) => {
+            const escapes: Record<string, string> = {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;'
+            };
+            return escapes[char] || char;
+          });
+          return `<a href="${webUrl}" class="epub-link" data-file-id="${fileId}" data-cfi="${cfi}">${escapedText}</a>`;
+        }
+        
         // Return false to use the default renderer for other links
         return false;
       }

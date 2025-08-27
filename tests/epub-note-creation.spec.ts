@@ -58,7 +58,7 @@ test.describe('EPUB Note Creation from Selection', () => {
     await page.waitForSelector('#note-modal', { state: 'visible' });
     const noteContent = await page.locator('#note-content').inputValue();
     expect(noteContent).toContain('> [Test selected text from EPUB]');
-    expect(noteContent).toContain(`epub://${epubId}#`);
+    expect(noteContent).toContain(`${epubId}.epub#`);
     
     // Save the note
     const responsePromise = page.waitForResponse(
@@ -136,13 +136,15 @@ test.describe('EPUB Note Creation from Selection', () => {
     expect(modalHidden).toBe(true);
   });
   
-  test('epub:// links in notes render correctly', async ({ page }) => {
+  test('epub links in notes render correctly', async ({ page }) => {
     await authenticate(page);
     
-    // Create a note with an epub:// link
-    const noteContent = `> [Quote from book](epub://test-file-id#epubcfi(%2F6%2F4%5Bchapter1%5D!%2F4%2F2%2F2))
+    // Test both legacy epub:// format and new filesystem-like format
+    const noteContent = `> [Quote from book (legacy)](epub://test-file-id#epubcfi(%2F6%2F4%5Bchapter1%5D!%2F4%2F2%2F2))
 
-My thoughts about this quote.`;
+> [Quote from book (new)](028a08d4-f0da-4754-89e0-2030e95d4a06.epub#epubcfi(%2F6%2F4%5Bchapter1%5D!%2F4%2F2%2F2))
+
+My thoughts about these quotes.`;
     
     const response = await page.evaluate(async (content) => {
       const res = await fetch('/api/note', {
@@ -168,6 +170,11 @@ My thoughts about this quote.`;
     await expect(blockquote).toBeVisible();
     
     const text = await page.locator('.prose').textContent();
-    expect(text).toContain('My thoughts about this quote');
+    expect(text).toContain('My thoughts about these quotes');
+    
+    // Verify both link formats rendered as proper links
+    const links = page.locator('.prose a.epub-link');
+    const linkCount = await links.count();
+    expect(linkCount).toBe(2);
   });
 });

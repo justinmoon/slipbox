@@ -595,8 +595,8 @@ async function handleViewNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  const html = await storage.renderMarkdown(note.content);
-  return htmlResponse(NotePage({ note, html }) as string);
+  // Note already has HTML from getNote method
+  return htmlResponse(NotePage({ note, html: note.html || '' }) as string);
 }
 
 async function handleCreateEmptyNote(): Promise<Response> {

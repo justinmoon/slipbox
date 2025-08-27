@@ -435,7 +435,7 @@ class EpubReader extends HTMLElement {
     preview.textContent = this.selectedText;
     
     // Create the formatted note content with CFI link
-    const cfiLink = `epub://${this.fileId}#${encodeURIComponent(this.selectedCfi)}`;
+    const cfiLink = `${this.fileId}.epub#${encodeURIComponent(this.selectedCfi)}`;
     const noteContent = `> [${this.selectedText}](${cfiLink})\n\n`;
     textarea.value = noteContent;
     
