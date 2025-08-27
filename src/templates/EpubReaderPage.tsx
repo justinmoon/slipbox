@@ -5,9 +5,10 @@ import { Nav, NavScript } from './Nav.js';
 interface EpubReaderPageProps {
   bookName: string;
   bookUrl: string;
+  fileId: string;
 }
 
-export const EpubReaderPage = ({ bookName, bookUrl }: EpubReaderPageProps) => (
+export const EpubReaderPage = ({ bookName, bookUrl, fileId }: EpubReaderPageProps) => (
   <Layout title={`Reading: ${bookName}`}>
     <div id="app">
       <Nav isHidden={true} />
@@ -21,6 +22,7 @@ export const EpubReaderPage = ({ bookName, bookUrl }: EpubReaderPageProps) => (
       window.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('epub-reader-container');
         const reader = document.createElement('epub-reader');
+        reader.setAttribute('file-id', '${fileId}');
         container.appendChild(reader);
         reader.loadBook('${bookUrl}');
       });
