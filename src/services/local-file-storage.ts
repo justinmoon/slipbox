@@ -3,18 +3,12 @@ import { join } from 'path';
 import { constants } from 'fs';
 import { homedir } from 'os';
 
-// Use ~/.slipbox-dev in development, require SLIPBOX_DATA_DIR in production
+// ALWAYS require SLIPBOX_DATA_DIR
 const getStorageDir = () => {
-  if (process.env.NODE_ENV === 'production') {
-    if (!process.env.SLIPBOX_DATA_DIR) {
-      throw new Error('SLIPBOX_DATA_DIR environment variable is required in production');
-    }
-    return join(process.env.SLIPBOX_DATA_DIR, 'files');
+  if (!process.env.SLIPBOX_DATA_DIR) {
+    throw new Error('SLIPBOX_DATA_DIR environment variable is required. Run scripts/init.sh to set up.');
   }
-  
-  // Development: use SLIPBOX_DATA_DIR if set, otherwise ~/.slipbox-dev
-  const dataDir = process.env.SLIPBOX_DATA_DIR || join(homedir(), '.slipbox-dev');
-  return join(dataDir, 'files');
+  return process.env.SLIPBOX_DATA_DIR;
 };
 
 const LOCAL_STORAGE_DIR = getStorageDir();

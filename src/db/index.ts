@@ -7,18 +7,12 @@ import fs from 'fs/promises';
 import { homedir } from 'os';
 import { EMBEDDED_MIGRATIONS } from './embedded-migrations';
 
-// Use ~/.slipbox-dev in development, require SLIPBOX_DATA_DIR in production
+// ALWAYS require SLIPBOX_DATA_DIR
 const getDbPath = () => {
-  if (process.env.NODE_ENV === 'production') {
-    if (!process.env.SLIPBOX_DATA_DIR) {
-      throw new Error('SLIPBOX_DATA_DIR environment variable is required in production');
-    }
-    return path.join(process.env.SLIPBOX_DATA_DIR, 'slipbox.db');
+  if (!process.env.SLIPBOX_DATA_DIR) {
+    throw new Error('SLIPBOX_DATA_DIR environment variable is required. Run scripts/init.sh to set up.');
   }
-  
-  // Development: use ~/.slipbox-dev
-  const dataDir = process.env.SLIPBOX_DATA_DIR || path.join(homedir(), '.slipbox-dev');
-  return path.join(dataDir, 'slipbox.db');
+  return path.join(process.env.SLIPBOX_DATA_DIR, 'slipbox.db');
 };
 
 const dbPath = getDbPath();

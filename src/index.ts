@@ -4,6 +4,7 @@ import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './services/file-storage';
+import { mediaService } from './services/media-service';
 import { db } from './db/index';
 import { epubReadingPositions } from './db/schema';
 import { eq } from 'drizzle-orm';
@@ -17,6 +18,7 @@ import { ReaderPage } from './templates/ReaderPage';
 import { EpubReaderPage } from './templates/EpubReaderPage';
 import { UploadPage } from './templates/UploadPage';
 import { LoginPage } from './templates/LoginPage';
+import { MediaPage } from './templates/MediaPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -293,6 +295,9 @@ Bun.serve({
       case '/reader':
         return handleReader();
         
+      case '/media':
+        return handleMedia();
+        
       case '/upload':
         return handleUpload();
     }
@@ -346,6 +351,34 @@ Bun.serve({
     const fileUrlMatch = path.match(/^\/api\/files\/([a-f0-9-]+)\/url$/);
     if (fileUrlMatch) {
       return handleGetFileUrl(fileUrlMatch[1]);
+    }
+    
+    // Media file routes
+    const downloadMatch = path.match(/^\/api\/files\/download\/([a-f0-9-]+)$/);
+    if (downloadMatch && req.method === 'GET') {
+      return handleFileDownload(downloadMatch[1]);
+    }
+    
+    const thumbnailMatch = path.match(/^\/api\/files\/thumbnail\/([a-f0-9-]+)$/);
+    if (thumbnailMatch && req.method === 'GET') {
+      return handleThumbnail(thumbnailMatch[1]);
+    }
+    
+    // Direct filesystem media access
+    const mediaFileMatch = path.match(/^\/api\/media\/file\/([a-f0-9]+)$/);
+    if (mediaFileMatch && req.method === 'GET') {
+      const filepath = url.searchParams.get('path');
+      if (filepath) {
+        return handleDirectMediaFile(filepath);
+      }
+    }
+    
+    const mediaThumbnailMatch = path.match(/^\/api\/media\/thumbnail\/([a-f0-9]+)$/);
+    if (mediaThumbnailMatch && req.method === 'GET') {
+      const filepath = url.searchParams.get('path');
+      if (filepath) {
+        return handleDirectMediaThumbnail(filepath);
+      }
     }
 
     // Reading position API endpoints
@@ -566,6 +599,12 @@ function handleUpload(): Response {
   return htmlResponse(UploadPage() as string);
 }
 
+// Media handler
+async function handleMedia(): Promise<Response> {
+  const { files, total } = await mediaService.getAllMediaFiles(100, 0);
+  return htmlResponse(MediaPage({ files, totalFiles: total }) as string);
+}
+
 async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
   try {
     const fileInfo = await fileStorage.getFile(fileId);
@@ -707,6 +746,84 @@ async function handleGetFileUrl(fileId: string): Promise<Response> {
     console.error('Get file URL error:', error);
     return new Response('Failed to get URL', { status: 500 });
   }
+}
+
+// Thumbnail handler for database files
+async function handleThumbnail(fileId: string): Promise<Response> {
+  try {
+    const result = await fileStorage.downloadFile(fileId);
+    if (!result) {
+      return notFound();
+    }
+    
+    // For images, return the image directly (browser will handle resizing)
+    if (result.file.mimeType.startsWith('image/')) {
+      return new Response(result.buffer, {
+        headers: {
+          'Content-Type': result.file.mimeType,
+          'Cache-Control': 'public, max-age=3600'
+        }
+      });
+    }
+    
+    // For other types, return a placeholder
+    return notFound();
+  } catch (error) {
+    console.error('Thumbnail error:', error);
+    return new Response('Thumbnail failed', { status: 500 });
+  }
+}
+
+// Direct filesystem media file handler
+async function handleDirectMediaFile(filepath: string): Promise<Response> {
+  try {
+    const { readFile } = await import('fs/promises');
+    const { join, extname } = await import('path');
+    
+    // Security: prevent directory traversal
+    if (filepath.includes('..') || filepath.includes('/')) {
+      return new Response('Invalid path', { status: 400 });
+    }
+    
+    const fullPath = join(config.dataDir, filepath);
+    const buffer = await readFile(fullPath);
+    
+    // Determine mime type
+    const ext = extname(filepath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.pdf': 'application/pdf',
+      '.epub': 'application/epub+zip'
+    };
+    
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+    
+    return new Response(buffer, {
+      headers: {
+        'Content-Type': mimeType,
+        'Content-Disposition': `inline; filename="${filepath}"`,
+        'Cache-Control': 'public, max-age=3600'
+      }
+    });
+  } catch (error) {
+    console.error('Direct media file error:', error);
+    return notFound();
+  }
+}
+
+// Direct filesystem thumbnail handler
+async function handleDirectMediaThumbnail(filepath: string): Promise<Response> {
+  // For now, just serve the full image for thumbnails
+  // In production, you'd want proper thumbnail generation
+  return handleDirectMediaFile(filepath);
 }
 
 // Reading position handlers

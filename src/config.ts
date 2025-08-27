@@ -1,17 +1,12 @@
 import { homedir } from 'os';
 import { join } from 'path';
 
-// Get the data directory
+// Get the data directory - ALWAYS requires SLIPBOX_DATA_DIR
 const getDataDir = () => {
-  if (process.env.NODE_ENV === 'production') {
-    if (!process.env.SLIPBOX_DATA_DIR) {
-      throw new Error('SLIPBOX_DATA_DIR environment variable is required in production');
-    }
-    return process.env.SLIPBOX_DATA_DIR;
+  if (!process.env.SLIPBOX_DATA_DIR) {
+    throw new Error('SLIPBOX_DATA_DIR environment variable is required. Run scripts/init.sh to set up.');
   }
-  
-  // Development: use SLIPBOX_DATA_DIR if set, otherwise ~/.slipbox-dev
-  return process.env.SLIPBOX_DATA_DIR || join(homedir(), '.slipbox-dev');
+  return process.env.SLIPBOX_DATA_DIR;
 };
 
 export const config = {
