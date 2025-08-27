@@ -43,11 +43,13 @@ async function main() {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const port = await getAvailablePort();
-    console.log(`Starting server on port ${port}...`);
+    console.log(`\n${'='.repeat(50)}`);
+    console.log(`🚀 Starting Slipbox server on port ${port}`);
+    console.log(`${'='.repeat(50)}\n`);
     
     // Start the server with the found port
     const server = spawn('bun', ['--watch', 'src/index.ts'], {
-      env: { ...process.env, PORT: port.toString() },
+      env: { ...process.env, PORT: port.toString(), DEV_MODE: 'true' },
       stdio: 'inherit'
     });
 
@@ -56,15 +58,22 @@ async function main() {
     
     // Open browser
     const url = `http://localhost:${port}`;
-    console.log(`Opening ${url} in browser...`);
+    console.log(`\n📱 Browser opening: ${url}`);
+    console.log(`${'='.repeat(50)}\n`);
     
     const openCommand = process.platform === 'darwin' ? 'open' :
                        process.platform === 'win32' ? 'start' : 'xdg-open';
     
     spawn(openCommand, [url], { detached: true });
 
+    // Show port periodically in dev mode
+    const portReminder = setInterval(() => {
+      console.log(`\n[Slipbox] Server running on http://localhost:${port}`);
+    }, 30000); // Every 30 seconds
+
     // Handle exit
     process.on('SIGINT', () => {
+      clearInterval(portReminder);
       tailwind.kill();
       server.kill();
       process.exit();

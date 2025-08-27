@@ -899,4 +899,11 @@ async function handleGetReadingPosition(fileId: string): Promise<Response> {
   }
 }
 
-console.log(`Slipbox server running at http://localhost:${config.port}`);
+// Make port visible on every restart
+const separator = '='.repeat(50);
+console.log(`\n${separator}`);
+console.log(`🚀 Slipbox server running at http://localhost:${config.port}`);
+if (process.env.DEV_MODE === 'true') {
+  console.log(`📝 Watching for file changes...`);
+}
+console.log(`${separator}\n`);
