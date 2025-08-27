@@ -61,6 +61,7 @@ export class MediaService {
     
     // Get files from database
     const { files: dbFiles, total: dbTotal } = await fileStorage.getAllFiles(1000, 0);
+    console.log(`Found ${dbFiles.length} files in database`);
     
     for (const file of dbFiles) {
       const { type, mimeType } = getMediaType(file.originalName);
@@ -95,6 +96,10 @@ export class MediaService {
     // Scan filesystem for additional media files
     try {
       const files = await readdir(config.dataDir);
+      console.log(`Scanning ${config.dataDir}, found ${files.length} files`);
+      
+      let skipCount = 0;
+      let addCount = 0;
       
       for (const filename of files) {
         // Skip markdown files, metadata files, and database files
@@ -103,6 +108,7 @@ export class MediaService {
             filename.includes('.db') ||
             filename === '.DS_Store' ||
             filename === 'files') {
+          skipCount++;
           continue;
         }
         
@@ -112,6 +118,7 @@ export class MediaService {
         if (stats.isFile()) {
           const { type, mimeType } = getMediaType(filename);
           const fileId = generateFileId(filepath);
+          addCount++;
           
           allFiles.push({
             id: fileId,
@@ -126,15 +133,28 @@ export class MediaService {
           });
         }
       }
+      
+      console.log(`Skipped ${skipCount} files, added ${addCount} files from filesystem`);
     } catch (error) {
       console.error('Error scanning filesystem for media files:', error);
     }
     
-    // Sort by modified date (newest first)
-    allFiles.sort((a, b) => b.modified.getTime() - a.modified.getTime());
+    // Sort by type first, then by modified date (to get a mix of file types)
+    allFiles.sort((a, b) => {
+      if (a.type !== b.type) {
+        // Group by type: images, videos, pdfs, epubs, audio, other
+        const typeOrder = { image: 0, video: 1, pdf: 2, epub: 3, audio: 4, other: 5 };
+        return (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5);
+      }
+      return b.modified.getTime() - a.modified.getTime();
+    });
     
     // Apply pagination
     const paginatedFiles = allFiles.slice(offset, offset + limit);
+    
+    console.log(`Total files: ${allFiles.length}, returning ${paginatedFiles.length} files`);
+    console.log(`File types in ALL: EPUBs: ${allFiles.filter(f => f.type === 'epub').length}, PDFs: ${allFiles.filter(f => f.type === 'pdf').length}, Images: ${allFiles.filter(f => f.type === 'image').length}, Videos: ${allFiles.filter(f => f.type === 'video').length}`);
+    console.log(`File types RETURNED: EPUBs: ${paginatedFiles.filter(f => f.type === 'epub').length}, PDFs: ${paginatedFiles.filter(f => f.type === 'pdf').length}, Images: ${paginatedFiles.filter(f => f.type === 'image').length}, Videos: ${paginatedFiles.filter(f => f.type === 'video').length}`);
     
     return {
       files: paginatedFiles,
