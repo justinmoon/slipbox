@@ -453,7 +453,7 @@ async function handleDeleteNote(id: string): Promise<Response> {
   }
 
   return ServerSentEventGenerator.stream((stream) => {
-    stream.patchElements(`<meta http-equiv="refresh" content="0; url=/">`);
+    stream.patchElements(`<script>window.location.href = '/';</script>`);
   });
 }
 
