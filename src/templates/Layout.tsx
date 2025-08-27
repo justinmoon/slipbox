@@ -19,7 +19,7 @@ export const Layout = ({ title, children }: LayoutProps) => (
       ) : (
         <link rel="stylesheet" href={`/dist/style.css?v=${Date.now()}`} />
       )}
-      <script type="module" src="/client/datastar.js"></script>
+      <script type="module" src="/dist/client/datastar.js"></script>
       {isDev && (
         <script type="text/javascript">{`
           (function() {
