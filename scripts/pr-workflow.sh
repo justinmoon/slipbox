@@ -1,21 +1,40 @@
 #!/bin/bash
 
 # PR workflow script - creates PR, monitors CI, and cleans up
-set -e
+set -euo pipefail
 
 echo "Creating pull request..."
-PR_URL=$(gh pr create 2>&1)
-if [ $? -ne 0 ]; then
-    echo "Failed to create PR"
-    exit 1
+# Use --fill to autofill title and body from commits
+PR_OUTPUT=$(gh pr create --fill --web=false 2>&1)
+PR_EXIT_CODE=$?
+
+if [ $PR_EXIT_CODE -ne 0 ]; then
+    # Check if PR already exists
+    if echo "$PR_OUTPUT" | grep -q "already exists"; then
+        echo "PR already exists, fetching URL..."
+        PR_URL=$(gh pr view --json url --jq '.url')
+    else
+        echo "Failed to create PR: $PR_OUTPUT"
+        exit 1
+    fi
+else
+    PR_URL="$PR_OUTPUT"
 fi
 
 echo "PR created: $PR_URL"
+# Extract PR number from URL
 PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+if [ -z "$PR_NUMBER" ]; then
+    echo "Failed to extract PR number from URL: $PR_URL"
+    exit 1
+fi
 
 # Function to check PR status
 check_pr_status() {
-    gh pr checks "$PR_NUMBER" --json name,status,conclusion --jq '.[] | select(.name == "ci") | .status' 2>/dev/null || echo "PENDING"
+    local status
+    # The CI job is named "test" based on the workflow file
+    status=$(gh pr checks "$PR_NUMBER" --json name,status,conclusion --jq '.[] | select(.name == "test") | .status' 2>/dev/null | head -1)
+    echo "${status:-PENDING}"
 }
 
 # Function to check if PR is merged
@@ -40,7 +59,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     
     if [ "$STATUS" = "COMPLETED" ]; then
         # Check the conclusion
-        CONCLUSION=$(gh pr checks "$PR_NUMBER" --json name,status,conclusion --jq '.[] | select(.name == "ci") | .conclusion' 2>/dev/null)
+        CONCLUSION=$(gh pr checks "$PR_NUMBER" --json name,status,conclusion --jq '.[] | select(.name == "test") | .conclusion' 2>/dev/null | head -1)
         
         if [ "$CONCLUSION" = "SUCCESS" ]; then
             echo "✅ CI passed! Waiting for auto-merge..."
@@ -83,13 +102,19 @@ CURRENT_BRANCH=$(git branch --show-current)
 echo "Current branch: $CURRENT_BRANCH"
 
 # Check if we're in a worktree
-WORKTREE_PATH=$(git rev-parse --show-toplevel 2>/dev/null)
-IS_WORKTREE=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | grep -q "\.git/worktrees" && echo "true" || echo "false")
+WORKTREE_PATH=$(git rev-parse --show-toplevel 2>/dev/null || true)
+if git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | grep -q "\.git/worktrees"; then
+    IS_WORKTREE="true"
+else
+    IS_WORKTREE="false"
+fi
 
 # Switch to main branch first (if not in worktree)
 if [ "$IS_WORKTREE" = "false" ]; then
     echo "Switching to main branch..."
-    git checkout master || git checkout main
+    # Detect the default branch
+    DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "master")
+    git checkout "$DEFAULT_BRANCH" || git checkout master || git checkout main
 fi
 
 # Delete local branch
