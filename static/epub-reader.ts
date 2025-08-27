@@ -20,40 +20,53 @@ interface Book {
 }
 
 interface Rendition {
-  display(): Promise<void>;
+  display(target?: string): Promise<void>;
   resize(): void;
   prev(): void;
   next(): void;
   destroy(): void;
-  on(event: string, handler: (event: TouchEvent) => void): void;
+  on(event: string, handler: (event: any) => void): void;
+  currentLocation(): any;
+  themes: {
+    fontSize(size: string): void;
+  };
 }
 
 class EpubReader extends HTMLElement {
   private book: Book | null = null;
   private rendition: Rendition | null = null;
+  private fileId: string | null = null;
+  private savePositionTimeout: NodeJS.Timeout | null = null;
+  private currentFontSize: number = 100;
 
   constructor() {
     super();
   }
 
   connectedCallback(): void {
+    this.fileId = this.getAttribute('file-id');
     this.innerHTML = `
       <div class="reader-header">
         <button class="reader-btn" id="back-btn">← Back to Library</button>
         <div class="reader-title">Loading...</div>
         <div class="reader-controls">
+          <button class="reader-btn" id="decrease-font-btn">A-</button>
+          <button class="reader-btn" id="increase-font-btn">A+</button>
+          <span class="font-size-display" id="font-size-display">100%</span>
           <button class="reader-btn" id="prev-btn">Previous</button>
           <button class="reader-btn" id="next-btn">Next</button>
         </div>
       </div>
-      <div class="reader-content">
-        <div id="epub-viewer"></div>
+      <div class="reader-content" style="border: none; padding: 0; margin: 0; background: white;">
+        <div id="epub-viewer" style="height: calc(100vh - 120px);"></div>
       </div>
     `;
     
     this.querySelector('#back-btn')!.addEventListener('click', () => this.goBack());
     this.querySelector('#prev-btn')!.addEventListener('click', () => this.prevPage());
     this.querySelector('#next-btn')!.addEventListener('click', () => this.nextPage());
+    this.querySelector('#decrease-font-btn')!.addEventListener('click', () => this.decreaseFontSize());
+    this.querySelector('#increase-font-btn')!.addEventListener('click', () => this.increaseFontSize());
   }
 
   async loadBook(url: string): Promise<void> {
@@ -84,7 +97,30 @@ class EpubReader extends HTMLElement {
         minSpreadWidth: 800
       });
       
-      await this.rendition.display();
+      // Load saved position and font size if exists
+      if (this.fileId) {
+        const position = await this.loadSavedPosition();
+        if (position) {
+          if (position.fontSize) {
+            this.currentFontSize = position.fontSize;
+            this.applyFontSize();
+          }
+          if (position.cfi) {
+            await this.rendition.display(position.cfi);
+          } else {
+            await this.rendition.display();
+          }
+        } else {
+          await this.rendition.display();
+        }
+      } else {
+        await this.rendition.display();
+      }
+      
+      // Set up position saving on location change
+      this.rendition.on('relocated', () => {
+        this.savePositionDebounced();
+      });
       
       document.addEventListener('keyup', this.handleKeyboard.bind(this));
       
@@ -134,16 +170,103 @@ class EpubReader extends HTMLElement {
   private prevPage(): void {
     if (this.rendition) {
       this.rendition.prev();
+      this.savePositionDebounced();
     }
   }
 
   private nextPage(): void {
     if (this.rendition) {
       this.rendition.next();
+      this.savePositionDebounced();
+    }
+  }
+  
+  private async loadSavedPosition(): Promise<{ cfi: string | null; percentage: number; fontSize: number } | null> {
+    if (!this.fileId) return null;
+    
+    try {
+      const response = await fetch(`/api/reading-position/${this.fileId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to load reading position:', error);
+    }
+    return null;
+  }
+  
+  private savePositionDebounced(): void {
+    if (!this.fileId || !this.rendition) return;
+    
+    // Clear existing timeout
+    if (this.savePositionTimeout) {
+      clearTimeout(this.savePositionTimeout);
+    }
+    
+    // Save position after 1 second of no activity
+    this.savePositionTimeout = setTimeout(() => {
+      this.savePosition();
+    }, 1000);
+  }
+  
+  private async savePosition(): Promise<void> {
+    if (!this.fileId || !this.rendition) return;
+    
+    try {
+      const location = this.rendition.currentLocation();
+      if (!location || !location.start) return;
+      
+      const cfi = location.start.cfi;
+      const percentage = location.start.percentage || 0;
+      
+      await fetch('/api/reading-position', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileId: this.fileId,
+          cfi: cfi,
+          percentage: Math.round(percentage * 100),
+          fontSize: this.currentFontSize
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to save reading position:', error);
     }
   }
 
+  private increaseFontSize(): void {
+    if (this.currentFontSize < 200) {
+      this.currentFontSize += 10;
+      this.applyFontSize();
+      this.savePositionDebounced();
+    }
+  }
+  
+  private decreaseFontSize(): void {
+    if (this.currentFontSize > 50) {
+      this.currentFontSize -= 10;
+      this.applyFontSize();
+      this.savePositionDebounced();
+    }
+  }
+  
+  private applyFontSize(): void {
+    if (this.rendition) {
+      this.rendition.themes.fontSize(`${this.currentFontSize}%`);
+      const display = this.querySelector('#font-size-display') as HTMLElement;
+      if (display) {
+        display.textContent = `${this.currentFontSize}%`;
+      }
+    }
+  }
+  
+  
   private goBack(): void {
+    // Save position before leaving
+    this.savePosition();
+    
     if (this.rendition) {
       this.rendition.destroy();
     }

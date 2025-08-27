@@ -31,7 +31,21 @@ export const files = sqliteTable('files', {
   uploadedAtIdx: index('files_uploaded_at_idx').on(table.uploadedAt),
 }));
 
+export const epubReadingPositions = sqliteTable('epub_reading_positions', {
+  id: text('id').primaryKey(),
+  fileId: text('file_id').notNull().references(() => files.id, { onDelete: 'cascade' }),
+  cfi: text('cfi').notNull(), // EPUB CFI (Canonical Fragment Identifier) for precise position
+  percentage: integer('percentage').notNull().default(0), // Reading percentage (0-100)
+  fontSize: integer('font_size').notNull().default(100), // Font size percentage (50-200)
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  fileIdIdx: index('epub_reading_positions_file_id_idx').on(table.fileId),
+  updatedAtIdx: index('epub_reading_positions_updated_at_idx').on(table.updatedAt),
+}));
+
 export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
 export type File = typeof files.$inferSelect;
 export type NewFile = typeof files.$inferInsert;
+export type EpubReadingPosition = typeof epubReadingPositions.$inferSelect;
+export type NewEpubReadingPosition = typeof epubReadingPositions.$inferInsert;

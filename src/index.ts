@@ -4,6 +4,9 @@ import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './services/file-storage';
+import { db } from './db/index';
+import { epubReadingPositions } from './db/schema';
+import { eq } from 'drizzle-orm';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -225,6 +228,16 @@ Bun.serve({
       return handleGetFileUrl(fileUrlMatch[1]);
     }
 
+    // Reading position API endpoints
+    if (path === '/api/reading-position' && req.method === 'POST') {
+      return handleSaveReadingPosition(req);
+    }
+    
+    const positionMatch = path.match(/^\/api\/reading-position\/([a-f0-9-]+)$/);
+    if (positionMatch && req.method === 'GET') {
+      return handleGetReadingPosition(positionMatch[1]);
+    }
+
     return notFound();
   }
 });
@@ -429,7 +442,7 @@ async function handleEpubViewer(fileId: string): Promise<Response> {
     const bookName = fileInfo.originalName.replace(/\.epub$/i, '');
     const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
     
-    return htmlResponse(EpubReaderPage({ bookName, bookUrl }) as string);
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId }) as string);
   } catch (error) {
     console.error('Error fetching book:', error);
     return notFound();
@@ -581,6 +594,79 @@ async function handleGetFileUrl(fileId: string): Promise<Response> {
   } catch (error) {
     console.error('Get file URL error:', error);
     return new Response('Failed to get URL', { status: 500 });
+  }
+}
+
+// Reading position handlers
+async function handleSaveReadingPosition(req: Request): Promise<Response> {
+  try {
+    const data = await req.json() as { fileId: string; cfi: string; percentage: number; fontSize?: number };
+    
+    if (!data.fileId || !data.cfi) {
+      return new Response('Missing required fields', { status: 400 });
+    }
+    
+    // Check if position exists for this file
+    const existing = await db.select()
+      .from(epubReadingPositions)
+      .where(eq(epubReadingPositions.fileId, data.fileId))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      // Update existing position
+      await db.update(epubReadingPositions)
+        .set({
+          cfi: data.cfi,
+          percentage: data.percentage || 0,
+          fontSize: data.fontSize || 100,
+          updatedAt: new Date()
+        })
+        .where(eq(epubReadingPositions.id, existing[0].id));
+    } else {
+      // Create new position
+      await db.insert(epubReadingPositions)
+        .values({
+          id: crypto.randomUUID(),
+          fileId: data.fileId,
+          cfi: data.cfi,
+          percentage: data.percentage || 0,
+          fontSize: data.fontSize || 100,
+          updatedAt: new Date()
+        });
+    }
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Save reading position error:', error);
+    return new Response('Failed to save position', { status: 500 });
+  }
+}
+
+async function handleGetReadingPosition(fileId: string): Promise<Response> {
+  try {
+    const position = await db.select()
+      .from(epubReadingPositions)
+      .where(eq(epubReadingPositions.fileId, fileId))
+      .limit(1);
+    
+    if (position.length === 0) {
+      return new Response(JSON.stringify({ cfi: null, percentage: 0, fontSize: 100 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    return new Response(JSON.stringify({
+      cfi: position[0].cfi,
+      percentage: position[0].percentage,
+      fontSize: position[0].fontSize || 100
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Get reading position error:', error);
+    return new Response('Failed to get position', { status: 500 });
   }
 }
 
