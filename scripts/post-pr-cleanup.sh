@@ -23,11 +23,11 @@ if [ "$IS_WORKTREE" = "false" ]; then
     # Detect the default branch
     DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "master")
     git checkout "$DEFAULT_BRANCH" || git checkout master || git checkout main
+    
+    # Delete local branch
+    echo "Deleting local branch: $CURRENT_BRANCH"
+    git branch -D "$CURRENT_BRANCH" 2>/dev/null || echo "Branch already deleted or doesn't exist"
 fi
-
-# Delete local branch
-echo "Deleting local branch: $CURRENT_BRANCH"
-git branch -D "$CURRENT_BRANCH" 2>/dev/null || echo "Branch already deleted or doesn't exist"
 
 # If in a worktree, remove it
 if [ "$IS_WORKTREE" = "true" ] && [ -n "$WORKTREE_PATH" ]; then
