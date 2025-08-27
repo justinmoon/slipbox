@@ -28,14 +28,14 @@ async function getAvailablePort(startPort = 3000) {
 // Main
 async function main() {
   try {
-    // Ensure static directory exists
-    if (!existsSync('static')) {
-      mkdirSync('static');
+    // Ensure dist directory exists
+    if (!existsSync('dist')) {
+      mkdirSync('dist');
     }
 
     // Start Tailwind CSS watcher
     console.log('Starting Tailwind CSS watcher...');
-    const tailwind = spawn('bunx', ['tailwindcss', '-i', './src/input.css', '-o', './static/style.css', '--watch'], {
+    const tailwind = spawn('bunx', ['tailwindcss', '-i', './src/input.css', '-o', './dist/style.css', '--watch'], {
       stdio: 'inherit'
     });
 
@@ -48,11 +48,6 @@ async function main() {
     // Start the server with the found port
     const server = spawn('bun', ['--watch', 'src/index.ts'], {
       env: { ...process.env, PORT: port.toString() },
-      stdio: 'inherit'
-    });
-    
-    // Start watching static TypeScript files
-    const staticWatch = spawn('node', ['scripts/watch-static.js'], {
       stdio: 'inherit'
     });
 
@@ -72,7 +67,6 @@ async function main() {
     process.on('SIGINT', () => {
       tailwind.kill();
       server.kill();
-      staticWatch.kill();
       process.exit();
     });
 
