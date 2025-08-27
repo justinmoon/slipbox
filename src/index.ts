@@ -441,10 +441,8 @@ async function handleDeleteNote(id: string): Promise<Response> {
     return notFound();
   }
 
-  return ServerSentEventGenerator.stream((stream) => {
-    // Use executeScript to navigate via JavaScript instead of meta refresh
-    stream.executeScript(`window.location.href = '/';`);
-  });
+  // Simple success response - client handles redirect
+  return new Response('OK', { status: 200 });
 }
 
 // Reader handlers

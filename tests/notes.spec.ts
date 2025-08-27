@@ -88,8 +88,7 @@ test.describe('Note Management', () => {
     await expect(page.locator('.prose')).toContainText('Updated content for the note');
   });
 
-  test.skip('should delete notes successfully', async ({ page }) => {
-    // TODO: Fix SSE redirect in CI - works locally but fails in GitHub Actions
+  test('should delete notes successfully', async ({ page }) => {
     // Create a note
     const noteId = await createNote(page);
     await typeInEditor(page, 'Note to be deleted');
