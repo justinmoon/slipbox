@@ -19,7 +19,11 @@ SERVICE_NAME="slipbox"
 
 echo -e "${GREEN}🚀 Starting deployment to DigitalOcean...${NC}"
 
-# Step 1: Build for Linux
+# Step 1: Build client modules and CSS
+echo -e "\n${YELLOW}📦 Building client modules...${NC}"
+bun run build:client
+
+# Step 2: Build for Linux
 echo -e "\n${YELLOW}📦 Building Linux binary...${NC}"
 mkdir -p dist
 bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
@@ -33,31 +37,44 @@ fi
 BINARY_SIZE=$(ls -lh dist/slipbox-linux | awk '{print $5}')
 echo -e "${GREEN}✓ Built binary (${BINARY_SIZE})${NC}"
 
-# Step 2: Compress for faster transfer
+# Step 3: Compress for faster transfer
 echo -e "\n${YELLOW}🗜️  Compressing binary...${NC}"
 gzip -f -c dist/slipbox-linux > dist/slipbox-linux.gz
 COMPRESSED_SIZE=$(ls -lh dist/slipbox-linux.gz | awk '{print $5}')
 echo -e "${GREEN}✓ Compressed to ${COMPRESSED_SIZE}${NC}"
 
-# Step 3: Transfer to server
-echo -e "\n${YELLOW}📤 Uploading to server...${NC}"
-scp -q dist/slipbox-linux.gz ${SERVER}:${APP_DIR}/
+# Step 4: Create deployment package with assets
+echo -e "\n${YELLOW}📦 Creating deployment package...${NC}"
+tar -czf dist/slipbox-deploy.tar.gz -C dist slipbox-linux.gz client style.css 2>/dev/null || true
+DEPLOY_SIZE=$(ls -lh dist/slipbox-deploy.tar.gz | awk '{print $5}')
+echo -e "${GREEN}✓ Deployment package: ${DEPLOY_SIZE}${NC}"
 
-# Step 4: Deploy on server
+# Step 5: Transfer to server
+echo -e "\n${YELLOW}📤 Uploading to server...${NC}"
+scp -q dist/slipbox-deploy.tar.gz ${SERVER}:${APP_DIR}/
+
+# Step 6: Deploy on server
 echo -e "\n${YELLOW}🔄 Deploying on server...${NC}"
 ssh ${SERVER} << 'ENDSSH'
     set -e
     cd ~/apps/slipbox
     
-    # Backup current binary if it exists
+    # Backup current deployment
     if [ -f slipbox-server ]; then
         cp slipbox-server slipbox-server.backup
+        [ -d dist ] && cp -r dist dist.backup
     fi
     
-    # Extract and rename new binary
+    # Extract deployment package
+    tar -xzf slipbox-deploy.tar.gz
     gunzip -f slipbox-linux.gz
     mv slipbox-linux slipbox-server
     chmod +x slipbox-server
+    
+    # Create dist directory structure
+    mkdir -p dist
+    [ -d client ] && mv client dist/
+    [ -f style.css ] && mv style.css dist/
     
     # Restart service
     sudo systemctl restart slipbox

@@ -1,6 +1,5 @@
 import Html from '@kitajs/html';
 import { EMBEDDED_CSS } from '../styles';
-import { EMBEDDED_DATASTAR } from '../datastar';
 
 interface LayoutProps {
   title: string;
@@ -18,13 +17,9 @@ export const Layout = ({ title, children }: LayoutProps) => (
       {EMBEDDED_CSS ? (
         <style>{EMBEDDED_CSS}</style>
       ) : (
-        <link rel="stylesheet" href={`/static/style.css?v=${Date.now()}`} />
+        <link rel="stylesheet" href={`/dist/style.css?v=${Date.now()}`} />
       )}
-      {EMBEDDED_DATASTAR ? (
-        <script type="module">{EMBEDDED_DATASTAR}</script>
-      ) : (
-        <script type="module" src="/static/datastar.min.js"></script>
-      )}
+      <script type="module" src="/client/datastar.js"></script>
       {isDev && (
         <script type="text/javascript">{`
           (function() {

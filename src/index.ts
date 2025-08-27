@@ -7,6 +7,7 @@ import { fileStorage } from './services/file-storage';
 import { db } from './db/index';
 import { epubReadingPositions } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { embeddedAssets } from './embed-assets';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -87,10 +88,99 @@ async function getEpubFiles(): Promise<EpubFile[]> {
   }
 }
 
-// Helper to serve static files (for development)
+// Helper to serve static files and transpile TypeScript on the fly in development
 async function serveStatic(path: string): Promise<Response> {
-  const file = Bun.file(join(__dirname, '..', path));
-  return new Response(file);
+  const isDev = process.env.NODE_ENV !== 'production';
+  const isCompiled = import.meta.url.startsWith('file:/$bunfs/');
+  
+  // In development, serve TypeScript files directly with transpilation
+  if (isDev && !isCompiled && path.startsWith('/client/') && path.endsWith('.ts')) {
+    const tsPath = join(__dirname, '..', 'src', path);
+    const file = Bun.file(tsPath);
+    
+    if (await file.exists()) {
+      const content = await file.text();
+      const result = await Bun.build({
+        entrypoints: [tsPath],
+        target: 'browser',
+        minify: false,
+        sourcemap: 'inline',
+      });
+      
+      if (result.success && result.outputs.length > 0) {
+        return new Response(await result.outputs[0].text(), {
+          headers: { 'Content-Type': 'application/javascript' }
+        });
+      }
+    }
+  }
+  
+  // Handle different path types
+  let filePath: string;
+  if (path.startsWith('/dist/')) {
+    // Already a dist path
+    filePath = path;
+  } else if (path.startsWith('/client/')) {
+    // Client module - serve from dist/client
+    filePath = `/dist${path}`;
+  } else if (path.startsWith('/static/')) {
+    // Legacy static path - try dist first
+    filePath = path.replace('/static/', '/dist/');
+  } else {
+    filePath = path;
+  }
+  
+  // Check embedded assets first (for production builds)
+  if (embeddedAssets.has(filePath)) {
+    const content = embeddedAssets.get(filePath)!;
+    const contentType = filePath.endsWith('.js') ? 'application/javascript' :
+                       filePath.endsWith('.css') ? 'text/css' :
+                       'application/octet-stream';
+    return new Response(content, {
+      headers: { 'Content-Type': contentType }
+    });
+  }
+  
+  // When running as compiled binary, look for files relative to the binary location
+  if (isCompiled) {
+    // Get the directory where the binary is located
+    const binaryDir = process.cwd();
+    const localFilePath = join(binaryDir, filePath);
+    const localFile = Bun.file(localFilePath);
+    
+    if (await localFile.exists()) {
+      const ext = filePath.split('.').pop();
+      const contentType = 
+        ext === 'js' ? 'application/javascript' :
+        ext === 'css' ? 'text/css' :
+        ext === 'html' ? 'text/html' : 
+        'application/octet-stream';
+      
+      return new Response(localFile, {
+        headers: { 'Content-Type': contentType }
+      });
+    }
+  }
+  
+  // Try to serve from filesystem (development mode)
+  const file = Bun.file(join(__dirname, '..', filePath));
+  
+  if (await file.exists()) {
+    const ext = filePath.split('.').pop();
+    const contentType = 
+      ext === 'js' ? 'application/javascript' :
+      ext === 'css' ? 'text/css' :
+      ext === 'html' ? 'text/html' : 
+      'application/octet-stream';
+    
+    return new Response(file, {
+      headers: { 'Content-Type': contentType }
+    });
+  }
+  
+  // Fallback for backward compatibility
+  const fallbackFile = Bun.file(join(__dirname, '..', path));
+  return new Response(fallbackFile);
 }
 
 // Helper to create HTML response
@@ -112,7 +202,7 @@ function needsAuth(path: string): boolean {
   // Login page doesn't need auth
   if (path === '/login') return false;
   // Static files don't need auth
-  if (path.startsWith('/static/')) return false;
+  if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) return false;
   // Hot-reload SSE doesn't need auth (development only)
   if (path === '/hot-reload-sse') return false;
   return true;
@@ -171,8 +261,8 @@ Bun.serve({
       );
     }
 
-    // Static files (only needed in development, production uses embedded CSS)
-    if (path.startsWith('/static/')) {
+    // Static files and client modules
+    if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) {
       return serveStatic(path);
     }
 
