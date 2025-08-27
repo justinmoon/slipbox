@@ -38,10 +38,10 @@ if [ "$IS_WORKTREE" = "true" ] && [ -n "$WORKTREE_PATH" ]; then
     git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || echo "Worktree already removed"
 fi
 
-# Close tmux pane if we're in tmux
+# Close tmux window if we're in tmux
 if [ -n "$TMUX" ]; then
-    echo "Detected tmux session, closing pane..."
-    tmux kill-pane
+    echo "Detected tmux session, closing window..."
+    tmux kill-window
 fi
 
 echo "✨ Cleanup complete!"
