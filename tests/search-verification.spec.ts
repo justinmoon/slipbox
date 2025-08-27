@@ -70,7 +70,20 @@ test.describe('Search Verification Test', () => {
     console.log('Typed "unicorn" in search box');
     
     // Wait for debounce (500ms) + network request + DOM update
-    await page.waitForTimeout(2000);
+    // Better: wait for the DOM to actually change
+    await page.waitForFunction(
+      (expectedCount) => {
+        const articles = document.querySelectorAll('#notes-grid article');
+        // Either we get 1 result, or we get a "No notes found" message
+        const noResultsMsg = document.querySelector('#notes-grid p')?.textContent?.includes('No notes found');
+        return articles.length === expectedCount || noResultsMsg;
+      },
+      1, // expected count
+      { timeout: 5000 }
+    ).catch(() => {
+      // If wait fails, continue to get diagnostic info
+      console.log('Note: waitForFunction timed out, continuing with diagnostics');
+    });
     
     // Step 5: Count search results
     noteCards = page.locator('#notes-grid article');

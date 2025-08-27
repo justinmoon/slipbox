@@ -7,6 +7,7 @@ import { fileStorage } from './services/file-storage';
 import { db } from './db/index';
 import { epubReadingPositions } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { embeddedAssets } from './embed-assets';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -127,6 +128,17 @@ async function serveStatic(path: string): Promise<Response> {
     filePath = path.replace('/static/', '/dist/');
   } else {
     filePath = path;
+  }
+  
+  // Check embedded assets first (for production builds)
+  if (embeddedAssets.has(filePath)) {
+    const content = embeddedAssets.get(filePath)!;
+    const contentType = filePath.endsWith('.js') ? 'application/javascript' :
+                       filePath.endsWith('.css') ? 'text/css' :
+                       'application/octet-stream';
+    return new Response(content, {
+      headers: { 'Content-Type': contentType }
+    });
   }
   
   // When running as compiled binary, look for files relative to the binary location
