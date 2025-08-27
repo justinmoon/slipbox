@@ -1,4 +1,3 @@
--- Create notes table (without title and preview fields that were removed in migration 0001)
 CREATE TABLE `notes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`content` text NOT NULL,
@@ -12,8 +11,6 @@ CREATE INDEX `notes_updated_at_idx` ON `notes` (`updated_at`);
 --> statement-breakpoint
 CREATE INDEX `notes_created_at_idx` ON `notes` (`created_at`);
 --> statement-breakpoint
-
--- Create files table (with file_key instead of tigris columns from migration 0002)
 CREATE TABLE `files` (
 	`id` text PRIMARY KEY NOT NULL,
 	`original_name` text NOT NULL,
@@ -29,16 +26,12 @@ CREATE INDEX `files_note_id_idx` ON `files` (`note_id`);
 --> statement-breakpoint
 CREATE INDEX `files_uploaded_at_idx` ON `files` (`uploaded_at`);
 --> statement-breakpoint
-
--- Create note_search_index table
 CREATE TABLE `note_search_index` (
 	`id` text PRIMARY KEY NOT NULL,
 	`content` text NOT NULL,
 	FOREIGN KEY (`id`) REFERENCES `notes`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-
--- Create epub_reading_positions table (with font_size from migration 0004)
 CREATE TABLE `epub_reading_positions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`file_id` text NOT NULL,
