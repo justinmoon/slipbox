@@ -11,13 +11,14 @@ export const Nav = ({ currentPage, hideableClass = 'nav-hideable', isHidden = fa
     { href: '/', label: 'Notes', page: 'home' },
     { href: '/reader', label: 'Reader', page: 'reader' },
     { href: '/upload', label: 'Upload', page: 'upload' },
-    { href: '/new', label: 'New Note', page: 'new' }
+    { href: '/new', label: 'New Note', page: 'new' },
+    { href: '/logout', label: 'Logout', page: 'logout' }
   ];
 
   return (
     <header 
-      class={`flex justify-between items-center mb-8 pb-4 border-b-4 border-double border-dark transition-transform duration-300 ${hideableClass} ${isHidden ? '-translate-y-full' : ''}`}
-      style={isHidden ? 'transform: translateY(-100%);' : ''}
+      class={`flex justify-between items-center mb-8 transition-transform duration-300 ${hideableClass} ${isHidden ? '-translate-y-full' : ''}`}
+      style={isHidden ? 'display: none;' : ''}
     >
       <h1 class="text-4xl font-bold">
         <a href="/" class="no-underline hover:underline">Slipbox</a>

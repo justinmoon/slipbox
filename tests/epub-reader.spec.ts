@@ -1,8 +1,26 @@
 import { test, expect } from '@playwright/test';
 
+// Helper function to authenticate
+async function authenticate(page: any) {
+  // Go to login page
+  await page.goto('http://localhost:3003/login');
+  
+  // Fill in password and submit
+  await page.fill('input[type="password"]', 'Golf1234');
+  await page.click('button[type="submit"]');
+  
+  // Wait for redirect to home page
+  await page.waitForURL('http://localhost:3003/');
+}
+
 test.describe('EPUB Reader', () => {
+  test.beforeEach(async ({ page }) => {
+    // Authenticate before each test
+    await authenticate(page);
+  });
+  
   test('reader page loads and displays library', async ({ page }) => {
-    await page.goto('/reader');
+    await page.goto('http://localhost:3003/reader');
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');
@@ -36,8 +54,8 @@ test.describe('EPUB Reader', () => {
   });
 
   test('navigation between notes and reader works', async ({ page }) => {
-    // Start at home page
-    await page.goto('/');
+    // Start at home page (already authenticated in beforeEach)
+    await page.goto('http://localhost:3003/');
     await page.waitForLoadState('networkidle');
     
     // Should have navigation
@@ -69,7 +87,7 @@ test.describe('EPUB Reader', () => {
   });
 
   test('epub viewer page loads when clicking a book', async ({ page }) => {
-    await page.goto('/reader');
+    await page.goto('http://localhost:3003/reader');
     await page.waitForLoadState('networkidle');
     
     // Check if there are any books

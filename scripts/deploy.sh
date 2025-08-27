@@ -89,9 +89,6 @@ ENDSSH
 
 if [ $? -eq 0 ]; then
     echo -e "\n${GREEN}✅ Deployment successful!${NC}"
-    echo -e "${GREEN}📊 Your app is running at:${NC}"
-    echo -e "  • Local: http://167.99.112.42:3000"
-    echo -e "  • HTTPS: https://slipbox.anson.click (when DNS is configured)"
     
     # Clean up is handled by gitignore on dist folder
     echo -e "\n${YELLOW}💡 Tip: Check logs with: ssh ${SERVER} 'sudo journalctl -u slipbox -f'${NC}"

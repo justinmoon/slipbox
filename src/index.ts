@@ -4,6 +4,9 @@ import { config } from './config';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './services/file-storage';
+import { db } from './db/index';
+import { epubReadingPositions } from './db/schema';
+import { eq } from 'drizzle-orm';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -13,6 +16,7 @@ import { EditNotePage } from './templates/EditNotePage';
 import { ReaderPage } from './templates/ReaderPage';
 import { EpubReaderPage } from './templates/EpubReaderPage';
 import { UploadPage } from './templates/UploadPage';
+import { LoginPage } from './templates/LoginPage';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +25,40 @@ const storage = new NoteStorage();
 
 // Initialize storage services
 await fileStorage.initialize();
+
+// Simple in-memory session storage
+const sessions = new Map<string, { expires: number }>();
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const PASSWORD = 'Golf1234';
+
+// Generate session token
+function generateSessionToken(): string {
+  return crypto.randomUUID();
+}
+
+// Check if session is valid
+function isValidSession(token: string | null): boolean {
+  if (!token) return false;
+  const session = sessions.get(token);
+  if (!session) return false;
+  if (Date.now() > session.expires) {
+    sessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+// Get session token from cookie
+function getSessionToken(req: Request): string | null {
+  const cookieHeader = req.headers.get('Cookie');
+  if (!cookieHeader) return null;
+  
+  const cookies = cookieHeader.split(';').map(c => c.trim());
+  const sessionCookie = cookies.find(c => c.startsWith('session='));
+  if (!sessionCookie) return null;
+  
+  return sessionCookie.split('=')[1];
+}
 
 interface EpubFile {
   id: string;
@@ -68,12 +106,69 @@ function notFound(): Response {
   return new Response('Not found', { status: 404 });
 }
 
+// Check if request needs authentication
+function needsAuth(path: string): boolean {
+  // Login page doesn't need auth
+  if (path === '/login') return false;
+  // Static files don't need auth
+  if (path.startsWith('/static/')) return false;
+  // Hot-reload SSE doesn't need auth (development only)
+  if (path === '/hot-reload-sse') return false;
+  return true;
+}
+
 // Main server
 Bun.serve({
   port: config.port,
   async fetch(req: Request) {
     const url = new URL(req.url);
     const path = url.pathname;
+    
+    // Check authentication for protected routes
+    if (needsAuth(path)) {
+      const sessionToken = getSessionToken(req);
+      if (!isValidSession(sessionToken)) {
+        // Redirect to login page
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': '/login'
+          }
+        });
+      }
+    }
+
+    // Hot-reload SSE endpoint for development
+    if (path === '/hot-reload-sse' && process.env.NODE_ENV !== 'production') {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            // Send initial connection message
+            controller.enqueue(encoder.encode(':connected\n\n'));
+            
+            // Keep connection alive with periodic pings
+            const pingInterval = setInterval(() => {
+              try {
+                controller.enqueue(encoder.encode(':ping\n\n'));
+              } catch (e) {
+                clearInterval(pingInterval);
+              }
+            }, 30000);
+          },
+          cancel() {
+            // Client disconnected
+          }
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        }
+      );
+    }
 
     // Static files (only needed in development, production uses embedded CSS)
     if (path.startsWith('/static/')) {
@@ -83,6 +178,17 @@ Bun.serve({
 
     // Routes
     switch (path) {
+      case '/login':
+        if (req.method === 'GET') {
+          return handleLoginPage();
+        } else if (req.method === 'POST') {
+          return handleLogin(req);
+        }
+        break;
+        
+      case '/logout':
+        return handleLogout(req);
+        
       case '/':
         return handleHome(url);
       
@@ -156,11 +262,63 @@ Bun.serve({
       return handleGetFileUrl(fileUrlMatch[1]);
     }
 
+    // Reading position API endpoints
+    if (path === '/api/reading-position' && req.method === 'POST') {
+      return handleSaveReadingPosition(req);
+    }
+    
+    const positionMatch = path.match(/^\/api\/reading-position\/([a-f0-9-]+)$/);
+    if (positionMatch && req.method === 'GET') {
+      return handleGetReadingPosition(positionMatch[1]);
+    }
+
     return notFound();
   }
 });
 
 // Route handlers
+function handleLoginPage(): Response {
+  return htmlResponse(LoginPage({}) as string);
+}
+
+async function handleLogin(req: Request): Promise<Response> {
+  const formData = await req.formData();
+  const password = formData.get('password') as string;
+  
+  if (password === PASSWORD) {
+    // Create session
+    const token = generateSessionToken();
+    sessions.set(token, { expires: Date.now() + SESSION_DURATION });
+    
+    // Redirect to home with session cookie
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': '/',
+        'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
+      }
+    });
+  } else {
+    // Show error
+    return htmlResponse(LoginPage({ error: 'Invalid password' }) as string);
+  }
+}
+
+function handleLogout(req: Request): Response {
+  const sessionToken = getSessionToken(req);
+  if (sessionToken) {
+    sessions.delete(sessionToken);
+  }
+  
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': '/login',
+      'Set-Cookie': 'session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+    }
+  });
+}
+
 async function handleHome(url: URL): Promise<Response> {
   const page = parseInt(url.searchParams.get('page') || '1');
   const pageSize = Math.min(
@@ -295,7 +453,7 @@ async function handleDeleteNote(id: string): Promise<Response> {
   }
 
   return ServerSentEventGenerator.stream((stream) => {
-    stream.mergeFragments(`<meta http-equiv="refresh" content="0; url=/">`);
+    stream.mergeFragments(`<script>window.location.href = '/';</script>`)
   });
 }
 
@@ -318,7 +476,7 @@ async function handleEpubViewer(fileId: string): Promise<Response> {
     const bookName = fileInfo.originalName.replace(/\.epub$/i, '');
     const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
     
-    return htmlResponse(EpubReaderPage({ bookName, bookUrl }) as string);
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId }) as string);
   } catch (error) {
     console.error('Error fetching book:', error);
     return notFound();
@@ -470,6 +628,79 @@ async function handleGetFileUrl(fileId: string): Promise<Response> {
   } catch (error) {
     console.error('Get file URL error:', error);
     return new Response('Failed to get URL', { status: 500 });
+  }
+}
+
+// Reading position handlers
+async function handleSaveReadingPosition(req: Request): Promise<Response> {
+  try {
+    const data = await req.json() as { fileId: string; cfi: string; percentage: number; fontSize?: number };
+    
+    if (!data.fileId || !data.cfi) {
+      return new Response('Missing required fields', { status: 400 });
+    }
+    
+    // Check if position exists for this file
+    const existing = await db.select()
+      .from(epubReadingPositions)
+      .where(eq(epubReadingPositions.fileId, data.fileId))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      // Update existing position
+      await db.update(epubReadingPositions)
+        .set({
+          cfi: data.cfi,
+          percentage: data.percentage || 0,
+          fontSize: data.fontSize || 100,
+          updatedAt: new Date()
+        })
+        .where(eq(epubReadingPositions.id, existing[0].id));
+    } else {
+      // Create new position
+      await db.insert(epubReadingPositions)
+        .values({
+          id: crypto.randomUUID(),
+          fileId: data.fileId,
+          cfi: data.cfi,
+          percentage: data.percentage || 0,
+          fontSize: data.fontSize || 100,
+          updatedAt: new Date()
+        });
+    }
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Save reading position error:', error);
+    return new Response('Failed to save position', { status: 500 });
+  }
+}
+
+async function handleGetReadingPosition(fileId: string): Promise<Response> {
+  try {
+    const position = await db.select()
+      .from(epubReadingPositions)
+      .where(eq(epubReadingPositions.fileId, fileId))
+      .limit(1);
+    
+    if (position.length === 0) {
+      return new Response(JSON.stringify({ cfi: null, percentage: 0, fontSize: 100 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    return new Response(JSON.stringify({
+      cfi: position[0].cfi,
+      percentage: position[0].percentage,
+      fontSize: position[0].fontSize || 100
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Get reading position error:', error);
+    return new Response('Failed to get position', { status: 500 });
   }
 }
 

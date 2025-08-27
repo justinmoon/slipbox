@@ -80,11 +80,15 @@
   }
 
   .reader-controls {
-    @apply flex gap-2;
+    @apply flex gap-2 items-center;
   }
 
   .reader-content {
     @apply border-2 border-dark p-4 bg-white;
+  }
+  
+  .font-size-display {
+    @apply px-2 text-sm font-mono;
   }
 }
 
