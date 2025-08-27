@@ -164,7 +164,45 @@ export class SqliteNoteStorage {
   }
 
   async renderMarkdown(content: string): Promise<string> {
-    return await marked(content);
+    // Create a new Marked instance to avoid conflicts
+    const { Marked } = await import('marked');
+    const markedInstance = new Marked();
+    
+    // Configure marked to handle epub:// links
+    const renderer = {
+      link(href: string | null | undefined, title: string | null | undefined, text: string): string | false {
+        // Ensure href is a string
+        const hrefStr = String(href || '');
+        
+        // Handle epub:// links specially
+        if (hrefStr && hrefStr.startsWith('epub://')) {
+          // Parse the epub link: epub://fileId#cfi
+          const match = hrefStr.match(/^epub:\/\/([^#]+)#(.+)$/);
+          if (match) {
+            const [, fileId, cfi] = match;
+            // Convert to a proper web URL
+            const webUrl = `/epub/${fileId}#${cfi}`;
+            // Escape the text to prevent XSS
+            const escapedText = text.replace(/[&<>"']/g, (char) => {
+              const escapes: Record<string, string> = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+              };
+              return escapes[char] || char;
+            });
+            return `<a href="${webUrl}" class="epub-link" data-file-id="${fileId}" data-cfi="${cfi}">${escapedText}</a>`;
+          }
+        }
+        // Return false to use the default renderer for other links
+        return false;
+      }
+    };
+    
+    markedInstance.use({ renderer });
+    return await markedInstance.parse(content);
   }
 
   private countWords(content: string): number {

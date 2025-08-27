@@ -34,18 +34,28 @@ sqlite.exec("PRAGMA temp_store = MEMORY");
 
 export const db = drizzle(sqlite, { schema });
 
+// Create migrations tracking table if it doesn't exist
+const initMigrationsTable = () => {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hash TEXT NOT NULL UNIQUE,
+      created_at INTEGER DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
 // Simple migration runner that checks if tables exist
 const runEmbeddedMigrations = async () => {
   try {
-    // Check if notes table exists (indicates DB is already set up)
-    const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'").all();
+    // Initialize migrations tracking table
+    initMigrationsTable();
     
-    if (tables.length > 0) {
-      // Double-check that the table has data before skipping
-      const count = sqlite.query("SELECT COUNT(*) as count FROM notes").get() as { count: number };
-      console.log(`Database already initialized with ${count.count} notes, skipping migrations`);
-      return;
-    }
+    // Get list of already applied migrations
+    const appliedMigrations = sqlite.query(
+      "SELECT hash FROM __drizzle_migrations"
+    ).all() as { hash: string }[];
+    const appliedSet = new Set(appliedMigrations.map(m => m.hash));
     
     console.log('Initializing new database with embedded migrations...');
     
@@ -59,8 +69,15 @@ const runEmbeddedMigrations = async () => {
     const journal = JSON.parse(journalContent);
     
     // Apply migrations in order
+    let appliedCount = 0;
     for (const entry of journal.entries) {
       const migrationFile = `${entry.tag}.sql`;
+      
+      // Skip if already applied
+      if (appliedSet.has(entry.tag)) {
+        continue;
+      }
+      
       const migrationSql = EMBEDDED_MIGRATIONS[migrationFile];
       
       if (!migrationSql) {
@@ -69,6 +86,7 @@ const runEmbeddedMigrations = async () => {
       }
       
       console.log(`Applying migration: ${migrationFile}`);
+      appliedCount++;
       
       // Split by statement-breakpoint markers (Drizzle's format)
       const statements = migrationSql
@@ -85,10 +103,19 @@ const runEmbeddedMigrations = async () => {
         }
       }
       
+      // Record that this migration was applied
+      sqlite.query(
+        "INSERT INTO __drizzle_migrations (hash) VALUES (?)"
+      ).run(entry.tag);
+      
       console.log(`Migration ${migrationFile} applied successfully`);
     }
     
-    console.log('All embedded migrations completed');
+    if (appliedCount > 0) {
+      console.log(`Applied ${appliedCount} new migrations`);
+    } else {
+      console.log('All migrations already applied');
+    }
   } catch (error) {
     console.error('Embedded migration failed:', error);
     // In production, we might want to continue anyway if DB already exists
@@ -104,6 +131,9 @@ const runMigrations = async () => {
   } else {
     // Fall back to file-based migrations (for development)
     try {
+      // Initialize migrations tracking table for file-based migrations too
+      initMigrationsTable();
+      
       // Check if files table exists and fix schema if needed
       try {
         const filesColumns = sqlite.query("PRAGMA table_info(files)").all() as Array<{name: string}>;
@@ -163,8 +193,14 @@ const runMigrations = async () => {
       console.log('Running file-based migrations from:', migrationsPath);
       console.log('Database path:', dbPath);
       console.log('NODE_ENV:', process.env.NODE_ENV);
+      
+      // Use drizzle's migrate function which handles tracking internally
       await migrate(db, { migrationsFolder: migrationsPath });
       console.log('Database migrations completed');
+      
+      // Log current state
+      const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[];
+      console.log('Current tables:', tables.map(t => t.name).join(', '));
     } catch (error) {
       console.error('File-based migration failed:', error);
       // Don't throw in production - app will use whatever database state exists

@@ -301,6 +301,12 @@ Bun.serve({
         // Create empty note and redirect to edit page
         return handleCreateEmptyNote();
         
+      case '/api/note':
+        if (req.method === 'POST') {
+          return handleCreateNote(req);
+        }
+        break;
+        
       case '/reader':
         return handleReader();
         
@@ -330,10 +336,12 @@ Bun.serve({
     }
 
     // Reader routes - Handle the epub viewer page
-    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)$/);
+    // Support both /epub/fileId and /epub/fileId#cfi for deep linking
+    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)/);
     if (epubViewerMatch) {
       const fileId = epubViewerMatch[1];
-      return handleEpubViewer(fileId);
+      const cfi = url.hash ? url.hash.substring(1) : null;
+      return handleEpubViewer(fileId, cfi);
     }
 
     // Serve EPUB file content
@@ -604,6 +612,24 @@ async function handleCreateEmptyNote(): Promise<Response> {
   });
 }
 
+async function handleCreateNote(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const content = body.content || '';
+    
+    // Create the note
+    const note = await storage.createNote(content);
+    
+    // Return the note ID
+    return new Response(JSON.stringify({ id: note.id }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error creating note:', error);
+    return new Response('Failed to create note', { status: 500 });
+  }
+}
+
 
 async function handleEditNote(id: string): Promise<Response> {
   const note = await storage.getNote(id);
@@ -653,8 +679,8 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
-async function handleEpubViewer(fileId: string): Promise<Response> {
-  console.log('handleEpubViewer called for:', fileId);
+async function handleEpubViewer(fileId: string, cfi: string | null = null): Promise<Response> {
+  console.log('handleEpubViewer called for:', fileId, 'with CFI:', cfi);
   
   // Get file info from storage
   try {
@@ -666,7 +692,7 @@ async function handleEpubViewer(fileId: string): Promise<Response> {
     const bookName = fileInfo.originalName.replace(/\.epub$/i, '');
     const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
     
-    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId }) as string);
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId, cfi }) as string);
   } catch (error) {
     console.error('Error fetching book:', error);
     return notFound();
