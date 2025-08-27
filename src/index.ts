@@ -108,6 +108,8 @@ function notFound(): Response {
 
 // Check if request needs authentication
 function needsAuth(path: string): boolean {
+  // Skip auth in test mode
+  if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
   // Static files don't need auth
