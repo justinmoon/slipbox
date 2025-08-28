@@ -33,20 +33,15 @@ test.describe("EPUB Reader", () => {
     const heading = page.locator('h2:has-text("Your Library")');
     await expect(heading).toBeVisible();
 
-    // Check for book links (new structure uses a[href^="/epub/"])
+    // Check for book links
     const bookLinks = await page.locator('a[href^="/epub/"]').all();
 
     if (bookLinks.length === 0) {
-      // Should show empty library message
+      // CI environment has no EPUBs - verify empty state message
       const emptyMessage = page.locator('p:has-text("No EPUB files found")');
       await expect(emptyMessage).toBeVisible();
-      console.log("No EPUB files found in library. Test passes with empty state.");
     } else {
-      // Should have at least one book
-      console.log(`Found ${bookLinks.length} books in library`);
-      expect(bookLinks.length).toBeGreaterThan(0);
-
-      // Verify book elements have expected structure
+      // Local environment has EPUBs - verify first book structure
       const firstBook = bookLinks[0];
       const bookTitle = await firstBook.locator("h3").textContent();
       expect(bookTitle).toBeTruthy();
@@ -90,34 +85,33 @@ test.describe("EPUB Reader", () => {
     await page.goto("http://localhost:3003/reader");
     await page.waitForLoadState("networkidle");
 
-    // Check if there are any books
+    // Get the first book link
     const bookLinks = await page.locator('a[href^="/epub/"]').all();
 
-    if (bookLinks.length > 0) {
-      // Get the first book's href
-      const firstBookHref = await bookLinks[0].getAttribute("href");
-      expect(firstBookHref).toBeTruthy();
-      console.log("Clicking on book:", firstBookHref);
-
-      // Click on the first book
-      await bookLinks[0].click();
-
-      // Should navigate to the epub viewer page
-      await page.waitForURL(/\/epub\/[a-f0-9-]+$/);
-
-      // Wait for the epub-reader container to exist
-      const container = page.locator("#epub-reader-container");
-      await expect(container).toBeVisible({ timeout: 5000 });
-
-      // Wait for the epub-reader web component to be created and visible
-      await page.waitForSelector("epub-reader", { state: "attached", timeout: 10000 });
-
-      // Verify the epub-reader element exists
-      const epubReaderExists = await page.locator("epub-reader").count();
-      expect(epubReaderExists).toBeGreaterThan(0);
-      console.log("EPUB reader component loaded successfully");
-    } else {
-      console.log("No books available to test viewer functionality");
+    if (bookLinks.length === 0) {
+      // Skip test if no books available (CI environment)
+      console.log("No books available, skipping epub viewer test");
+      return;
     }
+
+    const firstBookHref = await bookLinks[0].getAttribute("href");
+    expect(firstBookHref).toBeTruthy();
+
+    // Click on the first book
+    await bookLinks[0].click();
+
+    // Should navigate to the epub viewer page
+    await page.waitForURL(/\/epub\/[a-f0-9-]+$/);
+
+    // Wait for the epub-reader container to exist
+    const container = page.locator("#epub-reader-container");
+    await expect(container).toBeVisible({ timeout: 5000 });
+
+    // Wait for the epub-reader web component to be created and visible
+    await page.waitForSelector("epub-reader", { state: "attached", timeout: 10000 });
+
+    // Verify the epub-reader element exists
+    const epubReaderExists = await page.locator("epub-reader").count();
+    expect(epubReaderExists).toBeGreaterThan(0);
   });
 });

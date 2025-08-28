@@ -39,6 +39,9 @@ success() {
 # Trap errors and log them loudly
 trap 'error "Script failed at line $LINENO with exit code $?. Command: $BASH_COMMAND"' ERR
 
+# Variables to track what failed
+SCRIPT_WINDOW=""
+
 log "========================================="
 log "Starting post-PR cleanup script"
 log "========================================="
@@ -56,12 +59,32 @@ if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
     log "Attempting to get window ID for pane $TMUX_PANE..."
     
     # Get the window ID for the pane running this script
-    if SCRIPT_WINDOW=$(tmux list-panes -F '#{pane_id} #{window_id}' | grep "^$TMUX_PANE " | awk '{print $2}'); then
-        log "Found tmux window: $SCRIPT_WINDOW"
+    # Use display-message to reliably get the window_id for the current pane
+    if command -v tmux >/dev/null 2>&1; then
+        # Temporarily disable error trap to handle tmux command properly
+        set +e
+        SCRIPT_WINDOW=$(tmux display-message -p -t "$TMUX_PANE" '#{window_id}' 2>&1)
+        TMUX_EXIT_CODE=$?
+        set -e
+        
+        if [ $TMUX_EXIT_CODE -eq 0 ] && [ -n "$SCRIPT_WINDOW" ]; then
+            log "Found tmux window: $SCRIPT_WINDOW for pane $TMUX_PANE"
+            
+            # Also log some debugging info
+            log "Debug: Current tmux windows:"
+            tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null | while read line; do
+                log "  $line"
+            done || true
+        else
+            warn "Could not get tmux window ID for pane $TMUX_PANE"
+            warn "tmux command exit code: $TMUX_EXIT_CODE"
+            warn "tmux output: $SCRIPT_WINDOW"
+            warn "Tmux cleanup will be skipped"
+            SCRIPT_WINDOW=""
+        fi
     else
-        error "Failed to get tmux window ID for pane $TMUX_PANE"
+        warn "tmux command not found"
         warn "Tmux cleanup will be skipped"
-        SCRIPT_WINDOW=""
     fi
 else
     log "Not running in tmux (TMUX='${TMUX:-}', TMUX_PANE='${TMUX_PANE:-}')"
@@ -86,6 +109,12 @@ fi
 log "Checking if we're in a worktree..."
 if WORKTREE_PATH=$(git rev-parse --show-toplevel 2>&1); then
     log "Git repository toplevel: $WORKTREE_PATH"
+    
+    # Save data directory path before changing directories
+    if [ -f "$WORKTREE_PATH/.env.local" ]; then
+        SAVED_DATA_DIR=$(grep '^DATA_DIR=' "$WORKTREE_PATH/.env.local" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        log "Saved DATA_DIR from .env.local: ${SAVED_DATA_DIR:-not set}"
+    fi
 else
     error "Failed to get git toplevel: $WORKTREE_PATH"
     exit 1
@@ -193,19 +222,50 @@ fi
 
 # Close tmux window if we're in tmux
 if [ -n "${SCRIPT_WINDOW:-}" ]; then
-    log "Attempting to close tmux window: $SCRIPT_WINDOW"
+    log "Scheduling tmux window close: $SCRIPT_WINDOW"
     
-    if OUTPUT=$(tmux kill-window -t "$SCRIPT_WINDOW" 2>&1); then
-        success "Tmux window closed successfully"
-    else
-        EXIT_CODE=$?
-        error "Failed to close tmux window (exit code $EXIT_CODE): $OUTPUT"
-        error "You may need to close the window manually"
-        error "Current tmux windows:"
-        tmux list-windows || true
-    fi
+    # We need to schedule the window kill to happen after this script exits
+    # Otherwise, killing our own window will terminate this script immediately
+    # Use a background process with a small delay
+    (
+        sleep 0.5
+        tmux kill-window -t "$SCRIPT_WINDOW" 2>/dev/null || true
+    ) &
+    
+    success "Tmux window $SCRIPT_WINDOW scheduled for closure"
+    log "Window will close in 0.5 seconds..."
 else
     log "No tmux window to close (SCRIPT_WINDOW is empty)"
+fi
+
+# Clean up data directory if it's in /tmp
+log "Checking for temporary data directories..."
+# Use SAVED_DATA_DIR if we saved it earlier (for worktrees), otherwise check current dir
+if [ -n "${SAVED_DATA_DIR:-}" ]; then
+    DATA_DIR="$SAVED_DATA_DIR"
+    log "Using saved data directory from worktree: $DATA_DIR"
+elif [ -f ".env.local" ]; then
+    DATA_DIR=$(grep '^DATA_DIR=' .env.local | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+    log "Found data directory in current .env.local: ${DATA_DIR:-not set}"
+else
+    DATA_DIR=""
+    log "No .env.local file found, skipping data directory cleanup"
+fi
+
+if [ -n "$DATA_DIR" ] && [[ "$DATA_DIR" == /tmp/* ]]; then
+    log "Found temporary data directory: $DATA_DIR"
+    if [ -d "$DATA_DIR" ]; then
+        log "Removing temporary data directory..."
+        if rm -rf "$DATA_DIR"; then
+            success "Temporary data directory removed: $DATA_DIR"
+        else
+            warn "Failed to remove temporary data directory: $DATA_DIR"
+        fi
+    else
+        log "Data directory doesn't exist or already removed: $DATA_DIR"
+    fi
+elif [ -n "$DATA_DIR" ]; then
+    log "Data directory is not in /tmp, keeping it: $DATA_DIR"
 fi
 
 log "========================================="
