@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Nav, NavScript } from './Nav';
+import { Nav } from './Nav';
 
 interface EditNotePageProps {
   id: string;
@@ -28,7 +28,6 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
         </div>
       </main>
     </div>
-    <NavScript />
     <script>{`
       (function() {
         const textarea = document.getElementById('note-editor');

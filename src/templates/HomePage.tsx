@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
-import { Nav, NavScript } from './Nav';
+import { Nav } from './Nav';
 import { NoteMetadata } from '../types';
 
 interface HomePageProps {
@@ -54,6 +54,5 @@ export const HomePage = ({ notes, totalPages, currentPage, query = '' }: HomePag
         )}
       </main>
     </div>
-    <NavScript />
   </Layout>
 );

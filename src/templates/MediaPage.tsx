@@ -1,5 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout';
+import { Nav } from './Nav';
 import type { MediaFile } from '../services/media-service';
 
 interface MediaPageProps {
@@ -15,18 +16,18 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
   }));
   
   return (
-    <Layout 
-      title="Media Library"
-    >
-      <div 
-        data-store={JSON.stringify({ 
-          selectedFile: null,
-          files: filesData 
-        })}
-      >
-        <div class="mb-8">
-          <h2 class="text-3xl font-bold mb-4">Media Library</h2>
-          <p class="text-gray-600">
+    <Layout title="Media Library">
+      <div class="container">
+        <Nav currentPage="media" />
+        <div 
+          data-store={JSON.stringify({ 
+            selectedFile: null,
+            files: filesData 
+          })}
+        >
+          <div class="mb-8">
+            <h2 class="text-3xl font-bold mb-4">Media Library</h2>
+            <p class="text-gray-600">
             {totalFiles} media files • {files.filter(f => f.type === 'image').length} images • 
             {files.filter(f => f.type === 'video').length} videos • 
             {files.filter(f => f.type === 'epub').length} ebooks • 
@@ -339,6 +340,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
           return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
       `}</script>
+      </div>
     </Layout>
   );
 };
