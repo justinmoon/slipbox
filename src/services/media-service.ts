@@ -104,46 +104,46 @@ export class MediaService {
         const files = await readdir(config.dataDir);
         console.log(`Scanning ${config.dataDir}, found ${files.length} files`);
 
-      let skipCount = 0;
-      let addCount = 0;
+        let skipCount = 0;
+        let addCount = 0;
 
-      for (const filename of files) {
-        // Skip markdown files, metadata files, and database files
-        if (
-          filename.endsWith(".md") ||
-          filename.endsWith(".meta.json") ||
-          filename.includes(".db") ||
-          filename === ".DS_Store" ||
-          filename === "files"
-        ) {
-          skipCount++;
-          continue;
+        for (const filename of files) {
+          // Skip markdown files, metadata files, and database files
+          if (
+            filename.endsWith(".md") ||
+            filename.endsWith(".meta.json") ||
+            filename.includes(".db") ||
+            filename === ".DS_Store" ||
+            filename === "files"
+          ) {
+            skipCount++;
+            continue;
+          }
+
+          const filepath = join(config.dataDir, filename);
+          const stats = await stat(filepath);
+
+          if (stats.isFile()) {
+            const { type, mimeType } = getMediaType(filename);
+            const fileId = generateFileId(filepath);
+            addCount++;
+
+            allFiles.push({
+              id: fileId,
+              name: filename,
+              type,
+              mimeType,
+              size: stats.size,
+              modified: stats.mtime,
+              url: `/api/media/file/${fileId}?path=${encodeURIComponent(filename)}`,
+              thumbnailUrl:
+                type === "image"
+                  ? `/api/media/thumbnail/${fileId}?path=${encodeURIComponent(filename)}`
+                  : undefined,
+              source: "filesystem",
+            });
+          }
         }
-
-        const filepath = join(config.dataDir, filename);
-        const stats = await stat(filepath);
-
-        if (stats.isFile()) {
-          const { type, mimeType } = getMediaType(filename);
-          const fileId = generateFileId(filepath);
-          addCount++;
-
-          allFiles.push({
-            id: fileId,
-            name: filename,
-            type,
-            mimeType,
-            size: stats.size,
-            modified: stats.mtime,
-            url: `/api/media/file/${fileId}?path=${encodeURIComponent(filename)}`,
-            thumbnailUrl:
-              type === "image"
-                ? `/api/media/thumbnail/${fileId}?path=${encodeURIComponent(filename)}`
-                : undefined,
-            source: "filesystem",
-          });
-        }
-      }
 
         console.log(`Skipped ${skipCount} files, added ${addCount} files from filesystem`);
       } catch (error) {

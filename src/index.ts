@@ -727,7 +727,7 @@ async function handleMediaViewer(filename: string): Promise<Response> {
   // First try to find the file in database by original name
   const { files: dbFiles } = await fileStorage.getAllFiles(50, 0);
   let file = dbFiles.find((f) => f.originalName === filename);
-  
+
   if (file) {
     // Convert database file to MediaFile format
     const { type, mimeType } = getMediaType(file.originalName);
