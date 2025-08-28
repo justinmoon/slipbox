@@ -215,6 +215,7 @@ function needsAuth(path: string): boolean {
 // Main server
 Bun.serve({
   port: config.port,
+  idleTimeout: 60, // Increase idle timeout to 60 seconds for SSE connections
   async fetch(req: Request) {
     const url = new URL(req.url);
     const path = url.pathname;
