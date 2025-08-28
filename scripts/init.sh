@@ -9,22 +9,37 @@ SOURCE_DIR="$HOME/slipbox"
 # Get the current worktree directory
 WORKTREE_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
+# Get the current branch name
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || "unknown")
+
 # Create a unique tmp directory for this worktree
-# Use tmux pane ID if available, otherwise use worktree name + PID
-if [ -n "$TMUX_PANE" ]; then
-    # Extract pane ID (e.g., %0, %1, etc.)
-    PANE_ID=$(echo "$TMUX_PANE" | sed 's/[^0-9]//g')
-    TMP_SUFFIX="pane-${PANE_ID}"
+# Special handling for master branch vs worktrees
+if [ "$CURRENT_BRANCH" = "master" ]; then
+    # Use master-specific directory with tmux pane ID if available
+    if [ -n "$TMUX_PANE" ]; then
+        PANE_ID=$(echo "$TMUX_PANE" | sed 's/[^0-9]//g')
+        TMP_SUFFIX="master-pane-${PANE_ID}"
+    else
+        TMP_SUFFIX="master-$$"
+    fi
 else
-    # Use worktree name + PID as fallback
-    WORKTREE_NAME=$(basename "$WORKTREE_DIR")
-    TMP_SUFFIX="${WORKTREE_NAME}-$$"
+    # For worktrees, use existing logic
+    if [ -n "$TMUX_PANE" ]; then
+        # Extract pane ID (e.g., %0, %1, etc.)
+        PANE_ID=$(echo "$TMUX_PANE" | sed 's/[^0-9]//g')
+        TMP_SUFFIX="pane-${PANE_ID}"
+    else
+        # Use worktree name + PID as fallback
+        WORKTREE_NAME=$(basename "$WORKTREE_DIR")
+        TMP_SUFFIX="${WORKTREE_NAME}-$$"
+    fi
 fi
 
 # Create isolated data directory in /tmp
 export SLIPBOX_DATA_DIR="/tmp/slipbox-data-${TMP_SUFFIX}"
 
-echo "=== Initializing Worktree Environment ==="
+echo "=== Initializing Environment ==="
+echo "Branch: $CURRENT_BRANCH"
 echo "Source: $SOURCE_DIR"
 echo "Worktree: $WORKTREE_DIR"
 echo "Data Dir: $SLIPBOX_DATA_DIR"
@@ -176,6 +191,11 @@ else
 fi
 
 echo ""
-echo "✅ Worktree initialization complete!"
-echo "   Each terminal in this worktree will use: $SLIPBOX_DATA_DIR"
+if [ "$CURRENT_BRANCH" = "master" ]; then
+    echo "✅ Master branch initialization complete!"
+    echo "   Each terminal session will use: $SLIPBOX_DATA_DIR"
+else
+    echo "✅ Worktree initialization complete!"
+    echo "   Each terminal in this worktree will use: $SLIPBOX_DATA_DIR"
+fi
 echo "   Run 'npm run dev' to start the development server."
