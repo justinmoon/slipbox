@@ -459,25 +459,12 @@ function handleAutoLogin(): Response {
   const token = generateSessionToken();
   sessions.set(token, { expires: Date.now() + SESSION_DURATION });
   
-  // Return an HTML page that auto-submits and redirects
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Auto-login</title>
-</head>
-<body>
-  <script>
-    // Set cookie and redirect
-    document.cookie = "session=${token}; Path=/; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}";
-    window.location.href = '/';
-  </script>
-</body>
-</html>`;
-  
-  return new Response(html, {
+  // For tests and automation, do a server-side redirect with the session cookie
+  // This works better than JavaScript redirects in headless environments
+  return new Response(null, {
+    status: 302,
     headers: { 
-      'Content-Type': 'text/html',
+      'Location': '/',
       'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
     }
   });

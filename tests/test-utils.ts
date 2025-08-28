@@ -5,11 +5,23 @@ import { tmpdir } from 'os';
 
 // Authentication helper
 export async function authenticate(page: Page) {
-  // Use auto-login route for tests (non-production only)
-  // The auto-login page sets a cookie via JavaScript and redirects
-  await page.goto('/auto-login');
-  // Wait for the JavaScript to execute and redirect
-  await page.waitForURL('/', { timeout: 5000 });
+  // For tests, we have two options:
+  // 1. Try auto-login route (works in dev but may have issues in CI)
+  try {
+    await page.goto('/auto-login', { waitUntil: 'networkidle' });
+    // Check if we're on home page (successful login)
+    if (page.url().endsWith('/')) {
+      return;
+    }
+  } catch (e) {
+    // Auto-login failed, fall back to password login
+  }
+  
+  // 2. Fall back to password-based login
+  await page.goto('/login');
+  await page.fill('input[type="password"]', 'Golf1234');
+  await page.click('button[type="submit"]');
+  await page.waitForURL('/');
 }
 
 // Create test environment with temp data directory

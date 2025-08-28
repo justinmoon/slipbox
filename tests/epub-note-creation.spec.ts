@@ -13,29 +13,19 @@ test.describe('EPUB Note Creation from Selection', () => {
     await authenticate(page);
     
     // Test 1: Direct API call works
-    const apiResponse = await page.evaluate(async () => {
-      const response = await fetch('/api/note', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'Test note from API' }),
-        credentials: 'same-origin'  // Include cookies
-      });
-      
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        data = { error: text };
-      }
-      
-      return { 
-        ok: response.ok, 
-        status: response.status,
-        data
-      };
+    // Use page.request instead of fetch inside evaluate to ensure cookies are included
+    const response = await page.request.post('/api/note', {
+      data: { content: 'Test note from API' }
     });
+    const apiResponse = {
+      ok: response.ok(),
+      status: response.status(),
+      data: await response.json()
+    };
     
+    if (!apiResponse.ok) {
+      console.log('API Response failed:', apiResponse);
+    }
     expect(apiResponse.ok).toBe(true);
     expect(apiResponse.data.id).toBeTruthy();
     
@@ -76,10 +66,10 @@ test.describe('EPUB Note Creation from Selection', () => {
     );
     
     await page.locator('#save-note-btn').click();
-    const response = await responsePromise;
-    expect(response.ok()).toBe(true);
+    const saveResponse = await responsePromise;
+    expect(saveResponse.ok()).toBe(true);
     
-    const responseData = await response.json();
+    const responseData = await saveResponse.json();
     const noteId = responseData.id;
     
     // Verify modal closed and success message appeared
@@ -156,24 +146,13 @@ test.describe('EPUB Note Creation from Selection', () => {
 
 My thoughts about these quotes.`;
     
-    const response = await page.evaluate(async (content) => {
-      const res = await fetch('/api/note', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
-        credentials: 'same-origin'  // Include cookies
-      });
-      
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        data = { error: text };
-      }
-      
-      return { ok: res.ok, data };
-    }, noteContent);
+    const res = await page.request.post('/api/note', {
+      data: { content: noteContent }
+    });
+    const response = {
+      ok: res.ok(),
+      data: await res.json()
+    };
     
     expect(response.ok).toBe(true);
     
