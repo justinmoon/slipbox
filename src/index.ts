@@ -1,6 +1,7 @@
 import { ServerSentEventGenerator } from '@starfederation/datastar-sdk/web';
 import { NoteStorage } from './storage';
 import { config } from './config';
+import { NoteMetadata } from './types';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './services/file-storage';
@@ -101,8 +102,7 @@ async function serveStatic(path: string): Promise<Response> {
     const file = Bun.file(tsPath);
     
     if (await file.exists()) {
-      const content = await file.text();
-      const result = await Bun.build({
+        const result = await Bun.build({
         entrypoints: [tsPath],
         target: 'browser',
         minify: false,
@@ -286,7 +286,7 @@ Bun.serve({
         return handleHome(url);
       
       case '/search':
-        return handleSearch(url, req);
+        return handleSearch(url);
       
       case '/new':
         // Create empty note and redirect to edit page
@@ -477,7 +477,7 @@ async function handleHome(url: URL): Promise<Response> {
   return htmlResponse(HomePage({ notes, totalPages, currentPage, query }) as string);
 }
 
-async function handleSearch(url: URL, req: Request): Promise<Response> {
+async function handleSearch(url: URL): Promise<Response> {
   const query = url.searchParams.get('q') || '';
   
   console.log(`[SEARCH] Query: "${query}"`);
@@ -582,7 +582,7 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
   let content: string;
   
   try {
-    const body = await req.json();
+    const body = await req.json() as { content?: string };
     content = body.content || '';
   } catch (error) {
     return new Response('Invalid request body', { status: 400 });

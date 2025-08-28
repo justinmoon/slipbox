@@ -17,7 +17,6 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
   return (
     <Layout 
       title="Media Library"
-      currentPage="media"
     >
       <div 
         data-store={JSON.stringify({ 
@@ -52,7 +51,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                 <div class="media-thumbnail video-thumbnail">
                   <video 
                     src={file.url}
-                    preload="metadata"
+                    {...{ preload: "metadata" }}
                     data-on-click={`$selectedFile = $files[${index}]`}
                     class="cursor-pointer hover:opacity-90 transition-opacity"
                   />
@@ -120,8 +119,8 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                 <p class="text-xl mb-4" data-text="$selectedFile?.name"></p>
                 <audio 
                   data-attr-src="$selectedFile?.url"
-                  controls
-                  autoplay
+                  controls="controls"
+                  autoplay={true}
                   class="w-full"
                 />
               </div>

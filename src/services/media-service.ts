@@ -1,5 +1,5 @@
 import { readdir, stat } from 'fs/promises';
-import { join, extname, basename } from 'path';
+import { join, extname } from 'path';
 import { config } from '../config';
 import { fileStorage } from './file-storage';
 import { createHash } from 'crypto';
@@ -60,7 +60,7 @@ export class MediaService {
     const allFiles: MediaFile[] = [];
     
     // Get files from database
-    const { files: dbFiles, total: dbTotal } = await fileStorage.getAllFiles(1000, 0);
+    const { files: dbFiles } = await fileStorage.getAllFiles(1000, 0);
     console.log(`Found ${dbFiles.length} files in database`);
     
     for (const file of dbFiles) {
@@ -75,7 +75,7 @@ export class MediaService {
           size: file.size,
           modified: file.uploadedAt,
           url: `/api/files/download/${file.id}`,
-          thumbnailUrl: type === 'image' ? `/api/files/thumbnail/${file.id}` : undefined,
+          thumbnailUrl: undefined,
           source: 'database'
         });
       } else if (type !== 'other') {

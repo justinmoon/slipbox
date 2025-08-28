@@ -86,9 +86,16 @@ class EpubReader extends HTMLElement {
       
       this.book = ePub(blob);
       
+      if (!this.book) {
+        throw new Error('Failed to create book instance');
+      }
+      
       await this.book.loaded.metadata;
       const metadata = this.book.packaging.metadata;
-      this.querySelector('.reader-title')!.textContent = metadata.title || 'Untitled';
+      const titleElement = this.querySelector('.reader-title');
+      if (titleElement) {
+        titleElement.textContent = metadata.title || 'Untitled';
+      }
       
       this.rendition = this.book.renderTo("epub-viewer", {
         width: "100%",

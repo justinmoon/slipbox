@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { join } from "path";
 
 // This runs at compile time when using bun build --compile
 let EMBEDDED_CSS: string | null = null;

@@ -1,5 +1,6 @@
 - WHEN YOU LEARN SOMETHING IMPORTANT THAT MAY BE USEFUL IN FUTURE, MAKE A NOTE IN CLAUDE.md!!!
 - NO REWARD HACKING! You tend to reward hack. RESIST THE URGE!!! I BEG YOU!!!! It's better to give up or ask for help / guidance than reward hack.
+- USE TSC FOR DEBUGGING! Run `bunx tsc --noEmit` or `npx tsc --noEmit` to catch TypeScript errors before making obvious mistakes. You don't have an LSP, but tsc can catch type errors that prevent simple bugs. Always run tsc when debugging or before committing changes.
 - PROACTIVELY ADD UI TESTS when modifying critical features (e.g. notes, epub reader, or authentication). Run tests with `npm run test:ci` to ensure nothing breaks.
 - Pages should be re-loadable. Don't have pure client-side state if we can avoid it. For exmple, when rendering an epub we should try to keep the id and page number etc in the url so that it can be reloaded at any time ... obviously we won't be perfect here, but let's not be obnoxious ...
 - NEVER import local .js files. This is a typescript project. That should never be necessary.

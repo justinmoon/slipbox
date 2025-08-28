@@ -1,7 +1,6 @@
 import { mkdir, writeFile, readFile, unlink, access } from 'fs/promises';
 import { join } from 'path';
 import { constants } from 'fs';
-import { homedir } from 'os';
 
 // ALWAYS require SLIPBOX_DATA_DIR
 const getStorageDir = () => {
