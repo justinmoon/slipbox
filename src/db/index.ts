@@ -4,7 +4,6 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import * as schema from './schema';
 import path from 'path';
 import fs from 'fs/promises';
-import { homedir } from 'os';
 import { EMBEDDED_MIGRATIONS } from './embedded-migrations';
 
 // ALWAYS require SLIPBOX_DATA_DIR

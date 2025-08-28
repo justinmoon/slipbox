@@ -1,5 +1,3 @@
-import { homedir } from 'os';
-import { join } from 'path';
 
 // Get the data directory - ALWAYS requires SLIPBOX_DATA_DIR
 const getDataDir = () => {
