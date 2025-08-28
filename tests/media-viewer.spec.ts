@@ -47,7 +47,7 @@ test.describe("Media Viewer", () => {
     const videoSrc = await video.getAttribute("src");
     expect(videoSrc).toBeTruthy();
 
-    // Check file info is displayed  
+    // Check file info is displayed
     await expect(page.locator("h1")).toContainText("sample-video.mp4");
     await expect(page.locator("text=Type:")).toBeVisible();
 
