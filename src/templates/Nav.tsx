@@ -2,9 +2,10 @@ import Html from "@kitajs/html";
 
 interface NavProps {
   currentPage?: "home" | "reader" | "upload" | "new" | "note" | "edit" | "media";
+  isHidden?: boolean;
 }
 
-export const Nav = ({ currentPage }: NavProps) => {
+export const Nav = ({ currentPage, isHidden }: NavProps) => {
   const navLinks = [
     { href: "/", label: "Notes", page: "home" },
     { href: "/reader", label: "Reader", page: "reader" },
@@ -13,6 +14,10 @@ export const Nav = ({ currentPage }: NavProps) => {
     { href: "/new", label: "New Note", page: "new" },
     { href: "/logout", label: "Logout", page: "logout" },
   ];
+
+  if (isHidden) {
+    return null;
+  }
 
   return (
     <header class="flex justify-between items-center mb-8">

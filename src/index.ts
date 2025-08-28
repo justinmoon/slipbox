@@ -537,7 +537,7 @@ async function handleSearch(url: URL): Promise<Response> {
   if (!query.trim()) {
     // Return to regular paginated view
     const { notes } = await storage.listNotes(1, config.defaultPageSize);
-    return ServerSentEventGenerator.stream((stream) => {
+    return ServerSentEventGenerator.stream((stream: ServerSentEventGenerator) => {
       const notesHtml = notes
         .map(
           (note) =>
@@ -605,7 +605,7 @@ async function handleSearch(url: URL): Promise<Response> {
     `[SEARCH] Pre-built HTML (${htmlContent.length} chars) for ${results.length} results`,
   );
 
-  return ServerSentEventGenerator.stream((stream) => {
+  return ServerSentEventGenerator.stream((stream: ServerSentEventGenerator) => {
     stream.mergeFragments(htmlContent, { selector: "#notes-grid", mergeMode: "morph" });
   });
 }
