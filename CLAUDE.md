@@ -1,4 +1,5 @@
 - WHEN YOU LEARN SOMETHING IMPORTANT THAT MAY BE USEFUL IN FUTURE, MAKE A NOTE IN CLAUDE.md!!!
+- **CRITICAL: SLIPBOX_DATA_DIR is ONE FLAT DIRECTORY** - All markdown files are stored directly in the data directory (e.g., `/tmp/slipbox-data-pane-116/*.md`), NOT in subdirectories like `/notes/`. The directory contains markdown files directly alongside the SQLite database files.
 - NO REWARD HACKING! You tend to reward hack. RESIST THE URGE!!! I BEG YOU!!!! It's better to give up or ask for help / guidance than reward hack.
 - USE TSC FOR DEBUGGING! Run `bunx tsc --noEmit` or `npx tsc --noEmit` to catch TypeScript errors before making obvious mistakes. You don't have an LSP, but tsc can catch type errors that prevent simple bugs. Always run tsc when debugging or before committing changes.
 - PROACTIVELY ADD UI TESTS when modifying critical features (e.g. notes, epub reader, or authentication). Run tests with `npm run test:ci` to ensure nothing breaks.
@@ -149,3 +150,38 @@ Why SSE navigation fails:
 - Timing issues with stream buffering and async processing
 
 **Rule: Use SSE for DOM updates, use client-side JS for navigation**
+
+## Template Rendering - Critical Bugs and Fixes
+
+### KitaJS HTML Rendering
+**KitaJS renders raw HTML by default (opposite of React/most systems)**
+
+- `{html}` = renders raw HTML ✅
+- `{html safe}` = HTML-escapes content ❌ 
+- Never use complex workarounds - if HTML isn't rendering, check your understanding first
+
+### Marked.js v5+ Renderer API
+**Renderer functions receive token objects, not individual parameters**
+
+```tsx
+// ✅ CORRECT (v5+)
+const renderer = {
+  link(token: any): string | false {
+    const href = token.href;
+    const text = token.text;
+    // Process the link...
+  }
+};
+
+// ❌ WRONG (old v4 API)
+const renderer = {
+  link(href: string, title: string, text: string): string {
+    // This will cause "href.startsWith is not a function" error
+  }
+};
+```
+
+### Debugging Empty HTML Content
+1. Check server logs for rendering errors (TypeError in template)
+2. Verify markdown content exists before rendering
+3. Test template with simple HTML first before complex custom renderers

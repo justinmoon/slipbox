@@ -1,17 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-// Helper function to authenticate
-async function authenticate(page: any) {
-  // Go to login page
-  await page.goto('http://localhost:3003/login');
-  
-  // Fill in password and submit
-  await page.fill('input[type="password"]', 'Golf1234');
-  await page.click('button[type="submit"]');
-  
-  // Wait for redirect to home page
-  await page.waitForURL('http://localhost:3003/');
-}
+import { authenticate } from './test-utils';
 
 test.describe('Search functionality', () => {
   test.beforeEach(async ({ page }) => {
@@ -47,7 +35,7 @@ test.describe('Search functionality', () => {
 
   test('search updates the notes display', async ({ page }) => {
     // Already authenticated, go to home page
-    await page.goto('http://localhost:3003');
+    await page.goto('/');
     
     // Set up response listener after navigation
     let searchRequested = false;

@@ -1,17 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-// Helper function to authenticate
-async function authenticate(page: any) {
-  // Go to login page
-  await page.goto('http://localhost:3003/login');
-  
-  // Fill in password and submit
-  await page.fill('input[type="password"]', 'Golf1234');
-  await page.click('button[type="submit"]');
-  
-  // Wait for redirect to home page
-  await page.waitForURL('http://localhost:3003/');
-}
+import { authenticate } from './test-utils';
 
 test('basic page load', async ({ page }) => {
   // First authenticate

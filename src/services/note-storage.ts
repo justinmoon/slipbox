@@ -38,10 +38,14 @@ export class SqliteNoteStorage {
     const [note] = await db.select().from(notes).where(eq(notes.id, id)).limit(1);
     
     if (!note) return null;
+    
+    console.log('[getNote] Note content:', note.content?.substring(0, 100) + '...');
+    const html = await this.renderMarkdown(note.content);
+    console.log('[getNote] Rendered HTML length:', html?.length);
 
     return {
       ...note,
-      html: await this.renderMarkdown(note.content),
+      html,
     };
   }
 

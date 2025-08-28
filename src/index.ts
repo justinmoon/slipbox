@@ -10,6 +10,7 @@ import { db } from './db/index';
 import { epubReadingPositions } from './db/schema';
 import { eq } from 'drizzle-orm';
 import { embeddedAssets } from './embed-assets';
+import { Note } from './types';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -589,14 +590,27 @@ async function handleSearch(url: URL): Promise<Response> {
 }
 
 async function handleViewNote(id: string): Promise<Response> {
-  const note = await storage.getNote(id);
+  const noteWithHtml = await storage.getNote(id);
   
-  if (!note) {
+  if (!noteWithHtml) {
     return notFound();
   }
 
-  // Note already has HTML from getNote method
-  return htmlResponse(NotePage({ note, html: note.html || '' }) as string);
+  console.log('[handleViewNote] Note ID:', id);
+  console.log('[handleViewNote] Note content length:', noteWithHtml.content?.length);
+  console.log('[handleViewNote] Note content preview:', noteWithHtml.content?.substring(0, 100));
+
+  // Extract just the note part (without html field) for the component
+  const note: Note = {
+    id: noteWithHtml.id,
+    content: noteWithHtml.content,
+    created: noteWithHtml.created,
+    modified: noteWithHtml.modified
+  };
+
+  // NotePage will handle the markdown rendering internally
+  const pageHtml = NotePage({ note });
+  return htmlResponse(pageHtml as string);
 }
 
 async function handleCreateEmptyNote(): Promise<Response> {
