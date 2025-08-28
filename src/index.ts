@@ -840,9 +840,24 @@ async function handleFileUpload(req: Request): Promise<Response> {
       { noteId: noteId || undefined },
     );
 
-    return new Response(JSON.stringify(savedFile), {
-      headers: { "Content-Type": "application/json" },
-    });
+    // Check if this is a form submission (browser upload) or API call
+    const acceptHeader = req.headers.get("Accept") || "";
+    const isFormSubmission = !acceptHeader.includes("application/json");
+
+    if (isFormSubmission) {
+      // Browser form submission - redirect to media page
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: "/media",
+        },
+      });
+    } else {
+      // API call - return JSON
+      return new Response(JSON.stringify(savedFile), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   } catch (error) {
     console.error("File upload error:", error);
     return new Response("Upload failed", { status: 500 });
