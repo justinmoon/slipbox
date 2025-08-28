@@ -28,6 +28,12 @@ async function getAvailablePort(startPort = 3000) {
 // Main
 async function main() {
   try {
+    // Assert we're in development mode
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ This is a development script and should not be run in production!');
+      process.exit(1);
+    }
+    
     // Ensure dist directory exists
     if (!existsSync('dist')) {
       mkdirSync('dist');
@@ -56,8 +62,8 @@ async function main() {
     // Wait a moment for server to start
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Open browser
-    const url = `http://localhost:${port}`;
+    // This is a dev script - always go to auto-login
+    const url = `http://localhost:${port}/auto-login`;
     console.log(`\n📱 Browser opening: ${url}`);
     console.log(`${'='.repeat(50)}\n`);
     
