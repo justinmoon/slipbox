@@ -4,7 +4,7 @@
   "description": "Zettelkasten-style note-taking app built with Datastar framework",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "bun scripts/dev-with-tailwind.js",
+    "dev": "bun scripts/dev.js",
     "init": "./scripts/init.sh",
     "reset-datadir": "./scripts/reset-datadir.sh",
     "build:client": "bun scripts/build.js",

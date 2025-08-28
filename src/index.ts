@@ -203,6 +203,8 @@ function needsAuth(path: string): boolean {
   if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
+  // Auto-login route doesn't need auth (development only)
+  if (path === '/auto-login' && process.env.NODE_ENV !== 'production') return false;
   // Static files don't need auth
   if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) return false;
   // Hot-reload SSE doesn't need auth (development only)
@@ -281,6 +283,13 @@ Bun.serve({
         
       case '/logout':
         return handleLogout(req);
+        
+      case '/auto-login':
+        // Development-only auto-login route
+        if (process.env.NODE_ENV !== 'production') {
+          return handleAutoLogin();
+        }
+        break;
         
       case '/':
         return handleHome(url);
@@ -434,6 +443,35 @@ function handleLogout(req: Request): Response {
     headers: {
       'Location': '/login',
       'Set-Cookie': 'session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+    }
+  });
+}
+
+function handleAutoLogin(): Response {
+  // Create session automatically for development
+  const token = generateSessionToken();
+  sessions.set(token, { expires: Date.now() + SESSION_DURATION });
+  
+  // Return an HTML page that auto-submits and redirects
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Auto-login</title>
+</head>
+<body>
+  <script>
+    // Set cookie and redirect
+    document.cookie = "session=${token}; Path=/; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}";
+    window.location.href = '/';
+  </script>
+</body>
+</html>`;
+  
+  return new Response(html, {
+    headers: { 
+      'Content-Type': 'text/html',
+      'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
     }
   });
 }
