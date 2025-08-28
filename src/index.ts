@@ -220,6 +220,11 @@ Bun.serve({
     const url = new URL(req.url);
     const path = url.pathname;
     
+    // Debug logging for tests
+    if (process.env.NODE_ENV === 'test' && path === '/api/note') {
+      console.log(`[TEST] /api/note request - Method: ${req.method}, Auth needed: ${needsAuth(path)}`);
+    }
+    
     // Check authentication for protected routes
     if (needsAuth(path)) {
       const sessionToken = getSessionToken(req);
@@ -273,6 +278,9 @@ Bun.serve({
 
 
     // Routes
+    if (process.env.NODE_ENV === 'test' && path === '/api/note') {
+      console.log(`[TEST] Reached switch statement for /api/note`);
+    }
     switch (path) {
       case '/login':
         if (req.method === 'GET') {
@@ -306,7 +314,7 @@ Bun.serve({
         if (req.method === 'POST') {
           return handleCreateNote(req);
         }
-        break;
+        return new Response('Method not allowed', { status: 405 });
         
       case '/reader':
         return handleReader();
@@ -1022,6 +1030,7 @@ async function handleGetReadingPosition(fileId: string): Promise<Response> {
 const separator = '='.repeat(50);
 console.log(`\n${separator}`);
 console.log(`🚀 Slipbox server running at http://localhost:${config.port}`);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 if (process.env.DEV_MODE === 'true') {
   console.log(`📝 Watching for file changes...`);
 }

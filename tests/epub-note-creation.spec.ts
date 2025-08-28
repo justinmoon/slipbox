@@ -12,20 +12,35 @@ test.describe('EPUB Note Creation from Selection', () => {
     
     await authenticate(page);
     
+    // Verify we're on the right server
+    const currentUrl = page.url();
+    console.log('Current URL after auth:', currentUrl);
+    
     // Test 1: Direct API call works
     const apiResponse = await page.evaluate(async () => {
       const response = await fetch('/api/note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'Test note from API' }),
+        credentials: 'same-origin'  // Include cookies
       });
+      
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { error: text };
+      }
+      
       return { 
         ok: response.ok, 
         status: response.status,
-        data: await response.json()
+        data
       };
     });
     
+    console.log('API Response:', apiResponse);
     expect(apiResponse.ok).toBe(true);
     expect(apiResponse.data.id).toBeTruthy();
     
@@ -150,9 +165,19 @@ My thoughts about these quotes.`;
       const res = await fetch('/api/note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content }),
+        credentials: 'same-origin'  // Include cookies
       });
-      return { ok: res.ok, data: await res.json() };
+      
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { error: text };
+      }
+      
+      return { ok: res.ok, data };
     }, noteContent);
     
     expect(response.ok).toBe(true);

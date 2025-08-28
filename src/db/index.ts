@@ -199,8 +199,8 @@ const runMigrations = async () => {
       console.log('Database migrations completed');
       
       // Log current state
-      const tables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[];
-      console.log('Current tables:', tables.map(t => t.name).join(', '));
+      const currentTables = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[];
+      console.log('Current tables:', currentTables.map(t => t.name).join(', '));
     } catch (error) {
       console.error('File-based migration failed:', error);
       // Don't throw in production - app will use whatever database state exists
