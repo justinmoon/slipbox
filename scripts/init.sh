@@ -13,27 +13,21 @@ WORKTREE_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || "unknown")
 
 # Create a unique tmp directory for this worktree
-if [ -n "$TMUX_PANE" ]; then
-    # Extract pane ID (e.g., %0, %1, etc.)
-    PANE_ID=$(echo "$TMUX_PANE" | sed 's/[^0-9]//g')
-    TMP_SUFFIX="pane-${PANE_ID}"
-else
-    # Use worktree name + PID as fallback
-    WORKTREE_NAME=$(basename "$WORKTREE_DIR")
-    TMP_SUFFIX="${WORKTREE_NAME}-$$"
-fi
+# Use branch name and timestamp to avoid collisions across tmux session restarts
+BRANCH_NAME=$(git branch --show-current 2>/dev/null || echo "detached")
+# Clean up branch name (replace / with -, remove special chars)
+CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9-]/-/g' | sed 's/--*/-/g')
+# Generate a short timestamp (last 6 digits of epoch time)
+SHORT_TIMESTAMP=$(date +%s | tail -c 7)
 
 # Create isolated data directory in /tmp
-export SLIPBOX_DATA_DIR="/tmp/slipbox-data-${TMP_SUFFIX}"
+export SLIPBOX_DATA_DIR="/tmp/slipbox-${CLEAN_BRANCH}-${SHORT_TIMESTAMP}"
 
 echo "=== Initializing Environment ==="
 echo "Branch: $CURRENT_BRANCH"
 echo "Source: $SOURCE_DIR"
 echo "Worktree: $WORKTREE_DIR"
 echo "Data Dir: $SLIPBOX_DATA_DIR"
-if [ -n "$TMUX_PANE" ]; then
-    echo "Tmux Pane: $TMUX_PANE (ID: $PANE_ID)"
-fi
 echo ""
 
 # Check if source directory exists
