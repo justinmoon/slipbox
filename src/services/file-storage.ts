@@ -1,10 +1,10 @@
-import { db } from '../db/index';
-import { files } from '../db/schema';
-import type { File } from '../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import { localFileStorage } from './local-file-storage';
+import { db } from "../db/index";
+import { files } from "../db/schema";
+import type { File } from "../db/schema";
+import { eq, desc, sql } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
+import path from "path";
+import { localFileStorage } from "./local-file-storage";
 
 export interface UploadFileOptions {
   noteId?: string;
@@ -20,30 +20,34 @@ export class FileStorageService {
     file: File | Blob,
     originalName: string,
     mimeType: string,
-    options: UploadFileOptions = {}
+    options: UploadFileOptions = {},
   ): Promise<File> {
     const id = uuidv4();
     const extension = path.extname(originalName);
     const fileKey = `${id}${extension}`;
-    
-    const buffer = file instanceof File 
-      ? Buffer.from(await file.arrayBuffer())
-      : Buffer.from(await (file as Blob).arrayBuffer());
-    
+
+    const buffer =
+      file instanceof File
+        ? Buffer.from(await file.arrayBuffer())
+        : Buffer.from(await (file as Blob).arrayBuffer());
+
     const { size } = await localFileStorage.uploadFile(fileKey, buffer, {
       ...options.metadata,
       originalName,
       mimeType,
     });
 
-    const [savedFile] = await db.insert(files).values({
-      id,
-      originalName,
-      mimeType,
-      size,
-      fileKey,
-      noteId: options.noteId,
-    }).returning();
+    const [savedFile] = await db
+      .insert(files)
+      .values({
+        id,
+        originalName,
+        mimeType,
+        size,
+        fileKey,
+        noteId: options.noteId,
+      })
+      .returning();
 
     return savedFile;
   }
@@ -66,7 +70,7 @@ export class FileStorageService {
     if (!file) return false;
 
     await localFileStorage.deleteFile(file.fileKey);
-    
+
     await db.delete(files).where(eq(files.id, id));
     return true;
   }
@@ -88,7 +92,7 @@ export class FileStorageService {
 
   async deleteFilesByNote(noteId: string): Promise<number> {
     const filesToDelete = await this.listFilesByNote(noteId);
-    
+
     for (const file of filesToDelete) {
       await localFileStorage.deleteFile(file.fileKey);
     }
@@ -97,7 +101,10 @@ export class FileStorageService {
     return filesToDelete.length;
   }
 
-  async getAllFiles(limit: number = 100, offset: number = 0): Promise<{
+  async getAllFiles(
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<{
     files: File[];
     total: number;
   }> {
@@ -108,9 +115,7 @@ export class FileStorageService {
       .limit(limit)
       .offset(offset);
 
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(files);
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(files);
 
     return {
       files: filesList,

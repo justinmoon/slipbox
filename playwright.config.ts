@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
-import net from 'net';
+import { defineConfig, devices } from "@playwright/test";
+import net from "net";
 
 // Function to find an available port
 async function getAvailablePort(startPort = 3000): Promise<number> {
@@ -7,10 +7,10 @@ async function getAvailablePort(startPort = 3000): Promise<number> {
     return new Promise((resolve) => {
       const server = net.createServer();
       server.listen(port, () => {
-        server.once('close', () => resolve(port));
+        server.once("close", () => resolve(port));
         server.close();
       });
-      server.on('error', () => resolve(null));
+      server.on("error", () => resolve(null));
     });
   };
 
@@ -20,32 +20,32 @@ async function getAvailablePort(startPort = 3000): Promise<number> {
     if (available) return available;
     port++;
   }
-  throw new Error('No available ports found');
+  throw new Error("No available ports found");
 }
 
 const port = 3003; // Use a fixed port for now to debug
 
 export default defineConfig({
-  testDir: './tests',
-  testIgnore: '**/worktrees/**',
+  testDir: "./tests",
+  testIgnore: "**/worktrees/**",
   timeout: 60 * 1000, // Increased timeout for tests with setup
   expect: {
-    timeout: 10000  // Increased expect timeout
+    timeout: 10000, // Increased expect timeout
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? 'list' : [['html', { open: 'never' }]],
+  reporter: process.env.CI ? "list" : [["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${port}`,
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
   },
 
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 

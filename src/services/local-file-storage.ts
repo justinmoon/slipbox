@@ -1,11 +1,13 @@
-import { mkdir, writeFile, readFile, unlink, access } from 'fs/promises';
-import { join } from 'path';
-import { constants } from 'fs';
+import { mkdir, writeFile, readFile, unlink, access } from "fs/promises";
+import { join } from "path";
+import { constants } from "fs";
 
 // ALWAYS require SLIPBOX_DATA_DIR
 const getStorageDir = () => {
   if (!process.env.SLIPBOX_DATA_DIR) {
-    throw new Error('SLIPBOX_DATA_DIR environment variable is required. Run scripts/init.sh to set up.');
+    throw new Error(
+      "SLIPBOX_DATA_DIR environment variable is required. Run scripts/init.sh to set up.",
+    );
   }
   return process.env.SLIPBOX_DATA_DIR;
 };
@@ -21,9 +23,9 @@ export class LocalFileStorage {
   async uploadFile(key: string, file: File | Blob | Buffer, metadata?: Record<string, string>) {
     const buffer = file instanceof Buffer ? file : Buffer.from(await (file as Blob).arrayBuffer());
     const filePath = join(LOCAL_STORAGE_DIR, key);
-    
+
     await writeFile(filePath, buffer);
-    
+
     if (metadata) {
       await writeFile(`${filePath}.meta.json`, JSON.stringify(metadata));
     }
@@ -42,7 +44,7 @@ export class LocalFileStorage {
   async deleteFile(key: string) {
     const filePath = join(LOCAL_STORAGE_DIR, key);
     await unlink(filePath);
-    
+
     try {
       await unlink(`${filePath}.meta.json`);
     } catch {

@@ -17,6 +17,7 @@
 ## UI Testing
 
 ### Writing UI Tests
+
 - Use Playwright for all UI tests
 - Test files go in `/tests/*.spec.ts`
 - Use test utilities from `/tests/test-utils.ts` for common operations
@@ -24,20 +25,22 @@
 - Use descriptive test names that explain what is being tested
 
 ### Test Patterns
+
 ```typescript
 // Basic test structure
-test('should [action] when [condition]', async ({ page }) => {
+test("should [action] when [condition]", async ({ page }) => {
   await authenticate(page);
   // Test implementation
 });
 
 // Use helpers for common operations
 const noteId = await createNote(page);
-await typeInEditor(page, 'content');
+await typeInEditor(page, "content");
 await waitForAutoSave(page);
 ```
 
 ### Running Tests
+
 - Local: `bun test` or `npm test`
 - CI: `bun test:ci` or `npm run test:ci` (avoids HTML server)
 - Tests run HEADLESS by default (no browser windows)
@@ -45,13 +48,16 @@ await waitForAutoSave(page);
 - Use `--headed` to see browser during normal test runs
 
 ### Important Test Coverage
+
 YOU MUST proactively add tests when:
+
 - Creating or modifying core features (notes, epub reader, file uploads)
 - Changing authentication or navigation flows
 - Modifying data persistence logic
 - Adding new UI interactions
 
 Always test:
+
 1. Happy path - feature works as expected
 2. Edge cases - empty states, errors
 3. User workflows - multi-step processes
@@ -59,40 +65,46 @@ Always test:
 ## Testing Datastar Apps
 
 ### Test Philosophy
+
 - **Test the Result, Not the Mechanism** - Test what users see, not SSE internals
 - **UI Tests for Reactivity** - Playwright tests are best for DOM reactivity
 - **Test User Workflows** - Full interactions, not individual operations
 
 ### Test Patterns for Datastar
+
 ```typescript
 // Auto-save testing
-await page.fill('#editor', 'text');
+await page.fill("#editor", "text");
 await page.waitForSelector(':text("Saving...")');
 await page.waitForSelector(':text("Saved")');
 
 // SSE-triggered updates
-await page.click('[data-on-click="@get(\'/api/data\')"]');
+await page.click("[data-on-click=\"@get('/api/data')\"]");
 await page.waitForSelector('#result:has-text("Updated")');
 
 // Navigation after actions
-await page.click('#delete');
-await page.waitForURL('/');  // Test the result, not the SSE executeScript
+await page.click("#delete");
+await page.waitForURL("/"); // Test the result, not the SSE executeScript
 ```
 
 ### What to Test
+
 ✅ DO test:
+
 - User sees correct content after action
 - Navigation works after delete/save
 - Auto-save actually persists data
 - Form submissions update the UI
 
 ❌ DON'T test:
+
 - SSE event format or structure
 - Datastar signal internals
 - The exact mechanism of updates
 - Implementation details
 
 ### Handling Async Reactivity
+
 - Always wait for DOM changes with `waitForSelector`
 - Use `waitForFunction` for complex state checks
 - Avoid arbitrary `waitForTimeout` - wait for specific conditions
@@ -101,17 +113,20 @@ await page.waitForURL('/');  // Test the result, not the SSE executeScript
 ## Datastar Framework
 
 ### Core Concepts
+
 - HTML-first reactive framework using `data-*` attributes
 - Source: ~/code/datastar/library/src/
 - Self-executes on load, no global object
 - Three plugin types: Attribute (`data-*`), Action (`@` prefix), Watcher (SSE)
 
 ### Expression Syntax
+
 - `$` = signals (reactive state): `$query`, `$count`
 - `@` = action plugins: `@get('/api')`, `@post('/save')`
 - Modifiers: `data-on-input__debounce.500ms`
 
 ### The 5 SSE Operations (Server → Client)
+
 1. **`mergeFragments(html, {selector, mergeMode})`** - Update DOM
    - mergeModes: morph, inner, outer, prepend, append, before, after
 2. **`removeFragments(selector)`** - Remove DOM elements
@@ -120,29 +135,34 @@ await page.waitForURL('/');  // Test the result, not the SSE executeScript
 5. **`executeScript(code)`** - Run JS on client
 
 ### Version Compatibility ⚠️
+
 **Client and SDK versions MUST match or SSE breaks!**
+
 - We use: `@starfederation/datastar@1.0.0-beta.11` + matching SDK
 - beta.11 uses `mergeFragments()` (NOT `patchElements()` - that's old)
 - Check package.json for exact versions
 
 ### Common Issues
+
 - **"GenerateExpression" errors** → Action not registered
 - **SSE not updating DOM** → Version mismatch between client/SDK
 - **Search not working** → Wrong method name (`patchElements` vs `mergeFragments`)
 - **Navigation via SSE unreliable** → Use client-side redirect after fetch, not `executeScript`
 
 ### SSE Navigation Gotcha
+
 **DON'T use SSE executeScript for navigation** - it's unreliable across environments:
+
 ```javascript
 // ❌ BAD - Fails in CI, headless browsers, strict CSP
 stream.executeScript(`window.location.href = '/';`);
 
 // ✅ GOOD - Client controls navigation after action succeeds
-fetch('/api/delete', { method: 'DELETE' })
-  .then(() => window.location.href = '/');
+fetch("/api/delete", { method: "DELETE" }).then(() => (window.location.href = "/"));
 ```
 
 Why SSE navigation fails:
+
 - SSE is for data streaming, not command execution
 - Browser security contexts block or delay script execution
 - CI/headless environments have stricter policies

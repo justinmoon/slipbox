@@ -1,12 +1,12 @@
-import Html from '@kitajs/html';
-import { EMBEDDED_CSS } from '../styles';
+import Html from "@kitajs/html";
+import { EMBEDDED_CSS } from "../styles";
 
 interface LayoutProps {
   title: string;
   children?: JSX.Element | JSX.Element[];
 }
 
-const isDev = process.env.NODE_ENV !== 'production';
+const isDev = process.env.NODE_ENV !== "production";
 
 export const Layout = ({ title, children }: LayoutProps) => (
   <html lang="en">

@@ -1,6 +1,6 @@
-import Html from '@kitajs/html';
-import { Layout } from './Layout.js';
-import { Nav } from './Nav.js';
+import Html from "@kitajs/html";
+import { Layout } from "./Layout.js";
+import { Nav } from "./Nav.js";
 
 interface EpubReaderPageProps {
   bookName: string;
@@ -11,7 +11,7 @@ interface EpubReaderPageProps {
 export const EpubReaderPage = ({ bookName, bookUrl, fileId }: EpubReaderPageProps) => (
   <Layout title={`Reading: ${bookName}`}>
     <div id="app">
-      <Nav isHidden={true} />
+      <Nav />
       <div id="epub-reader-container"></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

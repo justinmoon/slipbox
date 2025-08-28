@@ -2,47 +2,50 @@ name: CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: write
       pull-requests: write
       checks: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      
+
       - name: Install dependencies
         run: bun install
-      
+
+      - name: Check code formatting
+        run: bun run prettier:check
+
       - name: Setup test data directory
         run: |
           mkdir -p ~/.slipbox-dev
           echo "Test data directory created"
-      
+
       - name: Build application
         run: bun run build
-      
+
       - name: Install Playwright browsers
         run: bunx playwright install chromium
-      
+
       - name: Run tests
         run: bun run test:ci
         env:
           CI: true
-      
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -50,7 +53,7 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
-      
+
       - name: Auto-merge PR
         if: |
           success() && 
