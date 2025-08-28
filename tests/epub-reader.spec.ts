@@ -87,7 +87,7 @@ test.describe("EPUB Reader", () => {
 
     // Get the first book link
     const bookLinks = await page.locator('a[href^="/epub/"]').all();
-    
+
     if (bookLinks.length === 0) {
       // Skip test if no books available (CI environment)
       console.log("No books available, skipping epub viewer test");
