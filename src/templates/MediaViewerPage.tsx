@@ -1,7 +1,7 @@
-import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Nav } from './Nav';
-import type { MediaFile } from '../services/media-service';
+import Html from "@kitajs/html";
+import { Layout } from "./Layout";
+import { Nav } from "./Nav";
+import type { MediaFile } from "../services/media-service";
 
 interface MediaViewerPageProps {
   file: MediaFile;
@@ -13,20 +13,22 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
   const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name);
   const isPDF = /\.pdf$/i.test(file.name);
   const isEpub = /\.epub$/i.test(file.name);
-  
+
   return (
     <Layout title={file.name}>
       <div class="container">
         <Nav currentPage="media" />
-        
+
         <div class="viewer-header">
-          <a href="/media" class="back-link">← Back to Media Library</a>
+          <a href="/media" class="back-link">
+            ← Back to Media Library
+          </a>
           <h1 class="text-2xl font-bold mt-4 mb-4">{file.name}</h1>
         </div>
-        
+
         <div class="media-viewer">
           {isVideo && (
-            <video 
+            <video
               src={file.url}
               controls={true as any}
               autoplay={true as any}
@@ -35,11 +37,11 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
               Your browser does not support the video tag.
             </video>
           )}
-          
+
           {isAudio && (
             <div class="audio-container">
               <div class="audio-icon">🎵</div>
-              <audio 
+              <audio
                 src={file.url}
                 controls={true as any}
                 autoplay={true as any}
@@ -50,22 +52,12 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
               <p class="text-gray-600 mt-4">{formatFileSize(file.size)}</p>
             </div>
           )}
-          
-          {isImage && (
-            <img 
-              src={file.url}
-              alt={file.name}
-              class="viewer-image"
-            />
-          )}
-          
+
+          {isImage && <img src={file.url} alt={file.name} class="viewer-image" />}
+
           {isPDF && (
             <div class="pdf-container">
-              <iframe 
-                src={file.url}
-                class="viewer-pdf"
-                title={file.name}
-              />
+              <iframe src={file.url} class="viewer-pdf" title={file.name} />
               <p class="text-center mt-4">
                 <a href={file.url} download={"download" as any} class="btn-download">
                   Download PDF
@@ -73,7 +65,7 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
               </p>
             </div>
           )}
-          
+
           {isEpub && (
             <div class="epub-container">
               <div class="epub-icon">📚</div>
@@ -84,7 +76,7 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
               <p class="text-gray-600 mt-4">{formatFileSize(file.size)}</p>
             </div>
           )}
-          
+
           {!isVideo && !isAudio && !isImage && !isPDF && !isEpub && (
             <div class="unsupported-container">
               <div class="file-icon">📄</div>
@@ -96,7 +88,7 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
             </div>
           )}
         </div>
-        
+
         <div class="file-details">
           <h3 class="text-lg font-semibold mb-2">File Information</h3>
           <dl class="details-list">
@@ -119,7 +111,7 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
           </dl>
         </div>
       </div>
-      
+
       <style>{`
         .viewer-header {
           margin-bottom: 2rem;
@@ -260,9 +252,9 @@ export const MediaViewerPage = ({ file }: MediaViewerPageProps) => {
 };
 
 function formatFileSize(bytes: number): string {
-  if (!bytes) return '0 B';
+  if (!bytes) return "0 B";
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }

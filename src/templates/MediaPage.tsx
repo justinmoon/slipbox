@@ -1,7 +1,7 @@
-import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Nav } from './Nav';
-import type { MediaFile } from '../services/media-service';
+import Html from "@kitajs/html";
+import { Layout } from "./Layout";
+import { Nav } from "./Nav";
+import type { MediaFile } from "../services/media-service";
 
 interface MediaPageProps {
   files: MediaFile[];
@@ -17,64 +17,72 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
           <div class="mb-8">
             <h2 class="text-3xl font-bold mb-4">Media Library</h2>
             <p class="text-gray-600">
-            {totalFiles} media files • {files.filter(f => f.type === 'image').length} images • 
-            {files.filter(f => f.type === 'video').length} videos • 
-            {files.filter(f => f.type === 'epub').length} ebooks • 
-            {files.filter(f => f.type === 'pdf').length} PDFs
-          </p>
+              {totalFiles} media files • {files.filter((f) => f.type === "image").length} images •
+              {files.filter((f) => f.type === "video").length} videos •
+              {files.filter((f) => f.type === "epub").length} ebooks •
+              {files.filter((f) => f.type === "pdf").length} PDFs
+            </p>
+          </div>
+
+          <div class="media-grid">
+            {files.map((file) => (
+              <a href={`/${file.name}`} class="media-card" data-file-id={file.id}>
+                {file.type === "image" ? (
+                  <div class="media-thumbnail">
+                    <img
+                      src={file.thumbnailUrl || file.url}
+                      alt={file.name}
+                      loading="lazy"
+                      class="hover:opacity-90 transition-opacity"
+                    />
+                  </div>
+                ) : file.type === "video" ? (
+                  <div class="media-thumbnail video-thumbnail">
+                    <video
+                      src={file.url}
+                      {...{ preload: "metadata" }}
+                      class="hover:opacity-90 transition-opacity"
+                    />
+                    <div class="video-overlay">
+                      <svg
+                        class="play-icon"
+                        viewBox="0 0 24 24"
+                        fill="white"
+                        width="48"
+                        height="48"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                ) : (
+                  <div class="media-placeholder">
+                    <div class="file-icon">
+                      {file.type === "epub" && "📚"}
+                      {file.type === "pdf" && "📄"}
+                      {file.type === "audio" && "🎵"}
+                      {file.type === "other" && "📁"}
+                    </div>
+                    <div class="file-info">
+                      <p class="file-name">{file.name}</p>
+                      <p class="file-size">{formatFileSize(file.size)}</p>
+                    </div>
+                  </div>
+                )}
+                <div class="media-caption">
+                  <p class="text-sm truncate" title={file.name}>
+                    {file.name}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    {new Date(file.modified).toLocaleDateString()}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
-        
-        <div class="media-grid">
-          {files.map((file) => (
-            <a href={`/${file.name}`} class="media-card" data-file-id={file.id}>
-              {file.type === 'image' ? (
-                <div class="media-thumbnail">
-                  <img 
-                    src={file.thumbnailUrl || file.url} 
-                    alt={file.name}
-                    loading="lazy"
-                    class="hover:opacity-90 transition-opacity"
-                  />
-                </div>
-              ) : file.type === 'video' ? (
-                <div class="media-thumbnail video-thumbnail">
-                  <video 
-                    src={file.url}
-                    {...{ preload: "metadata" }}
-                    class="hover:opacity-90 transition-opacity"
-                  />
-                  <div class="video-overlay">
-                    <svg class="play-icon" viewBox="0 0 24 24" fill="white" width="48" height="48">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  </div>
-                </div>
-              ) : (
-                <div class="media-placeholder">
-                  <div class="file-icon">
-                    {file.type === 'epub' && '📚'}
-                    {file.type === 'pdf' && '📄'}
-                    {file.type === 'audio' && '🎵'}
-                    {file.type === 'other' && '📁'}
-                  </div>
-                  <div class="file-info">
-                    <p class="file-name">{file.name}</p>
-                    <p class="file-size">{formatFileSize(file.size)}</p>
-                  </div>
-                </div>
-              )}
-              <div class="media-caption">
-                <p class="text-sm truncate" title={file.name}>{file.name}</p>
-                <p class="text-xs text-gray-500">
-                  {new Date(file.modified).toLocaleDateString()}
-                </p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
-      
-      <style>{`
+
+        <style>{`
         .media-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -190,9 +198,9 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
 };
 
 function formatFileSize(bytes: number): string {
-  if (!bytes) return '0 B';
+  if (!bytes) return "0 B";
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
