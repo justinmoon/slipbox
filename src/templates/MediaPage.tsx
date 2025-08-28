@@ -9,22 +9,11 @@ interface MediaPageProps {
 }
 
 export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
-  // Store files data in a way that Datastar can access
-  const filesData = files.map((file, index) => ({
-    ...file,
-    index,
-  }));
-
   return (
     <Layout title="Media Library">
       <div class="container">
         <Nav currentPage="media" />
-        <div
-          data-store={JSON.stringify({
-            selectedFile: null,
-            files: filesData,
-          })}
-        >
+        <div>
           <div class="mb-8">
             <h2 class="text-3xl font-bold mb-4">Media Library</h2>
             <p class="text-gray-600">
@@ -36,16 +25,15 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
           </div>
 
           <div class="media-grid">
-            {files.map((file, index) => (
-              <div class="media-card" data-file-id={file.id}>
+            {files.map((file) => (
+              <a href={`/${file.name}`} class="media-card" data-file-id={file.id}>
                 {file.type === "image" ? (
                   <div class="media-thumbnail">
                     <img
                       src={file.thumbnailUrl || file.url}
                       alt={file.name}
                       loading="lazy"
-                      data-on-click={`$selectedFile = $files[${index}]`}
-                      class="cursor-pointer hover:opacity-90 transition-opacity"
+                      class="hover:opacity-90 transition-opacity"
                     />
                   </div>
                 ) : file.type === "video" ? (
@@ -53,8 +41,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                     <video
                       src={file.url}
                       {...{ preload: "metadata" }}
-                      data-on-click={`$selectedFile = $files[${index}]`}
-                      class="cursor-pointer hover:opacity-90 transition-opacity"
+                      class="hover:opacity-90 transition-opacity"
                     />
                     <div class="video-overlay">
                       <svg
@@ -69,7 +56,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                     </div>
                   </div>
                 ) : (
-                  <div class="media-placeholder" data-on-click={`$selectedFile = $files[${index}]`}>
+                  <div class="media-placeholder">
                     <div class="file-icon">
                       {file.type === "epub" && "📚"}
                       {file.type === "pdf" && "📄"}
@@ -90,67 +77,8 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                     {new Date(file.modified).toLocaleDateString()}
                   </p>
                 </div>
-              </div>
+              </a>
             ))}
-          </div>
-
-          {/* Media viewer modal */}
-          <div
-            class="media-modal"
-            data-show="!!$selectedFile"
-            data-on-click="if (event.target === event.currentTarget) $selectedFile = null"
-          >
-            <div class="modal-content" data-if="$selectedFile">
-              <button class="modal-close" data-on-click="$selectedFile = null" aria-label="Close">
-                ✕
-              </button>
-              <div data-if="$selectedFile?.type === 'image'">
-                <img
-                  data-attr-src="$selectedFile?.url"
-                  data-attr-alt="$selectedFile?.name"
-                  class="max-w-full max-h-[80vh] mx-auto"
-                />
-              </div>
-              <div data-if="$selectedFile?.type === 'video'">
-                <video
-                  data-attr-src="$selectedFile?.url"
-                  controls
-                  autoplay
-                  class="max-w-full max-h-[80vh] mx-auto"
-                />
-              </div>
-              <div data-if="$selectedFile?.type === 'audio'">
-                <div class="audio-player">
-                  <p class="text-xl mb-4" data-text="$selectedFile?.name"></p>
-                  <audio
-                    data-attr-src="$selectedFile?.url"
-                    controls="controls"
-                    autoplay={true}
-                    class="w-full"
-                  />
-                </div>
-              </div>
-              <div data-if="$selectedFile?.type === 'pdf' || $selectedFile?.type === 'epub'">
-                <div class="document-viewer">
-                  <p class="text-xl mb-4" data-text="$selectedFile?.name"></p>
-                  <a
-                    data-attr-href="$selectedFile?.type === 'epub' ? '/reader/open/' + $selectedFile?.id : $selectedFile?.url"
-                    class="btn-primary"
-                    target="_blank"
-                  >
-                    Open Document
-                  </a>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <p class="text-sm" data-text="$selectedFile?.name"></p>
-                <p class="text-xs text-gray-500">
-                  <span data-text="$selectedFile?.size ? formatFileSize($selectedFile?.size) : ''"></span>
-                  <span data-if="$selectedFile?.modified"> • </span>
-                  <span data-text="$selectedFile?.modified ? new Date($selectedFile?.modified).toLocaleString() : ''"></span>
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -169,11 +97,14 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
         }
         
         .media-card {
+          display: block;
           background: white;
           border: 2px solid #111;
           border-radius: 8px;
           overflow: hidden;
           transition: transform 0.2s, box-shadow 0.2s;
+          text-decoration: none;
+          color: inherit;
         }
         
         .media-card:hover {
@@ -260,90 +191,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
           padding: 0.75rem;
           border-top: 1px solid #e0e0e0;
         }
-        
-        .media-modal {
-          display: none;
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.8);
-          z-index: 1000;
-          padding: 2rem;
-        }
-        
-        .media-modal[data-show="true"] {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .modal-content {
-          background: white;
-          border-radius: 8px;
-          padding: 2rem;
-          max-width: 90vw;
-          max-height: 90vh;
-          overflow: auto;
-          position: relative;
-        }
-        
-        .modal-close {
-          position: absolute;
-          top: 1rem;
-          right: 1rem;
-          width: 2rem;
-          height: 2rem;
-          border: 2px solid #111;
-          background: white;
-          border-radius: 50%;
-          font-size: 1.25rem;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: transform 0.2s;
-        }
-        
-        .modal-close:hover {
-          transform: scale(1.1);
-        }
-        
-        .modal-footer {
-          margin-top: 1rem;
-          padding-top: 1rem;
-          border-top: 1px solid #e0e0e0;
-        }
-        
-        .audio-player,
-        .document-viewer {
-          min-width: 400px;
-          padding: 2rem;
-          text-align: center;
-        }
-        
-        .btn-primary {
-          display: inline-block;
-          padding: 0.75rem 1.5rem;
-          background: #111;
-          color: white;
-          text-decoration: none;
-          border-radius: 4px;
-          transition: transform 0.2s;
-        }
-        
-        .btn-primary:hover {
-          transform: translateY(-2px);
-        }
       `}</style>
-
-        <script>{`
-        function formatFileSize(bytes) {
-          if (!bytes) return '0 B';
-          const k = 1024;
-          const sizes = ['B', 'KB', 'MB', 'GB'];
-          const i = Math.floor(Math.log(bytes) / Math.log(k));
-          return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
-      `}</script>
       </div>
     </Layout>
   );

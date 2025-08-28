@@ -5,7 +5,7 @@ import { NoteMetadata } from "./types";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { fileStorage } from "./services/file-storage";
-import { mediaService } from "./services/media-service";
+import { mediaService, type MediaFile, getMediaType } from "./services/media-service";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
 import { eq } from "drizzle-orm";
@@ -20,6 +20,7 @@ import { EpubReaderPage } from "./templates/EpubReaderPage";
 import { UploadPage } from "./templates/UploadPage";
 import { LoginPage } from "./templates/LoginPage";
 import { MediaPage } from "./templates/MediaPage";
+import { MediaViewerPage } from "./templates/MediaViewerPage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -317,6 +318,15 @@ Bun.serve({
 
       case "/upload":
         return handleUpload();
+    }
+
+    // Handle media file viewing by filename (e.g., /my-video.mp4)
+    // This should come before dynamic routes to catch media files
+    const mediaFileExtensions =
+      /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|ogg|avi|mov|mp3|wav|m4a|pdf|epub)$/i;
+    if (mediaFileExtensions.test(path)) {
+      const filename = decodeURIComponent(path.slice(1)); // Remove leading slash
+      return handleMediaViewer(filename);
     }
 
     // Dynamic routes
@@ -713,6 +723,39 @@ async function handleMedia(): Promise<Response> {
   return htmlResponse(MediaPage({ files, totalFiles: total }) as string);
 }
 
+async function handleMediaViewer(filename: string): Promise<Response> {
+  // First try to find the file in database by original name
+  const { files: dbFiles } = await fileStorage.getAllFiles(50, 0);
+  let file = dbFiles.find((f) => f.originalName === filename);
+
+  if (file) {
+    // Convert database file to MediaFile format
+    const { type, mimeType } = getMediaType(file.originalName);
+    const mediaFile: MediaFile = {
+      id: file.id,
+      name: file.originalName,
+      type: type as MediaFile["type"],
+      mimeType: file.mimeType || mimeType,
+      size: file.size,
+      modified: file.uploadedAt,
+      url: `/api/files/download/${file.id}`,
+      thumbnailUrl: type === "image" ? `/api/files/thumbnail/${file.id}` : undefined,
+      source: "database",
+    };
+    return htmlResponse(MediaViewerPage({ file: mediaFile }) as string);
+  }
+
+  // If not found in database, check filesystem (for backward compatibility)
+  const { files } = await mediaService.getAllMediaFiles(200, 0);
+  const mediaFile = files.find((f) => f.name === filename);
+
+  if (!mediaFile) {
+    return notFound();
+  }
+
+  return htmlResponse(MediaViewerPage({ file: mediaFile }) as string);
+}
+
 async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
   try {
     const fileInfo = await fileStorage.getFile(fileId);
@@ -797,8 +840,13 @@ async function handleFileUpload(req: Request): Promise<Response> {
       { noteId: noteId || undefined },
     );
 
-    return new Response(JSON.stringify(savedFile), {
-      headers: { "Content-Type": "application/json" },
+    // Always redirect after successful upload (tests expect this)
+    console.log(`File uploaded successfully: ${savedFile.originalName}, redirecting to /media`);
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/media",
+      },
     });
   } catch (error) {
     console.error("File upload error:", error);
