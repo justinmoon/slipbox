@@ -59,7 +59,6 @@ export const test = base.extend<{
         ...process.env,
         SLIPBOX_DATA_DIR: tmpDir,
         PORT: port.toString(),
-        NODE_ENV: 'test'
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });

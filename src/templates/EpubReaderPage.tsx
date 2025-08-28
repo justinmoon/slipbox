@@ -6,9 +6,10 @@ interface EpubReaderPageProps {
   bookName: string;
   bookUrl: string;
   fileId: string;
+  cfi?: string | null;
 }
 
-export const EpubReaderPage = ({ bookName, bookUrl, fileId }: EpubReaderPageProps) => (
+export const EpubReaderPage = ({ bookName, bookUrl, fileId, cfi }: EpubReaderPageProps) => (
   <Layout title={`Reading: ${bookName}`}>
     <div id="app">
       <Nav isHidden={true} />
@@ -24,7 +25,10 @@ export const EpubReaderPage = ({ bookName, bookUrl, fileId }: EpubReaderPageProp
         const reader = document.createElement('epub-reader');
         reader.setAttribute('file-id', '${fileId}');
         container.appendChild(reader);
-        reader.loadBook('${bookUrl}');
+        reader.loadBook('${bookUrl}').then(() => {
+          // If CFI is provided, navigate to it
+          ${cfi ? `reader.loadFromCfi('${cfi}');` : ''}
+        });
       });
     `}</script>
   </Layout>

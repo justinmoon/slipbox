@@ -10,6 +10,7 @@ import { db } from './db/index';
 import { epubReadingPositions } from './db/schema';
 import { eq } from 'drizzle-orm';
 import { embeddedAssets } from './embed-assets';
+import { Note } from './types';
 
 // Templates
 import { HomePage } from './templates/HomePage';
@@ -199,11 +200,9 @@ function notFound(): Response {
 
 // Check if request needs authentication
 function needsAuth(path: string): boolean {
-  // Skip auth in test mode
-  if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
-  // Auto-login route doesn't need auth (development only)
+  // Auto-login route doesn't need auth (development and test only)
   if (path === '/auto-login' && process.env.NODE_ENV !== 'production') return false;
   // Static files don't need auth
   if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) return false;
@@ -301,6 +300,12 @@ Bun.serve({
         // Create empty note and redirect to edit page
         return handleCreateEmptyNote();
         
+      case '/api/note':
+        if (req.method === 'POST') {
+          return handleCreateNote(req);
+        }
+        return new Response('Method not allowed', { status: 405 });
+        
       case '/reader':
         return handleReader();
         
@@ -330,10 +335,12 @@ Bun.serve({
     }
 
     // Reader routes - Handle the epub viewer page
-    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)$/);
+    // Support both /epub/fileId and /epub/fileId#cfi for deep linking
+    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)/);
     if (epubViewerMatch) {
       const fileId = epubViewerMatch[1];
-      return handleEpubViewer(fileId);
+      const cfi = url.hash ? url.hash.substring(1) : null;
+      return handleEpubViewer(fileId, cfi);
     }
 
     // Serve EPUB file content
@@ -452,25 +459,12 @@ function handleAutoLogin(): Response {
   const token = generateSessionToken();
   sessions.set(token, { expires: Date.now() + SESSION_DURATION });
   
-  // Return an HTML page that auto-submits and redirects
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Auto-login</title>
-</head>
-<body>
-  <script>
-    // Set cookie and redirect
-    document.cookie = "session=${token}; Path=/; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}";
-    window.location.href = '/';
-  </script>
-</body>
-</html>`;
-  
-  return new Response(html, {
+  // For tests and automation, do a server-side redirect with the session cookie
+  // This works better than JavaScript redirects in headless environments
+  return new Response(null, {
+    status: 302,
     headers: { 
-      'Content-Type': 'text/html',
+      'Location': '/',
       'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
     }
   });
@@ -581,14 +575,27 @@ async function handleSearch(url: URL): Promise<Response> {
 }
 
 async function handleViewNote(id: string): Promise<Response> {
-  const note = await storage.getNote(id);
+  const noteWithHtml = await storage.getNote(id);
   
-  if (!note) {
+  if (!noteWithHtml) {
     return notFound();
   }
 
-  const html = await storage.renderMarkdown(note.content);
-  return htmlResponse(NotePage({ note, html }) as string);
+  console.log('[handleViewNote] Note ID:', id);
+  console.log('[handleViewNote] Note content length:', noteWithHtml.content?.length);
+  console.log('[handleViewNote] Note content preview:', noteWithHtml.content?.substring(0, 100));
+
+  // Extract just the note part (without html field) for the component
+  const note: Note = {
+    id: noteWithHtml.id,
+    content: noteWithHtml.content,
+    created: noteWithHtml.created,
+    modified: noteWithHtml.modified
+  };
+
+  // NotePage will handle the markdown rendering internally
+  const pageHtml = NotePage({ note });
+  return htmlResponse(pageHtml as string);
 }
 
 async function handleCreateEmptyNote(): Promise<Response> {
@@ -602,6 +609,24 @@ async function handleCreateEmptyNote(): Promise<Response> {
       'Location': `/edit/${note.id}`
     }
   });
+}
+
+async function handleCreateNote(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const content = body.content || '';
+    
+    // Create the note
+    const note = await storage.createNote(content);
+    
+    // Return the note ID
+    return new Response(JSON.stringify({ id: note.id }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error creating note:', error);
+    return new Response('Failed to create note', { status: 500 });
+  }
 }
 
 
@@ -653,8 +678,8 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
-async function handleEpubViewer(fileId: string): Promise<Response> {
-  console.log('handleEpubViewer called for:', fileId);
+async function handleEpubViewer(fileId: string, cfi: string | null = null): Promise<Response> {
+  console.log('handleEpubViewer called for:', fileId, 'with CFI:', cfi);
   
   // Get file info from storage
   try {
@@ -666,7 +691,7 @@ async function handleEpubViewer(fileId: string): Promise<Response> {
     const bookName = fileInfo.originalName.replace(/\.epub$/i, '');
     const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
     
-    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId }) as string);
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId, cfi }) as string);
   } catch (error) {
     console.error('Error fetching book:', error);
     return notFound();

@@ -2,7 +2,6 @@ import { db } from '../db/index';
 import { notes, noteSearchIndex, Note } from '../db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
-import { marked } from 'marked';
 
 export interface NoteWithHtml extends Note {
   html?: string;
@@ -39,10 +38,14 @@ export class SqliteNoteStorage {
     const [note] = await db.select().from(notes).where(eq(notes.id, id)).limit(1);
     
     if (!note) return null;
+    
+    console.log('[getNote] Note content:', note.content?.substring(0, 100) + '...');
+    const html = await this.renderMarkdown(note.content);
+    console.log('[getNote] Rendered HTML length:', html?.length);
 
     return {
       ...note,
-      html: await marked(note.content),
+      html,
     };
   }
 
@@ -164,7 +167,70 @@ export class SqliteNoteStorage {
   }
 
   async renderMarkdown(content: string): Promise<string> {
-    return await marked(content);
+    // Create a new Marked instance to avoid conflicts
+    const { Marked } = await import('marked');
+    const markedInstance = new Marked();
+    
+    // Configure marked to handle epub links (both legacy epub:// and new filesystem format)
+    const renderer = {
+      link(token: any): string | false {
+        // In Marked v5+, the first parameter is a token object
+        const href = token.href || token;
+        const text = token.text || '';
+        
+        // Ensure href is a string
+        const hrefStr = String(href || '');
+        
+        // Handle legacy epub:// links
+        if (hrefStr && hrefStr.startsWith('epub://')) {
+          // Parse the epub link: epub://fileId#cfi
+          const match = hrefStr.match(/^epub:\/\/([^#]+)#(.+)$/);
+          if (match) {
+            const [, fileId, cfi] = match;
+            // Convert to a proper web URL
+            const webUrl = `/epub/${fileId}#${cfi}`;
+            // Escape the text to prevent XSS
+            const escapedText = text.replace(/[&<>"']/g, (char) => {
+              const escapes: Record<string, string> = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+              };
+              return escapes[char] || char;
+            });
+            return `<a href="${webUrl}" class="epub-link" data-file-id="${fileId}" data-cfi="${cfi}">${escapedText}</a>`;
+          }
+        }
+        
+        // Handle new filesystem-like format: <uuid>.epub#cfi
+        const epubMatch = hrefStr.match(/^([a-f0-9-]+)\.epub#(.+)$/);
+        if (epubMatch) {
+          const [, fileId, cfi] = epubMatch;
+          // Convert to a proper web URL
+          const webUrl = `/epub/${fileId}#${cfi}`;
+          // Escape the text to prevent XSS
+          const escapedText = text.replace(/[&<>"']/g, (char) => {
+            const escapes: Record<string, string> = {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;'
+            };
+            return escapes[char] || char;
+          });
+          return `<a href="${webUrl}" class="epub-link" data-file-id="${fileId}" data-cfi="${cfi}">${escapedText}</a>`;
+        }
+        
+        // Return false to use the default renderer for other links
+        return false;
+      }
+    };
+    
+    markedInstance.use({ renderer });
+    return await markedInstance.parse(content);
   }
 
   private countWords(content: string): number {
