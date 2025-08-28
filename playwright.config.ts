@@ -27,7 +27,6 @@ const port = 3003; // Use a fixed port for now to debug
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: "**/worktrees/**",
   timeout: 60 * 1000, // Increased timeout for tests with setup
   expect: {
     timeout: 10000, // Increased expect timeout
