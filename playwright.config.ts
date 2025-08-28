@@ -47,7 +47,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `bun run build:client && NODE_ENV=test PORT=3000 SLIPBOX_DATA_DIR=./test-data bun src/index.ts`,
+    command: `bun run build:client && NODE_ENV=development PORT=3000 SLIPBOX_DATA_DIR=./test-data bun src/index.ts`,
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 20000,

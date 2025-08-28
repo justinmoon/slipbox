@@ -5,10 +5,11 @@ import { tmpdir } from 'os';
 
 // Authentication helper
 export async function authenticate(page: Page) {
-  await page.goto('/login');
-  await page.fill('input[type="password"]', 'Golf1234');
-  await page.click('button[type="submit"]');
-  await page.waitForURL('/');
+  // Use auto-login route for tests (non-production only)
+  // The auto-login page sets a cookie via JavaScript and redirects
+  await page.goto('/auto-login');
+  // Wait for the JavaScript to execute and redirect
+  await page.waitForURL('/', { timeout: 5000 });
 }
 
 // Create test environment with temp data directory

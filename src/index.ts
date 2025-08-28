@@ -200,11 +200,9 @@ function notFound(): Response {
 
 // Check if request needs authentication
 function needsAuth(path: string): boolean {
-  // Skip auth in test mode
-  if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
-  // Auto-login route doesn't need auth (development only)
+  // Auto-login route doesn't need auth (development and test only)
   if (path === '/auto-login' && process.env.NODE_ENV !== 'production') return false;
   // Static files don't need auth
   if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) return false;
@@ -219,11 +217,6 @@ Bun.serve({
   async fetch(req: Request) {
     const url = new URL(req.url);
     const path = url.pathname;
-    
-    // Debug logging for tests
-    if (process.env.NODE_ENV === 'test' && path === '/api/note') {
-      console.log(`[TEST] /api/note request - Method: ${req.method}, Auth needed: ${needsAuth(path)}`);
-    }
     
     // Check authentication for protected routes
     if (needsAuth(path)) {
@@ -278,9 +271,6 @@ Bun.serve({
 
 
     // Routes
-    if (process.env.NODE_ENV === 'test' && path === '/api/note') {
-      console.log(`[TEST] Reached switch statement for /api/note`);
-    }
     switch (path) {
       case '/login':
         if (req.method === 'GET') {
@@ -1030,7 +1020,6 @@ async function handleGetReadingPosition(fileId: string): Promise<Response> {
 const separator = '='.repeat(50);
 console.log(`\n${separator}`);
 console.log(`🚀 Slipbox server running at http://localhost:${config.port}`);
-console.log('NODE_ENV:', process.env.NODE_ENV);
 if (process.env.DEV_MODE === 'true') {
   console.log(`📝 Watching for file changes...`);
 }
