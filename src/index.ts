@@ -1,6 +1,7 @@
 import { ServerSentEventGenerator } from '@starfederation/datastar-sdk/web';
 import { NoteStorage } from './storage';
 import { config } from './config';
+import { NoteMetadata } from './types';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './services/file-storage';
@@ -101,8 +102,7 @@ async function serveStatic(path: string): Promise<Response> {
     const file = Bun.file(tsPath);
     
     if (await file.exists()) {
-      const content = await file.text();
-      const result = await Bun.build({
+        const result = await Bun.build({
         entrypoints: [tsPath],
         target: 'browser',
         minify: false,
@@ -203,6 +203,8 @@ function needsAuth(path: string): boolean {
   if (process.env.NODE_ENV === 'test') return false;
   // Login page doesn't need auth
   if (path === '/login') return false;
+  // Auto-login route doesn't need auth (development only)
+  if (path === '/auto-login' && process.env.NODE_ENV !== 'production') return false;
   // Static files don't need auth
   if (path.startsWith('/static/') || path.startsWith('/client/') || path.startsWith('/dist/')) return false;
   // Hot-reload SSE doesn't need auth (development only)
@@ -282,11 +284,18 @@ Bun.serve({
       case '/logout':
         return handleLogout(req);
         
+      case '/auto-login':
+        // Development-only auto-login route
+        if (process.env.NODE_ENV !== 'production') {
+          return handleAutoLogin();
+        }
+        break;
+        
       case '/':
         return handleHome(url);
       
       case '/search':
-        return handleSearch(url, req);
+        return handleSearch(url);
       
       case '/new':
         // Create empty note and redirect to edit page
@@ -438,6 +447,35 @@ function handleLogout(req: Request): Response {
   });
 }
 
+function handleAutoLogin(): Response {
+  // Create session automatically for development
+  const token = generateSessionToken();
+  sessions.set(token, { expires: Date.now() + SESSION_DURATION });
+  
+  // Return an HTML page that auto-submits and redirects
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Auto-login</title>
+</head>
+<body>
+  <script>
+    // Set cookie and redirect
+    document.cookie = "session=${token}; Path=/; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}";
+    window.location.href = '/';
+  </script>
+</body>
+</html>`;
+  
+  return new Response(html, {
+    headers: { 
+      'Content-Type': 'text/html',
+      'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_DURATION / 1000}`
+    }
+  });
+}
+
 async function handleHome(url: URL): Promise<Response> {
   const page = parseInt(url.searchParams.get('page') || '1');
   const query = url.searchParams.get('q') || '';
@@ -477,7 +515,7 @@ async function handleHome(url: URL): Promise<Response> {
   return htmlResponse(HomePage({ notes, totalPages, currentPage, query }) as string);
 }
 
-async function handleSearch(url: URL, req: Request): Promise<Response> {
+async function handleSearch(url: URL): Promise<Response> {
   const query = url.searchParams.get('q') || '';
   
   console.log(`[SEARCH] Query: "${query}"`);
@@ -582,7 +620,7 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
   let content: string;
   
   try {
-    const body = await req.json();
+    const body = await req.json() as { content?: string };
     content = body.content || '';
   } catch (error) {
     return new Response('Invalid request body', { status: 400 });

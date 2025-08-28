@@ -27,7 +27,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
         >
           <div class="mb-8">
             <h2 class="text-3xl font-bold mb-4">Media Library</h2>
-          <p class="text-gray-600">
+            <p class="text-gray-600">
             {totalFiles} media files • {files.filter(f => f.type === 'image').length} images • 
             {files.filter(f => f.type === 'video').length} videos • 
             {files.filter(f => f.type === 'epub').length} ebooks • 
@@ -52,7 +52,7 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                 <div class="media-thumbnail video-thumbnail">
                   <video 
                     src={file.url}
-                    preload="metadata"
+                    {...{ preload: "metadata" }}
                     data-on-click={`$selectedFile = $files[${index}]`}
                     class="cursor-pointer hover:opacity-90 transition-opacity"
                   />
@@ -120,8 +120,8 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                 <p class="text-xl mb-4" data-text="$selectedFile?.name"></p>
                 <audio 
                   data-attr-src="$selectedFile?.url"
-                  controls
-                  autoplay
+                  controls="controls"
+                  autoplay={true}
                   class="w-full"
                 />
               </div>
