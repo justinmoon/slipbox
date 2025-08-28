@@ -35,11 +35,11 @@ test.describe("EPUB Reader", () => {
 
     // Check for book links
     const bookLinks = await page.locator('a[href^="/epub/"]').all();
-    
+
     // The test environment has persistent EPUB files (86 books)
     // Assert that we have books and they display correctly
     expect(bookLinks.length).toBeGreaterThan(0);
-    
+
     // Verify first book has expected structure
     if (bookLinks.length > 0) {
       const firstBook = bookLinks[0];
