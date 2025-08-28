@@ -6,12 +6,17 @@
   html {
     @apply bg-off-white text-dark text-base leading-relaxed;
   }
-  
+
   body {
     @apply font-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-serif font-bold leading-tight my-4;
   }
 
@@ -36,7 +41,8 @@
     @apply text-dark underline hover:no-underline;
   }
 
-  button, input[type="submit"] {
+  button,
+  input[type="submit"] {
     @apply cursor-pointer;
   }
 }
@@ -86,7 +92,7 @@
   .reader-content {
     @apply border-2 border-dark p-4 bg-white;
   }
-  
+
   .font-size-display {
     @apply px-2 text-sm font-mono;
   }
@@ -97,30 +103,30 @@
     @apply columns-1 gap-8 md:columns-2;
     column-rule: 1px solid #ddd;
   }
-  
+
   .prose h1,
   .prose h2 {
     column-span: all;
   }
-  
+
   .prose pre {
     column-span: all;
     @apply bg-gray-100 border border-gray-300 p-4 my-4 overflow-x-auto;
   }
-  
+
   .prose code {
     @apply font-mono bg-gray-100 px-1 py-0.5;
   }
-  
+
   .prose blockquote {
     @apply border-l-4 border-dark pl-4 my-4 italic;
   }
-  
+
   @media print {
     .no-print {
       @apply hidden;
     }
-    
+
     body {
       @apply text-black bg-white;
     }

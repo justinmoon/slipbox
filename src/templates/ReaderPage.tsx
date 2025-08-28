@@ -1,6 +1,6 @@
-import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Nav } from './Nav';
+import Html from "@kitajs/html";
+import { Layout } from "./Layout";
+import { Nav } from "./Nav";
 
 interface EpubFile {
   id: string;
@@ -21,10 +21,12 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
       <div id="library" class="min-h-[60vh]">
         <h2 class="text-3xl font-bold mb-6 pb-2 border-b-2 border-dark">Your Library</h2>
         {epubFiles.length === 0 ? (
-          <p class="text-center italic text-gray-600 py-8">No EPUB files found. Upload some using the Upload page.</p>
+          <p class="text-center italic text-gray-600 py-8">
+            No EPUB files found. Upload some using the Upload page.
+          </p>
         ) : (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {epubFiles.map(book => (
+            {epubFiles.map((book) => (
               <a href={`/epub/${book.id}`} class="block no-underline">
                 <div class="border-2 border-dark bg-off-white p-6 cursor-pointer hover:shadow-[3px_3px_0_#111] transition-shadow">
                   <h3 class="text-xl font-bold mb-2">{book.name}</h3>

@@ -1,6 +1,6 @@
-import Html from '@kitajs/html';
-import { Layout } from './Layout';
-import { Nav } from './Nav';
+import Html from "@kitajs/html";
+import { Layout } from "./Layout";
+import { Nav } from "./Nav";
 
 interface EditNotePageProps {
   id: string;
@@ -12,7 +12,10 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
     <div id="app" class="container">
       <Nav currentPage="edit" />
       <div class="flex items-center gap-4 mb-4">
-        <a href={`/note/${id}`} class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow">
+        <a
+          href={`/note/${id}`}
+          class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow"
+        >
           View Note
         </a>
         <span id="save-status" class="text-sm text-gray-600"></span>
@@ -20,11 +23,13 @@ export const EditNotePage = ({ id, content }: EditNotePageProps) => (
 
       <main class="min-h-[60vh]">
         <div class="w-full">
-          <textarea 
+          <textarea
             id="note-editor"
             class="w-full h-[80vh] font-mono text-base leading-relaxed p-4 border-2 border-dark bg-off-white resize-y focus:outline-none focus:ring-2 focus:ring-dark focus:ring-offset-2"
             autofocus
-          >{content}</textarea>
+          >
+            {content}
+          </textarea>
         </div>
       </main>
     </div>

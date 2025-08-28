@@ -11,12 +11,15 @@ interface Book {
   packaging: {
     metadata: BookMetadata;
   };
-  renderTo(element: string, options: {
-    width: string;
-    height: string;
-    spread: string;
-    minSpreadWidth: number;
-  }): Rendition;
+  renderTo(
+    element: string,
+    options: {
+      width: string;
+      height: string;
+      spread: string;
+      minSpreadWidth: number;
+    },
+  ): Rendition;
 }
 
 interface Rendition {
@@ -44,7 +47,7 @@ class EpubReader extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.fileId = this.getAttribute('file-id');
+    this.fileId = this.getAttribute("file-id");
     this.innerHTML = `
       <div class="reader-header">
         <button class="reader-btn" id="back-btn">← Back to Library</button>
@@ -61,12 +64,16 @@ class EpubReader extends HTMLElement {
         <div id="epub-viewer" style="height: calc(100vh - 120px);"></div>
       </div>
     `;
-    
-    this.querySelector('#back-btn')!.addEventListener('click', () => this.goBack());
-    this.querySelector('#prev-btn')!.addEventListener('click', () => this.prevPage());
-    this.querySelector('#next-btn')!.addEventListener('click', () => this.nextPage());
-    this.querySelector('#decrease-font-btn')!.addEventListener('click', () => this.decreaseFontSize());
-    this.querySelector('#increase-font-btn')!.addEventListener('click', () => this.increaseFontSize());
+
+    this.querySelector("#back-btn")!.addEventListener("click", () => this.goBack());
+    this.querySelector("#prev-btn")!.addEventListener("click", () => this.prevPage());
+    this.querySelector("#next-btn")!.addEventListener("click", () => this.nextPage());
+    this.querySelector("#decrease-font-btn")!.addEventListener("click", () =>
+      this.decreaseFontSize(),
+    );
+    this.querySelector("#increase-font-btn")!.addEventListener("click", () =>
+      this.increaseFontSize(),
+    );
   }
 
   async loadBook(url: string): Promise<void> {
@@ -74,36 +81,36 @@ class EpubReader extends HTMLElement {
       if (this.rendition) {
         this.rendition.destroy();
       }
-      
-      console.log('Fetching EPUB from:', url);
+
+      console.log("Fetching EPUB from:", url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to fetch EPUB: ${response.status}`);
       }
-      
+
       const blob = await response.blob();
-      console.log('EPUB blob size:', blob.size);
-      
+      console.log("EPUB blob size:", blob.size);
+
       this.book = ePub(blob);
-      
+
       if (!this.book) {
-        throw new Error('Failed to create book instance');
+        throw new Error("Failed to create book instance");
       }
-      
+
       await this.book.loaded.metadata;
       const metadata = this.book.packaging.metadata;
-      const titleElement = this.querySelector('.reader-title');
+      const titleElement = this.querySelector(".reader-title");
       if (titleElement) {
-        titleElement.textContent = metadata.title || 'Untitled';
+        titleElement.textContent = metadata.title || "Untitled";
       }
-      
+
       this.rendition = this.book.renderTo("epub-viewer", {
         width: "100%",
         height: "100%",
         spread: "always",
-        minSpreadWidth: 800
+        minSpreadWidth: 800,
       });
-      
+
       // Load saved position and font size if exists
       if (this.fileId) {
         const position = await this.loadSavedPosition();
@@ -123,26 +130,26 @@ class EpubReader extends HTMLElement {
       } else {
         await this.rendition.display();
       }
-      
+
       // Set up position saving on location change
-      this.rendition.on('relocated', () => {
+      this.rendition.on("relocated", () => {
         this.savePositionDebounced();
       });
-      
-      document.addEventListener('keyup', this.handleKeyboard.bind(this));
-      
-      window.addEventListener('resize', () => {
+
+      document.addEventListener("keyup", this.handleKeyboard.bind(this));
+
+      window.addEventListener("resize", () => {
         this.rendition?.resize();
       });
-      
+
       let touchStart: number | null = null;
-      this.rendition.on('touchstart', (event: TouchEvent) => {
+      this.rendition.on("touchstart", (event: TouchEvent) => {
         if (event.changedTouches && event.changedTouches[0]) {
           touchStart = event.changedTouches[0].screenX;
         }
       });
-      
-      this.rendition.on('touchend', (event: TouchEvent) => {
+
+      this.rendition.on("touchend", (event: TouchEvent) => {
         if (!touchStart || !event.changedTouches || !event.changedTouches[0]) return;
         const touchEnd = event.changedTouches[0].screenX;
         const diff = touchStart - touchEnd;
@@ -155,21 +162,20 @@ class EpubReader extends HTMLElement {
         }
         touchStart = null;
       });
-      
     } catch (error) {
-      console.error('Error loading EPUB:', error);
-      alert('Failed to load EPUB file: ' + (error as Error).message);
+      console.error("Error loading EPUB:", error);
+      alert("Failed to load EPUB file: " + (error as Error).message);
     }
   }
 
   private handleKeyboard(e: KeyboardEvent): void {
     if (!this.rendition) return;
-    
-    if (e.key === 'ArrowLeft') {
+
+    if (e.key === "ArrowLeft") {
       this.prevPage();
-    } else if (e.key === 'ArrowRight') {
+    } else if (e.key === "ArrowRight") {
       this.nextPage();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       this.goBack();
     }
   }
@@ -187,59 +193,63 @@ class EpubReader extends HTMLElement {
       this.savePositionDebounced();
     }
   }
-  
-  private async loadSavedPosition(): Promise<{ cfi: string | null; percentage: number; fontSize: number } | null> {
+
+  private async loadSavedPosition(): Promise<{
+    cfi: string | null;
+    percentage: number;
+    fontSize: number;
+  } | null> {
     if (!this.fileId) return null;
-    
+
     try {
       const response = await fetch(`/api/reading-position/${this.fileId}`);
       if (response.ok) {
         return await response.json();
       }
     } catch (error) {
-      console.error('Failed to load reading position:', error);
+      console.error("Failed to load reading position:", error);
     }
     return null;
   }
-  
+
   private savePositionDebounced(): void {
     if (!this.fileId || !this.rendition) return;
-    
+
     // Clear existing timeout
     if (this.savePositionTimeout) {
       clearTimeout(this.savePositionTimeout);
     }
-    
+
     // Save position after 1 second of no activity
     this.savePositionTimeout = setTimeout(() => {
       this.savePosition();
     }, 1000);
   }
-  
+
   private async savePosition(): Promise<void> {
     if (!this.fileId || !this.rendition) return;
-    
+
     try {
       const location = this.rendition.currentLocation();
       if (!location || !location.start) return;
-      
+
       const cfi = location.start.cfi;
       const percentage = location.start.percentage || 0;
-      
-      await fetch('/api/reading-position', {
-        method: 'POST',
+
+      await fetch("/api/reading-position", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           fileId: this.fileId,
           cfi: cfi,
           percentage: Math.round(percentage * 100),
-          fontSize: this.currentFontSize
+          fontSize: this.currentFontSize,
         }),
       });
     } catch (error) {
-      console.error('Failed to save reading position:', error);
+      console.error("Failed to save reading position:", error);
     }
   }
 
@@ -250,7 +260,7 @@ class EpubReader extends HTMLElement {
       this.savePositionDebounced();
     }
   }
-  
+
   private decreaseFontSize(): void {
     if (this.currentFontSize > 50) {
       this.currentFontSize -= 10;
@@ -258,29 +268,28 @@ class EpubReader extends HTMLElement {
       this.savePositionDebounced();
     }
   }
-  
+
   private applyFontSize(): void {
     if (this.rendition) {
       this.rendition.themes.fontSize(`${this.currentFontSize}%`);
-      const display = this.querySelector('#font-size-display') as HTMLElement;
+      const display = this.querySelector("#font-size-display") as HTMLElement;
       if (display) {
         display.textContent = `${this.currentFontSize}%`;
       }
     }
   }
-  
-  
+
   private goBack(): void {
     // Save position before leaving
     this.savePosition();
-    
+
     if (this.rendition) {
       this.rendition.destroy();
     }
-    document.removeEventListener('keyup', this.handleKeyboard.bind(this));
-    
-    window.location.href = '/reader';
+    document.removeEventListener("keyup", this.handleKeyboard.bind(this));
+
+    window.location.href = "/reader";
   }
 }
 
-customElements.define('epub-reader', EpubReader);
+customElements.define("epub-reader", EpubReader);

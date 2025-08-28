@@ -1,8 +1,8 @@
-import Html from '@kitajs/html';
+import Html from "@kitajs/html";
 
-import { Layout } from './Layout';
-import { Nav } from './Nav';
-import { Note } from '../types';
+import { Layout } from "./Layout";
+import { Nav } from "./Nav";
+import { Note } from "../types";
 
 interface NotePageProps {
   note: Note;
@@ -15,8 +15,13 @@ export const NotePage = ({ note, html }: NotePageProps) => {
       <div id="app" class="container">
         <Nav currentPage="note" />
         <div class="flex gap-4 mb-4">
-          <a href={`/edit/${note.id}`} class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow">Edit</a>
-          <button 
+          <a
+            href={`/edit/${note.id}`}
+            class="px-4 py-2 bg-dark text-white hover:shadow-[3px_3px_0_#111] transition-shadow"
+          >
+            Edit
+          </a>
+          <button
             onclick={`if(confirm('Delete this note?')) { fetch('/note/${note.id}', { method: 'DELETE' }).then(() => window.location.href = '/'); }`}
             class="px-4 py-2 border-2 border-dark hover:shadow-[3px_3px_0_#111] transition-shadow"
           >
@@ -24,9 +29,7 @@ export const NotePage = ({ note, html }: NotePageProps) => {
           </button>
         </div>
 
-        <main class="prose prose-lg max-w-none md:columns-2 md:gap-8 mx-auto px-4">
-          {html}
-        </main>
+        <main class="prose prose-lg max-w-none md:columns-2 md:gap-8 mx-auto px-4">{html}</main>
       </div>
     </Layout>
   );

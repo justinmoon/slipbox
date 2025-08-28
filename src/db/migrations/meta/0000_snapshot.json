@@ -61,16 +61,12 @@
       "indexes": {
         "files_note_id_idx": {
           "name": "files_note_id_idx",
-          "columns": [
-            "note_id"
-          ],
+          "columns": ["note_id"],
           "isUnique": false
         },
         "files_uploaded_at_idx": {
           "name": "files_uploaded_at_idx",
-          "columns": [
-            "uploaded_at"
-          ],
+          "columns": ["uploaded_at"],
           "isUnique": false
         }
       },
@@ -79,12 +75,8 @@
           "name": "files_note_id_notes_id_fk",
           "tableFrom": "files",
           "tableTo": "notes",
-          "columnsFrom": [
-            "note_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["note_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -117,12 +109,8 @@
           "name": "note_search_index_id_notes_id_fk",
           "tableFrom": "note_search_index",
           "tableTo": "notes",
-          "columnsFrom": [
-            "id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -184,16 +172,12 @@
       "indexes": {
         "notes_updated_at_idx": {
           "name": "notes_updated_at_idx",
-          "columns": [
-            "updated_at"
-          ],
+          "columns": ["updated_at"],
           "isUnique": false
         },
         "notes_created_at_idx": {
           "name": "notes_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         }
       },
@@ -254,16 +238,12 @@
       "indexes": {
         "epub_reading_positions_file_id_idx": {
           "name": "epub_reading_positions_file_id_idx",
-          "columns": [
-            "file_id"
-          ],
+          "columns": ["file_id"],
           "isUnique": false
         },
         "epub_reading_positions_updated_at_idx": {
           "name": "epub_reading_positions_updated_at_idx",
-          "columns": [
-            "updated_at"
-          ],
+          "columns": ["updated_at"],
           "isUnique": false
         }
       },
@@ -272,12 +252,8 @@
           "name": "epub_reading_positions_file_id_files_id_fk",
           "tableFrom": "epub_reading_positions",
           "tableTo": "files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

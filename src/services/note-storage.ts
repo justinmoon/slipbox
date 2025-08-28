@@ -1,8 +1,8 @@
-import { db } from '../db/index';
-import { notes, noteSearchIndex, Note } from '../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
-import { marked } from 'marked';
+import { db } from "../db/index";
+import { notes, noteSearchIndex, Note } from "../db/schema";
+import { eq, desc, sql } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
+import { marked } from "marked";
 
 export interface NoteWithHtml extends Note {
   html?: string;
@@ -20,12 +20,15 @@ export class SqliteNoteStorage {
     const wordCount = this.countWords(content);
     const charCount = content.length;
 
-    const [note] = await db.insert(notes).values({
-      id,
-      content,
-      wordCount,
-      charCount,
-    }).returning();
+    const [note] = await db
+      .insert(notes)
+      .values({
+        id,
+        content,
+        wordCount,
+        charCount,
+      })
+      .returning();
 
     await db.insert(noteSearchIndex).values({
       id,
@@ -37,7 +40,7 @@ export class SqliteNoteStorage {
 
   async getNote(id: string): Promise<NoteWithHtml | null> {
     const [note] = await db.select().from(notes).where(eq(notes.id, id)).limit(1);
-    
+
     if (!note) return null;
 
     return {
@@ -90,12 +93,12 @@ export class SqliteNoteStorage {
         SELECT id FROM ${noteSearchIndex} 
         WHERE ${noteSearchIndex.content} LIKE ${searchPattern}
       )`;
-      
+
       const [{ count: total }] = await db
         .select({ count: sql<number>`count(*)` })
         .from(notes)
         .where(searchCondition);
-      
+
       const notesList = await db
         .select()
         .from(notes)
@@ -110,10 +113,8 @@ export class SqliteNoteStorage {
         hasMore: offset + notesList.length < total,
       };
     } else {
-      const [{ count: total }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(notes);
-      
+      const [{ count: total }] = await db.select({ count: sql<number>`count(*)` }).from(notes);
+
       const notesList = await db
         .select()
         .from(notes)
@@ -133,7 +134,7 @@ export class SqliteNoteStorage {
     if (!searchTerm.trim()) return [];
 
     const searchPattern = `%${searchTerm.toLowerCase()}%`;
-    
+
     return await db
       .select()
       .from(notes)
@@ -141,26 +142,20 @@ export class SqliteNoteStorage {
         sql`${notes.id} IN (
           SELECT id FROM ${noteSearchIndex} 
           WHERE ${noteSearchIndex.content} LIKE ${searchPattern}
-        )`
+        )`,
       )
       .orderBy(desc(notes.updatedAt))
       .limit(limit);
   }
 
   async getTotalNotes(): Promise<number> {
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(notes);
-    
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(notes);
+
     return count;
   }
 
   async getRecentNotes(limit: number = 5): Promise<Note[]> {
-    return await db
-      .select()
-      .from(notes)
-      .orderBy(desc(notes.updatedAt))
-      .limit(limit);
+    return await db.select().from(notes).orderBy(desc(notes.updatedAt)).limit(limit);
   }
 
   async renderMarkdown(content: string): Promise<string> {
@@ -169,9 +164,9 @@ export class SqliteNoteStorage {
 
   private countWords(content: string): number {
     return content
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
-      .filter(word => word.length > 0).length;
+      .filter((word) => word.length > 0).length;
   }
 }
 

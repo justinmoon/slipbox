@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { spawn } from 'child_process';
-import net from 'net';
-import { existsSync, mkdirSync } from 'fs';
+import { spawn } from "child_process";
+import net from "net";
+import { existsSync, mkdirSync } from "fs";
 
 // Find an available port
 async function getAvailablePort(startPort = 3000) {
@@ -9,10 +9,10 @@ async function getAvailablePort(startPort = 3000) {
     return new Promise((resolve) => {
       const server = net.createServer();
       server.listen(port, () => {
-        server.once('close', () => resolve(port));
+        server.once("close", () => resolve(port));
         server.close();
       });
-      server.on('error', () => resolve(null));
+      server.on("error", () => resolve(null));
     });
   };
 
@@ -22,54 +22,58 @@ async function getAvailablePort(startPort = 3000) {
     if (available) return available;
     port++;
   }
-  throw new Error('No available ports found');
+  throw new Error("No available ports found");
 }
 
 // Main
 async function main() {
   try {
     // Assert we're in development mode
-    if (process.env.NODE_ENV === 'production') {
-      console.error('❌ This is a development script and should not be run in production!');
+    if (process.env.NODE_ENV === "production") {
+      console.error("❌ This is a development script and should not be run in production!");
       process.exit(1);
     }
-    
+
     // Ensure dist directory exists
-    if (!existsSync('dist')) {
-      mkdirSync('dist');
+    if (!existsSync("dist")) {
+      mkdirSync("dist");
     }
 
     // Start Tailwind CSS watcher
-    console.log('Starting Tailwind CSS watcher...');
-    const tailwind = spawn('bunx', ['tailwindcss', '-i', './src/input.css', '-o', './dist/style.css', '--watch'], {
-      stdio: 'inherit'
-    });
+    console.log("Starting Tailwind CSS watcher...");
+    const tailwind = spawn(
+      "bunx",
+      ["tailwindcss", "-i", "./src/input.css", "-o", "./dist/style.css", "--watch"],
+      {
+        stdio: "inherit",
+      },
+    );
 
     // Wait a moment for initial CSS build
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const port = await getAvailablePort();
-    console.log(`\n${'='.repeat(50)}`);
+    console.log(`\n${"=".repeat(50)}`);
     console.log(`🚀 Starting Slipbox server on port ${port}`);
-    console.log(`${'='.repeat(50)}\n`);
-    
+    console.log(`${"=".repeat(50)}\n`);
+
     // Start the server with the found port
-    const server = spawn('bun', ['--watch', 'src/index.ts'], {
-      env: { ...process.env, PORT: port.toString(), DEV_MODE: 'true' },
-      stdio: 'inherit'
+    const server = spawn("bun", ["--watch", "src/index.ts"], {
+      env: { ...process.env, PORT: port.toString(), DEV_MODE: "true" },
+      stdio: "inherit",
     });
 
     // Wait a moment for server to start
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // This is a dev script - always go to auto-login
     const url = `http://localhost:${port}/auto-login`;
     console.log(`\n📱 Browser opening: ${url}`);
-    console.log(`${'='.repeat(50)}\n`);
-    
-    const openCommand = process.platform === 'darwin' ? 'open' :
-                       process.platform === 'win32' ? 'start' : 'xdg-open';
-    
+    console.log(`${"=".repeat(50)}\n`);
+
+    const openCommand =
+      process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+
     spawn(openCommand, [url], { detached: true });
 
     // Show port periodically in dev mode
@@ -78,15 +82,14 @@ async function main() {
     }, 30000); // Every 30 seconds
 
     // Handle exit
-    process.on('SIGINT', () => {
+    process.on("SIGINT", () => {
       clearInterval(portReminder);
       tailwind.kill();
       server.kill();
       process.exit();
     });
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     process.exit(1);
   }
 }
