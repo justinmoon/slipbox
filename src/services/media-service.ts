@@ -98,7 +98,8 @@ export class MediaService {
 
     // Skip filesystem scan in test environments to improve performance
     // Only scan filesystem if we don't have enough files from database AND we're not in test mode
-    const isTestEnvironment = process.env.NODE_ENV === "test" || process.env.SLIPBOX_DATA_DIR?.includes("test-data");
+    const isTestEnvironment =
+      process.env.NODE_ENV === "test" || process.env.SLIPBOX_DATA_DIR?.includes("test-data");
     if (!isTestEnvironment && allFiles.length < limit) {
       // Scan filesystem for additional media files
       try {
