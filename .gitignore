@@ -12,4 +12,4 @@ worktrees/
 static/*.js
 static/*.js.map
 static/style.css
-test-data/
+# test-data/ - Now tracked for testing media files

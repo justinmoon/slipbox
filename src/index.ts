@@ -5,7 +5,7 @@ import { NoteMetadata } from "./types";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { fileStorage } from "./services/file-storage";
-import { mediaService } from "./services/media-service";
+import { mediaService, type MediaFile, getMediaType } from "./services/media-service";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
 import { eq } from "drizzle-orm";
@@ -724,15 +724,36 @@ async function handleMedia(): Promise<Response> {
 }
 
 async function handleMediaViewer(filename: string): Promise<Response> {
-  // Get all media files and find the one with matching filename
-  const { files } = await mediaService.getAllMediaFiles(1000, 0); // Get more files to ensure we find it
-  const file = files.find((f) => f.name === filename);
+  // First try to find the file in database by original name
+  const { files: dbFiles } = await fileStorage.getAllFiles(50, 0);
+  let file = dbFiles.find((f) => f.originalName === filename);
+  
+  if (file) {
+    // Convert database file to MediaFile format
+    const { type, mimeType } = getMediaType(file.originalName);
+    const mediaFile: MediaFile = {
+      id: file.id,
+      name: file.originalName,
+      type: type as MediaFile["type"],
+      mimeType: file.mimeType || mimeType,
+      size: file.size,
+      modified: file.uploadedAt,
+      url: `/api/files/download/${file.id}`,
+      thumbnailUrl: type === "image" ? `/api/files/thumbnail/${file.id}` : undefined,
+      source: "database",
+    };
+    return htmlResponse(MediaViewerPage({ file: mediaFile }) as string);
+  }
 
-  if (!file) {
+  // If not found in database, check filesystem (for backward compatibility)
+  const { files } = await mediaService.getAllMediaFiles(200, 0);
+  const mediaFile = files.find((f) => f.name === filename);
+
+  if (!mediaFile) {
     return notFound();
   }
 
-  return htmlResponse(MediaViewerPage({ file }) as string);
+  return htmlResponse(MediaViewerPage({ file: mediaFile }) as string);
 }
 
 async function handleServeEpub(req: Request, fileId: string): Promise<Response> {

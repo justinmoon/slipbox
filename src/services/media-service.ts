@@ -43,7 +43,7 @@ const MEDIA_EXTENSIONS: Record<string, { type: MediaFile["type"]; mimeType: stri
   ".epub": { type: "epub", mimeType: "application/epub+zip" },
 };
 
-function getMediaType(filename: string): { type: MediaFile["type"]; mimeType: string } {
+export function getMediaType(filename: string): { type: MediaFile["type"]; mimeType: string } {
   const ext = extname(filename).toLowerCase();
   return MEDIA_EXTENSIONS[ext] || { type: "other", mimeType: "application/octet-stream" };
 }
@@ -62,8 +62,8 @@ export class MediaService {
   }> {
     const allFiles: MediaFile[] = [];
 
-    // Get files from database
-    const { files: dbFiles } = await fileStorage.getAllFiles(1000, 0);
+    // Get files from database - only fetch what we need plus a buffer
+    const { files: dbFiles } = await fileStorage.getAllFiles(limit + 50, offset);
     console.log(`Found ${dbFiles.length} files in database`);
 
     for (const file of dbFiles) {
@@ -96,10 +96,13 @@ export class MediaService {
       }
     }
 
-    // Scan filesystem for additional media files
-    try {
-      const files = await readdir(config.dataDir);
-      console.log(`Scanning ${config.dataDir}, found ${files.length} files`);
+    // Only scan filesystem if we don't have enough files from database
+    // This significantly improves performance
+    if (allFiles.length < limit) {
+      // Scan filesystem for additional media files
+      try {
+        const files = await readdir(config.dataDir);
+        console.log(`Scanning ${config.dataDir}, found ${files.length} files`);
 
       let skipCount = 0;
       let addCount = 0;
@@ -142,9 +145,10 @@ export class MediaService {
         }
       }
 
-      console.log(`Skipped ${skipCount} files, added ${addCount} files from filesystem`);
-    } catch (error) {
-      console.error("Error scanning filesystem for media files:", error);
+        console.log(`Skipped ${skipCount} files, added ${addCount} files from filesystem`);
+      } catch (error) {
+        console.error("Error scanning filesystem for media files:", error);
+      }
     }
 
     // Sort by type first, then by modified date (to get a mix of file types)
