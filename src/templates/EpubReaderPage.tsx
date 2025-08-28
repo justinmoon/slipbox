@@ -1,6 +1,6 @@
 import Html from '@kitajs/html';
 import { Layout } from './Layout.js';
-import { Nav, NavScript } from './Nav.js';
+import { Nav } from './Nav.js';
 
 interface EpubReaderPageProps {
   bookName: string;
@@ -27,6 +27,5 @@ export const EpubReaderPage = ({ bookName, bookUrl, fileId }: EpubReaderPageProp
         reader.loadBook('${bookUrl}');
       });
     `}</script>
-    <NavScript />
   </Layout>
 );

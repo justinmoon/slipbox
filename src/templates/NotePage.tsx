@@ -1,7 +1,7 @@
 import Html from '@kitajs/html';
 
 import { Layout } from './Layout';
-import { Nav, NavScript } from './Nav';
+import { Nav } from './Nav';
 import { Note } from '../types';
 
 interface NotePageProps {
@@ -28,7 +28,6 @@ export const NotePage = ({ note, html }: NotePageProps) => {
           {html}
         </main>
       </div>
-      <NavScript />
     </Layout>
   );
 };
