@@ -30,6 +30,9 @@ jobs:
       - name: Check code formatting
         run: bun run prettier:check
 
+      - name: TypeScript type check
+        run: bunx tsc --noEmit
+
       - name: Setup test data directory
         run: |
           mkdir -p ~/.slipbox-dev
