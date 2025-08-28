@@ -47,8 +47,8 @@ test.describe("Media Viewer", () => {
     const videoSrc = await video.getAttribute("src");
     expect(videoSrc).toBeTruthy();
 
-    // Check file info is displayed
-    await expect(page.locator("text=sample-video.mp4")).toBeVisible();
+    // Check file info is displayed  
+    await expect(page.locator("h1")).toContainText("sample-video.mp4");
     await expect(page.locator("text=Type:")).toBeVisible();
 
     // Check back link works
@@ -75,7 +75,7 @@ test.describe("Media Viewer", () => {
     expect(imgSrc).toBeTruthy();
 
     // Check file details
-    await expect(page.locator("text=sample-image.svg")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("sample-image.svg");
     await expect(page.locator("text=Size:")).toBeVisible();
   });
 
@@ -101,7 +101,7 @@ test.describe("Media Viewer", () => {
     await expect(page.locator(".audio-icon")).toContainText("🎵");
 
     // Check file name is displayed
-    await expect(page.locator("text=sample-audio.mp3")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("sample-audio.mp3");
   });
 
   test("should display PDF files", async ({ page }) => {
@@ -124,7 +124,7 @@ test.describe("Media Viewer", () => {
     await expect(downloadLink).toContainText("Download PDF");
 
     // Check file details
-    await expect(page.locator("text=sample.pdf")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("sample.pdf");
   });
 
   test("should handle EPUB files with reader link", async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe("Media Viewer", () => {
     expect(href).toMatch(/^\/epub\/[a-f0-9-]+$/);
 
     // Check file details
-    await expect(page.locator("text=Alice_in_Wonderland.epub")).toBeVisible();
+    await expect(page.locator("h1")).toContainText("Alice_in_Wonderland.epub");
   });
 
   test("should navigate between media files", async ({ page }) => {
