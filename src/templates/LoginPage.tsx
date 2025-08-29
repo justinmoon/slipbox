@@ -1,4 +1,3 @@
-import Html from "@kitajs/html";
 import { Layout } from "./Layout";
 
 export function LoginPage({ error }: { error?: string }) {

@@ -1,4 +1,3 @@
-import Html from "@kitajs/html";
 import type { Note } from "../types";
 import { Layout } from "./Layout";
 import { Nav } from "./Nav";
@@ -21,6 +20,7 @@ export const NotePage = ({ note, html }: NotePageProps) => {
             Edit
           </a>
           <button
+            type="button"
             onclick={`if(confirm('Delete this note?')) { fetch('/note/${note.id}', { method: 'DELETE' }).then(() => window.location.href = '/'); }`}
             class="px-4 py-2 border-2 border-dark hover:shadow-[3px_3px_0_#111] transition-shadow"
           >

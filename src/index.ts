@@ -494,7 +494,9 @@ async function handleHome(url: URL): Promise<Response> {
     config.maxPageSize,
   );
 
-  let notes, totalPages, currentPage;
+  let notes: NoteMetadata[];
+  let totalPages: number;
+  let currentPage: number;
 
   if (query.trim()) {
     // If there's a search query, get search results with pagination

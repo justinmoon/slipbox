@@ -1,4 +1,3 @@
-import Html from "@kitajs/html";
 interface HeaderProps {
   children?: JSX.Element | JSX.Element[];
 }

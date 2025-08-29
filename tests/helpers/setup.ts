@@ -44,7 +44,7 @@ export interface TestContext {
 export const test = base.extend<{
   testContext: TestContext;
 }>({
-  testContext: async ({}, use) => {
+  testContext: async (_, use) => {
     // Create a temporary directory for this test
     const tmpDir = mkdtempSync(join(tmpdir(), "slipbox-test-"));
     console.log("Using temp directory:", tmpDir);

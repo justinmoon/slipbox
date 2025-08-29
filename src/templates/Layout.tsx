@@ -1,4 +1,3 @@
-import Html from "@kitajs/html";
 import { EMBEDDED_CSS } from "../styles";
 
 interface LayoutProps {
