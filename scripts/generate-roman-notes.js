@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { Database } from "bun:sqlite";
-import path from "path";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import path from "node:path";
 
 // Use SLIPBOX_DATA_DIR from environment
 const dataDir = process.env.SLIPBOX_DATA_DIR || "/tmp/slipbox-data";

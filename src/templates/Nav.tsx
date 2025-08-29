@@ -1,5 +1,4 @@
 import Html from "@kitajs/html";
-
 interface NavProps {
   currentPage?: "home" | "reader" | "upload" | "new" | "note" | "edit" | "media";
   isHidden?: boolean;

@@ -1,8 +1,8 @@
-import { db } from "../db/index";
-import { notes, noteSearchIndex, Note } from "../db/schema";
-import { eq, desc, sql } from "drizzle-orm";
-import { v4 as uuidv4 } from "uuid";
+import { desc, eq, sql } from "drizzle-orm";
 import { marked } from "marked";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "../db/index";
+import { type Note, noteSearchIndex, notes } from "../db/schema";
 
 export interface NoteWithHtml extends Note {
   html?: string;

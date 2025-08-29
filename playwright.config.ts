@@ -1,8 +1,8 @@
+import net from "node:net";
 import { defineConfig, devices } from "@playwright/test";
-import net from "net";
 
 // Function to find an available port
-async function getAvailablePort(startPort = 3000): Promise<number> {
+async function _getAvailablePort(startPort = 3000): Promise<number> {
   const checkPort = (port: number): Promise<number | null> => {
     return new Promise((resolve) => {
       const server = net.createServer();

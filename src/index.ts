@@ -1,25 +1,24 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ServerSentEventGenerator } from "@starfederation/datastar-sdk/web";
-import { NoteStorage } from "./storage";
+import { eq } from "drizzle-orm";
 import { config } from "./config";
-import { NoteMetadata } from "./types";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { fileStorage } from "./services/file-storage";
-import { mediaService } from "./services/media-service";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
-import { eq } from "drizzle-orm";
 import { embeddedAssets } from "./embed-assets";
-
+import { fileStorage } from "./services/file-storage";
+import { mediaService } from "./services/media-service";
+import { NoteStorage } from "./storage";
+import { EditNotePage } from "./templates/EditNotePage";
+import { EpubReaderPage } from "./templates/EpubReaderPage";
 // Templates
 import { HomePage } from "./templates/HomePage";
-import { NotePage } from "./templates/NotePage";
-import { EditNotePage } from "./templates/EditNotePage";
-import { ReaderPage } from "./templates/ReaderPage";
-import { EpubReaderPage } from "./templates/EpubReaderPage";
-import { UploadPage } from "./templates/UploadPage";
 import { LoginPage } from "./templates/LoginPage";
 import { MediaPage } from "./templates/MediaPage";
+import { NotePage } from "./templates/NotePage";
+import { ReaderPage } from "./templates/ReaderPage";
+import { UploadPage } from "./templates/UploadPage";
+import type { NoteMetadata } from "./types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -255,7 +254,7 @@ Bun.serve({
             const pingInterval = setInterval(() => {
               try {
                 controller.enqueue(encoder.encode(":ping\n\n"));
-              } catch (e) {
+              } catch (_e) {
                 clearInterval(pingInterval);
               }
             }, 30000);
@@ -485,11 +484,11 @@ function handleAutoLogin(): Response {
 }
 
 async function handleHome(url: URL): Promise<Response> {
-  const page = parseInt(url.searchParams.get("page") || "1");
+  const page = parseInt(url.searchParams.get("page") || "1", 10);
   const query = url.searchParams.get("q") || "";
   const pageSize = Math.min(
     Math.max(
-      parseInt(url.searchParams.get("limit") || String(config.defaultPageSize)),
+      parseInt(url.searchParams.get("limit") || String(config.defaultPageSize), 10),
       config.minPageSize,
     ),
     config.maxPageSize,
@@ -578,7 +577,7 @@ async function handleSearch(url: URL): Promise<Response> {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
-      const matchText = result.matchCount + " match" + (result.matchCount !== 1 ? "es" : "");
+      const matchText = `${result.matchCount} match${result.matchCount !== 1 ? "es" : ""}`;
 
       articlesHtml +=
         '<a href="/note/' +
@@ -651,7 +650,7 @@ async function handleUpdateNote(req: Request, id: string): Promise<Response> {
   try {
     const body = (await req.json()) as { content?: string };
     content = body.content || "";
-  } catch (error) {
+  } catch (_error) {
     return new Response("Invalid request body", { status: 400 });
   }
 
@@ -885,8 +884,8 @@ async function handleThumbnail(fileId: string): Promise<Response> {
 // Direct filesystem media file handler
 async function handleDirectMediaFile(filepath: string): Promise<Response> {
   try {
-    const { readFile } = await import("fs/promises");
-    const { join, extname } = await import("path");
+    const { readFile } = await import("node:fs/promises");
+    const { join, extname } = await import("node:path");
 
     // Security: prevent directory traversal
     if (filepath.includes("..") || filepath.includes("/")) {

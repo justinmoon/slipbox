@@ -3,7 +3,7 @@ interface SearchResult {
   preview: string;
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
   console.log("Inline search script loaded");
 
   const searchInput = document.querySelector(".search-input") as HTMLInputElement | null;
@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let searchTimeout: NodeJS.Timeout;
 
-  searchInput.addEventListener("input", function () {
+  searchInput.addEventListener("input", () => {
     clearTimeout(searchTimeout);
     const query = searchInput.value.trim();
     console.log("Search input changed:", query);
