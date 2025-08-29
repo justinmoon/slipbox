@@ -51,7 +51,24 @@ echo -e "${GREEN}✓ Deployment package: ${DEPLOY_SIZE}${NC}"
 
 # Step 5: Transfer to server
 echo -e "\n${YELLOW}📤 Uploading to server...${NC}"
-scp -q dist/slipbox-deploy.tar.gz ${SERVER}:${APP_DIR}/
+
+# Check if pv is available for progress bar
+if command -v pv &> /dev/null; then
+    # Use pv for progress bar
+    FILE_SIZE=$(stat -f%z dist/slipbox-deploy.tar.gz 2>/dev/null || stat -c%s dist/slipbox-deploy.tar.gz 2>/dev/null)
+    pv -p -e -s ${FILE_SIZE} dist/slipbox-deploy.tar.gz | ssh ${SERVER} "cat > ${APP_DIR}/slipbox-deploy.tar.gz"
+else
+    # Fall back to scp with verbose output for some progress indication
+    echo -e "${YELLOW}   (Installing 'pv' will show a progress bar: brew install pv)${NC}"
+    scp -v dist/slipbox-deploy.tar.gz ${SERVER}:${APP_DIR}/ 2>&1 | grep -E "Sending file|Transferred" | while IFS= read -r line; do
+        echo -e "${YELLOW}   → ${line}${NC}"
+    done
+    # Check if scp succeeded (since we're piping output)
+    if [ ${PIPESTATUS[0]} -ne 0 ]; then
+        echo -e "${RED}❌ Upload failed!${NC}"
+        exit 1
+    fi
+fi
 
 # Step 6: Deploy on server
 echo -e "\n${YELLOW}🔄 Deploying on server...${NC}"
