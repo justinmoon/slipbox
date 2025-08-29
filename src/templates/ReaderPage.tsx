@@ -1,3 +1,4 @@
+import Html from "@kitajs/html";
 import { Layout } from "./Layout";
 import { Nav } from "./Nav";
 

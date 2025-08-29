@@ -32,7 +32,8 @@
         "noBannedTypes": "off"
       },
       "correctness": {
-        "useExhaustiveDependencies": "off"
+        "useExhaustiveDependencies": "off",
+        "noUnusedImports": "off"
       }
     }
   },
