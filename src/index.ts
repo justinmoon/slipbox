@@ -573,6 +573,7 @@ async function handleSearch(url: URL): Promise<Response> {
         )
         .join("");
 
+      // @ts-expect-error - mergeFragments exists but types are incomplete
       stream.mergeFragments(
         `<div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid">${notesHtml}</div>`,
         { selector: "#notes-grid", mergeMode: "morph" },
@@ -629,6 +630,7 @@ async function handleSearch(url: URL): Promise<Response> {
   );
 
   return ServerSentEventGenerator.stream((stream: ServerSentEventGenerator) => {
+    // @ts-expect-error - mergeFragments exists but types are incomplete
     stream.mergeFragments(htmlContent, { selector: "#notes-grid", mergeMode: "morph" });
   });
 }
