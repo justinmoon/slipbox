@@ -44,7 +44,8 @@ export interface TestContext {
 export const test = base.extend<{
   testContext: TestContext;
 }>({
-  testContext: async (_, use) => {
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructuring even if unused
+  testContext: async ({}, use) => {
     // Create a temporary directory for this test
     const tmpDir = mkdtempSync(join(tmpdir(), "slipbox-test-"));
     console.log("Using temp directory:", tmpDir);
