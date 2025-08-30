@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { config } from "./config";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
-import { embeddedAssets } from "./embed-assets";
 import { fileStorage } from "./services/file-storage";
 import { mediaService } from "./services/media-service";
 import { NoteStorage } from "./storage";
@@ -20,8 +19,30 @@ import { ReaderPage } from "./templates/ReaderPage";
 import { UploadPage } from "./templates/UploadPage";
 import type { NoteMetadata } from "./types";
 
+// Import assets at compile time - these will be embedded in the binary
+// @ts-ignore - Bun-specific import syntax
+import styleCss from "../dist/style.css" with { type: "text" };
+// @ts-ignore
+import datastarJs from "../dist/client/datastar.js" with { type: "text" };
+// @ts-ignore
+import epubReaderJs from "../dist/client/epub-reader.js" with { type: "text" };
+// @ts-ignore
+import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text" };
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Create embedded assets map for compiled binaries
+const embeddedAssets = new Map<string, string>();
+if (process.env.NODE_ENV === "production" || process.env.EMBED_ASSETS === "true") {
+  if (styleCss) {
+    embeddedAssets.set("/dist/style.css", styleCss);
+    console.log(`✅ CSS embedded from ./dist/style.css (${(styleCss.length / 1024).toFixed(2)} KB)`);
+  }
+  if (datastarJs) embeddedAssets.set("/dist/client/datastar.js", datastarJs);
+  if (epubReaderJs) embeddedAssets.set("/dist/client/epub-reader.js", epubReaderJs);
+  if (inlineSearchJs) embeddedAssets.set("/dist/client/inline-search.js", inlineSearchJs);
+}
 
 const storage = new NoteStorage();
 

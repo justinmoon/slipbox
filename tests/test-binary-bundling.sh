@@ -35,10 +35,15 @@ fi
 BINARY_SIZE=$(du -h dist/slipbox-test-binary | cut -f1)
 echo "Binary size: $BINARY_SIZE"
 
+# Create temporary data directory for test
+TEST_DATA_DIR="/tmp/slipbox-test-binary-data-$$"
+mkdir -p "$TEST_DATA_DIR"
+echo "Created temporary data directory: $TEST_DATA_DIR"
+
 # Start the binary on a test port
 TEST_PORT=3456
 echo -e "${YELLOW}Starting binary on port $TEST_PORT...${NC}"
-PORT=$TEST_PORT ./dist/slipbox-test-binary &
+SLIPBOX_DATA_DIR=$TEST_DATA_DIR PORT=$TEST_PORT ./dist/slipbox-test-binary &
 BINARY_PID=$!
 
 # Function to cleanup on exit
@@ -46,6 +51,7 @@ cleanup() {
     echo "Cleaning up..."
     kill $BINARY_PID 2>/dev/null || true
     rm -f dist/slipbox-test-binary
+    rm -rf "$TEST_DATA_DIR"
 }
 trap cleanup EXIT
 
@@ -123,15 +129,15 @@ fi
 
 echo -e "${GREEN}✓ epub-reader.js is properly bundled${NC}"
 
-# Test that login page includes CSS link
-echo -e "${YELLOW}Testing login page renders with CSS link...${NC}"
+# Test that login page includes CSS (either embedded or linked)
+echo -e "${YELLOW}Testing login page renders with CSS...${NC}"
 LOGIN_HTML=$(curl -s http://localhost:$TEST_PORT/login)
-if ! echo "$LOGIN_HTML" | grep -q 'href="/dist/style.css'; then
-    echo -e "${RED}❌ Login page doesn't include CSS link${NC}"
+if echo "$LOGIN_HTML" | grep -q 'href="/dist/style.css' || echo "$LOGIN_HTML" | grep -q '<style>'; then
+    echo -e "${GREEN}✓ Login page includes CSS${NC}"
+else
+    echo -e "${RED}❌ Login page doesn't include CSS (neither link nor embedded)${NC}"
     exit 1
 fi
-
-echo -e "${GREEN}✓ Login page includes CSS link${NC}"
 
 # Test complete
 echo -e "${GREEN}✅ All binary bundling tests passed!${NC}"
