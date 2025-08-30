@@ -456,8 +456,11 @@ async function handleLogin(req: Request): Promise<Response> {
       },
     });
   } else {
-    // Show error
-    return htmlResponse(LoginPage({ error: "Invalid password" }) as string);
+    // Show error with 401 status
+    return new Response(LoginPage({ error: "Invalid password" }) as string, {
+      status: 401,
+      headers: { "Content-Type": "text/html" },
+    });
   }
 }
 
