@@ -169,3 +169,40 @@ Why SSE navigation fails:
 - Timing issues with stream buffering and async processing
 
 **Rule: Use SSE for DOM updates, use client-side JS for navigation**
+
+## VPS Deployment (Digital Ocean Droplet)
+
+### Server Details
+- Host: slipbox (ssh justin@slipbox)
+- User: justin (all services run under this account)
+- OS: Ubuntu 25.04 (Linux 6.14.0)
+
+### Deployment Strategy
+- Deploy via SCP of binaries (keep it simple)
+- All apps stored in: `~/apps/<app-name>`
+- Services managed with systemd
+
+### Directory Structure
+```
+~/apps/
+└── slipbox/          # Main application
+    ├── slipbox       # Binary
+    └── data/         # Application data
+
+~/.local/bin/
+└── claude            # Claude Code native binary
+```
+
+### Claude Code Installation
+Claude Code is installed as a native binary (no Node.js dependency):
+```bash
+# Install native binary
+curl -fsSL https://claude.ai/install.sh | bash
+
+# PATH configuration (added to ~/.bashrc)
+export PATH="$HOME/.local/bin:$PATH"
+```
+- Version: 1.0.98 (as of 2025-08-30)
+- Location: ~/.local/bin/claude
+- Auto-updates: Built-in
+- No runtime dependencies
