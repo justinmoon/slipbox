@@ -2,6 +2,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ServerSentEventGenerator } from "@starfederation/datastar-sdk/web";
 import { eq } from "drizzle-orm";
+// @ts-expect-error - Bun-specific import syntax
+import datastarJs from "../dist/client/datastar.js" with { type: "text" };
+// @ts-expect-error - Bun-specific import syntax
+import epubReaderJs from "../dist/client/epub-reader.js" with { type: "text" };
+// @ts-expect-error - Bun-specific import syntax
+import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text" };
+// Import assets at compile time - these will be embedded in the binary
+// @ts-expect-error - Bun-specific import syntax
+import styleCss from "../dist/style.css" with { type: "text" };
 import { config } from "./config";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
@@ -18,16 +27,6 @@ import { NotePage } from "./templates/NotePage";
 import { ReaderPage } from "./templates/ReaderPage";
 import { UploadPage } from "./templates/UploadPage";
 import type { NoteMetadata } from "./types";
-
-// Import assets at compile time - these will be embedded in the binary
-// @ts-expect-error - Bun-specific import syntax
-import styleCss from "../dist/style.css" with { type: "text" };
-// @ts-expect-error - Bun-specific import syntax
-import datastarJs from "../dist/client/datastar.js" with { type: "text" };
-// @ts-expect-error - Bun-specific import syntax
-import epubReaderJs from "../dist/client/epub-reader.js" with { type: "text" };
-// @ts-expect-error - Bun-specific import syntax
-import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text" };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
