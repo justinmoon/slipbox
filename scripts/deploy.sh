@@ -23,10 +23,10 @@ echo -e "${GREEN}🚀 Starting deployment to DigitalOcean...${NC}"
 echo -e "\n${YELLOW}📦 Building client modules...${NC}"
 bun run build:client
 
-# Step 2: Build for Linux
-echo -e "\n${YELLOW}📦 Building Linux binary...${NC}"
+# Step 2: Build for Linux with embedded assets
+echo -e "\n${YELLOW}📦 Building Linux binary with embedded assets...${NC}"
 mkdir -p dist
-bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
+NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
 
 if [ ! -f "dist/slipbox-linux" ]; then
     echo -e "${RED}❌ Build failed! Binary not found.${NC}"
@@ -43,11 +43,11 @@ gzip -f -c dist/slipbox-linux > dist/slipbox-linux.gz
 COMPRESSED_SIZE=$(ls -lh dist/slipbox-linux.gz | awk '{print $5}')
 echo -e "${GREEN}✓ Compressed to ${COMPRESSED_SIZE}${NC}"
 
-# Step 4: Create deployment package with assets
+# Step 4: Create deployment package (binary only, assets are embedded)
 echo -e "\n${YELLOW}📦 Creating deployment package...${NC}"
-tar -czf dist/slipbox-deploy.tar.gz -C dist slipbox-linux.gz client style.css 2>/dev/null || true
+cp dist/slipbox-linux.gz dist/slipbox-deploy.tar.gz
 DEPLOY_SIZE=$(ls -lh dist/slipbox-deploy.tar.gz | awk '{print $5}')
-echo -e "${GREEN}✓ Deployment package: ${DEPLOY_SIZE}${NC}"
+echo -e "${GREEN}✓ Deployment package (binary only): ${DEPLOY_SIZE}${NC}"
 
 # Step 5: Transfer to server
 echo -e "\n${YELLOW}📤 Uploading to server...${NC}"
@@ -76,22 +76,19 @@ ssh ${SERVER} << 'ENDSSH'
     set -e
     cd ~/apps/slipbox
     
-    # Backup current deployment
+    # Backup current binary only (not the entire dist)
     if [ -f slipbox-server ]; then
         cp slipbox-server slipbox-server.backup
-        [ -d dist ] && cp -r dist dist.backup
     fi
     
-    # Extract deployment package
-    tar -xzf slipbox-deploy.tar.gz
+    # Extract and install new binary (assets are embedded)
+    mv slipbox-deploy.tar.gz slipbox-linux.gz
     gunzip -f slipbox-linux.gz
     mv slipbox-linux slipbox-server
     chmod +x slipbox-server
     
-    # Create dist directory structure
-    mkdir -p dist
-    [ -d client ] && mv client dist/
-    [ -f style.css ] && mv style.css dist/
+    # Clean up deployment file
+    rm -f slipbox-linux.gz 2>/dev/null || true
     
     # Restart service
     sudo systemctl restart slipbox
@@ -114,7 +111,7 @@ ssh ${SERVER} << 'ENDSSH'
     # Test if app is responding
     if curl -s -f http://localhost:3000 > /dev/null; then
         echo "✓ App is responding on port 3000"
-        rm -f slipbox-server.backup
+        echo "✓ Deployment successful"
     else
         echo "❌ App is not responding! Check logs with: sudo journalctl -u slipbox -n 50"
         exit 1
