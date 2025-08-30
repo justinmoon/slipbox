@@ -17,6 +17,7 @@
     "clean:dist": "rm -rf dist",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
+    "test:binary": "bash scripts/test-binary-bundling.sh",
     "test:ci": "playwright test --reporter=list",
     "deploy": "bash scripts/deploy.sh",
     "format": "biome format --write .",
