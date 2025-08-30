@@ -6,7 +6,8 @@ interface LayoutProps {
   children?: JSX.Element | JSX.Element[];
 }
 
-const isDev = process.env.NODE_ENV !== "production";
+// In compiled binaries, process.env might not be available, so default to production
+const isDev = typeof process !== "undefined" && process.env?.NODE_ENV !== "production";
 
 export const Layout = ({ title, children }: LayoutProps) => (
   <html lang="en">

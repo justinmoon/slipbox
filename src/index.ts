@@ -2,10 +2,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ServerSentEventGenerator } from "@starfederation/datastar-sdk/web";
 import { eq } from "drizzle-orm";
+// @ts-expect-error - Bun-specific import syntax
+import datastarJs from "../dist/client/datastar.js" with { type: "text" };
+// @ts-expect-error - Bun-specific import syntax
+import epubReaderJs from "../dist/client/epub-reader.js" with { type: "text" };
+// @ts-expect-error - Bun-specific import syntax
+import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text" };
+// Import assets at compile time - these will be embedded in the binary
+// @ts-expect-error - Bun-specific import syntax
+import styleCss from "../dist/style.css" with { type: "text" };
 import { config } from "./config";
 import { db } from "./db/index";
 import { epubReadingPositions } from "./db/schema";
-import { embeddedAssets } from "./embed-assets";
 import { fileStorage } from "./services/file-storage";
 import { mediaService } from "./services/media-service";
 import { NoteStorage } from "./storage";
@@ -22,6 +30,20 @@ import type { NoteMetadata } from "./types";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Create embedded assets map for compiled binaries
+const embeddedAssets = new Map<string, string>();
+if (process.env.NODE_ENV === "production" || process.env.EMBED_ASSETS === "true") {
+  if (styleCss) {
+    embeddedAssets.set("/dist/style.css", styleCss);
+    console.log(
+      `✅ CSS embedded from ./dist/style.css (${(styleCss.length / 1024).toFixed(2)} KB)`,
+    );
+  }
+  if (datastarJs) embeddedAssets.set("/dist/client/datastar.js", datastarJs);
+  if (epubReaderJs) embeddedAssets.set("/dist/client/epub-reader.js", epubReaderJs);
+  if (inlineSearchJs) embeddedAssets.set("/dist/client/inline-search.js", inlineSearchJs);
+}
 
 const storage = new NoteStorage();
 
