@@ -1,7 +1,8 @@
 import Html from "@kitajs/html";
 import { Layout } from "./Layout";
 
-export function LoginPage({ error }: { error?: string }) {
+export function LoginPage(props?: { error?: string }) {
+  const error = props?.error;
   return (
     <Layout title="Login - Slipbox">
       <div class="min-h-screen flex items-center justify-center">
