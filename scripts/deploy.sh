@@ -71,6 +71,25 @@ else
 fi
 
 # Step 6: Deploy on server
+echo -e "\n${YELLOW}🔧 Syncing systemd service file...${NC}"
+# Compare and sync systemd service file if different
+TEMP_SERVICE_FILE=$(mktemp)
+ssh ${SERVER} "cat /etc/systemd/system/slipbox.service" > ${TEMP_SERVICE_FILE} 2>/dev/null || true
+
+if [ -f "contrib/slipbox.service" ]; then
+    if ! cmp -s "contrib/slipbox.service" ${TEMP_SERVICE_FILE}; then
+        echo -e "${YELLOW}   Service file differs, updating on server...${NC}"
+        scp contrib/slipbox.service ${SERVER}:/tmp/slipbox.service
+        ssh ${SERVER} "sudo mv /tmp/slipbox.service /etc/systemd/system/slipbox.service && sudo systemctl daemon-reload"
+        echo -e "${GREEN}   ✓ Service file updated${NC}"
+    else
+        echo -e "${GREEN}   ✓ Service file is up to date${NC}"
+    fi
+else
+    echo -e "${RED}   ⚠ contrib/slipbox.service not found in repo${NC}"
+fi
+rm -f ${TEMP_SERVICE_FILE}
+
 echo -e "\n${YELLOW}🔄 Deploying on server...${NC}"
 ssh ${SERVER} << 'ENDSSH'
     set -e
