@@ -60,3 +60,4 @@ bun run start
 - **Backend**: Bun with TypeScript
 - **Storage**: SQLite database with filesystem storage for attachments
 - **Styling**: Custom newspaper-style CSS
+- **Testing**: Playwright for UI tests
