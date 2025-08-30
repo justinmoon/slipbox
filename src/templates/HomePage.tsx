@@ -3,8 +3,10 @@ import type { NoteMetadata } from "../types";
 import { Layout } from "./Layout";
 import { Nav } from "./Nav";
 
+type NoteWithOptionalMatchCount = NoteMetadata & { matchCount?: number };
+
 interface HomePageProps {
-  notes: NoteMetadata[];
+  notes: NoteWithOptionalMatchCount[];
   totalPages: number;
   currentPage: number;
   query?: string;
@@ -35,7 +37,6 @@ export const HomePage = ({ notes, totalPages, currentPage, query = "" }: HomePag
           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8 notes-grid"
         >
           {notes.map((note) => {
-            const hasMatchCount = "matchCount" in note;
             return (
               <a href={`/note/${note.id}`} class="no-underline text-inherit block h-full">
                 <article class="border-2 border-dark bg-off-white p-6 h-full flex flex-col justify-between hover:shadow-[3px_3px_0_#111] transition-shadow">
@@ -45,9 +46,9 @@ export const HomePage = ({ notes, totalPages, currentPage, query = "" }: HomePag
                   >
                     {note.content || "(empty note)"}
                   </p>
-                  {hasMatchCount ? (
+                  {note.matchCount !== undefined ? (
                     <span class="text-sm text-gray-600 italic">
-                      {(note as any).matchCount} match{(note as any).matchCount !== 1 ? "es" : ""}
+                      {note.matchCount} match{note.matchCount !== 1 ? "es" : ""}
                     </span>
                   ) : (
                     <time class="text-sm text-gray-600 italic">
