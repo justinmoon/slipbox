@@ -95,12 +95,12 @@ jobs:
       - name: Deploy to production
         if: |
           success() && 
-          github.event_name == 'pull_request' && 
-          github.event.pull_request.user.login == github.repository_owner
+          github.event_name == 'push' && 
+          github.ref == 'refs/heads/master'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          echo "Deploying to production after successful PR merge..."
+          echo "Deploying to production after merge to master..."
           
           # Setup SSH
           mkdir -p ~/.ssh
