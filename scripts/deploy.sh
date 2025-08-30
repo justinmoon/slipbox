@@ -112,6 +112,9 @@ ssh ${SERVER} << 'ENDSSH'
     if curl -s -f http://localhost:3000 > /dev/null; then
         echo "✓ App is responding on port 3000"
         echo "✓ Deployment successful"
+        # Clean up backup file after successful deployment
+        rm -f slipbox-server.backup
+        echo "✓ Cleaned up backup file"
     else
         echo "❌ App is not responding! Check logs with: sudo journalctl -u slipbox -n 50"
         exit 1
