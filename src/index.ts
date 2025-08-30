@@ -37,7 +37,9 @@ const embeddedAssets = new Map<string, string>();
 if (process.env.NODE_ENV === "production" || process.env.EMBED_ASSETS === "true") {
   if (styleCss) {
     embeddedAssets.set("/dist/style.css", styleCss);
-    console.log(`✅ CSS embedded from ./dist/style.css (${(styleCss.length / 1024).toFixed(2)} KB)`);
+    console.log(
+      `✅ CSS embedded from ./dist/style.css (${(styleCss.length / 1024).toFixed(2)} KB)`,
+    );
   }
   if (datastarJs) embeddedAssets.set("/dist/client/datastar.js", datastarJs);
   if (epubReaderJs) embeddedAssets.set("/dist/client/epub-reader.js", epubReaderJs);
