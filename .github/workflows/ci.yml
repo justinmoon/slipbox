@@ -91,3 +91,22 @@ jobs:
             --repo ${{ github.repository }} \
             --squash \
             --delete-branch
+
+      - name: Deploy to production
+        if: |
+          success() && 
+          github.event_name == 'pull_request' && 
+          github.event.pull_request.user.login == github.repository_owner
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          echo "Deploying to production after successful PR merge..."
+          
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 167.99.112.42 >> ~/.ssh/known_hosts
+          
+          # Run the deploy script
+          bun run deploy
