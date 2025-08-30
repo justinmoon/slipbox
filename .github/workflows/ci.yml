@@ -68,7 +68,7 @@ jobs:
           CI: true
 
       - name: Test binary bundling
-        run: bash scripts/test-binary-bundling.sh
+        run: bash tests/test-binary-bundling.sh
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
