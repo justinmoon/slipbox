@@ -20,13 +20,13 @@ import { UploadPage } from "./templates/UploadPage";
 import type { NoteMetadata } from "./types";
 
 // Import assets at compile time - these will be embedded in the binary
-// @ts-ignore - Bun-specific import syntax
+// @ts-expect-error - Bun-specific import syntax
 import styleCss from "../dist/style.css" with { type: "text" };
-// @ts-ignore
+// @ts-expect-error - Bun-specific import syntax
 import datastarJs from "../dist/client/datastar.js" with { type: "text" };
-// @ts-ignore
+// @ts-expect-error - Bun-specific import syntax
 import epubReaderJs from "../dist/client/epub-reader.js" with { type: "text" };
-// @ts-ignore
+// @ts-expect-error - Bun-specific import syntax
 import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text" };
 
 const __filename = fileURLToPath(import.meta.url);
