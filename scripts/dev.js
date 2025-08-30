@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { spawn } from "child_process";
-import net from "net";
-import { existsSync, mkdirSync } from "fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync } from "node:fs";
+import net from "node:net";
 
 // Find an available port
 async function getAvailablePort(startPort = 3000) {

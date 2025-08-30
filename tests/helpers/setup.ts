@@ -1,9 +1,9 @@
+import { type ChildProcess, spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import net from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test as base } from "@playwright/test";
-import { mkdtempSync, rmSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { spawn, ChildProcess } from "child_process";
-import net from "net";
 
 // Find an available port - use random starting point to avoid conflicts
 async function getAvailablePort(): Promise<number> {
@@ -44,6 +44,7 @@ export interface TestContext {
 export const test = base.extend<{
   testContext: TestContext;
 }>({
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires destructuring even if unused
   testContext: async ({}, use) => {
     // Create a temporary directory for this test
     const tmpDir = mkdtempSync(join(tmpdir(), "slipbox-test-"));
@@ -81,7 +82,7 @@ export const test = base.extend<{
             console.log(`Server ready at ${serverUrl}`);
             resolve();
           }
-        } catch (e) {
+        } catch (_e) {
           // Server not ready yet
         }
       };

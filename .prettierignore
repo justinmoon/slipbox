@@ -1,8 +1,0 @@
-dist
-node_modules
-bun.lockb
-package-lock.json
-public/build
-*.min.js
-*.min.css
-worktrees

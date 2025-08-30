@@ -1,4 +1,4 @@
-import { readFileSync } from "fs" with { type: "macro" };
+import { readFileSync } from "node:fs" with { type: "macro" };
 
 // These run at compile time when using bun build --compile
 // Must use relative paths from project root for macros

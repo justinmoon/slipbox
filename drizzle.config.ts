@@ -1,6 +1,5 @@
+import path from "node:path";
 import type { Config } from "drizzle-kit";
-import path from "path";
-import { homedir } from "os";
 
 // ALWAYS require SLIPBOX_DATA_DIR
 const getDbPath = () => {

@@ -1,7 +1,7 @@
-import { Page } from "@playwright/test";
-import { mkdtemp, rm, mkdir } from "fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { Page } from "@playwright/test";
 
 // Authentication helper
 export async function authenticate(page: Page) {

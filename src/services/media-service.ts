@@ -1,8 +1,8 @@
-import { readdir, stat } from "fs/promises";
-import { join, extname } from "path";
+import { createHash } from "node:crypto";
+import { readdir, stat } from "node:fs/promises";
+import { extname, join } from "node:path";
 import { config } from "../config";
 import { fileStorage } from "./file-storage";
-import { createHash } from "crypto";
 
 export interface MediaFile {
   id: string;

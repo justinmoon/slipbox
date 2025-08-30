@@ -42,10 +42,6 @@ class EpubReader extends HTMLElement {
   private savePositionTimeout: NodeJS.Timeout | null = null;
   private currentFontSize: number = 100;
 
-  constructor() {
-    super();
-  }
-
   connectedCallback(): void {
     this.fileId = this.getAttribute("file-id");
     this.innerHTML = `
@@ -144,7 +140,7 @@ class EpubReader extends HTMLElement {
 
       let touchStart: number | null = null;
       this.rendition.on("touchstart", (event: TouchEvent) => {
-        if (event.changedTouches && event.changedTouches[0]) {
+        if (event.changedTouches?.[0]) {
           touchStart = event.changedTouches[0].screenX;
         }
       });
@@ -164,7 +160,7 @@ class EpubReader extends HTMLElement {
       });
     } catch (error) {
       console.error("Error loading EPUB:", error);
-      alert("Failed to load EPUB file: " + (error as Error).message);
+      alert(`Failed to load EPUB file: ${(error as Error).message}`);
     }
   }
 

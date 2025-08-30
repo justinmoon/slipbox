@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // This runs at compile time when using bun build --compile
 let EMBEDDED_CSS: string | null = null;

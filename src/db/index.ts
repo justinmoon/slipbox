@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import * as schema from "./schema";
-import path from "path";
-import fs from "fs/promises";
 import { EMBEDDED_MIGRATIONS } from "./embedded-migrations";
+import * as schema from "./schema";
 
 // ALWAYS require SLIPBOX_DATA_DIR
 const getDbPath = () => {
@@ -82,7 +82,7 @@ const runEmbeddedMigrations = async () => {
 
       for (const statement of statements) {
         try {
-          sqlite.exec(statement + ";");
+          sqlite.exec(`${statement};`);
         } catch (e) {
           console.error(`Failed to execute statement: ${statement}`, e);
           throw e;
@@ -140,7 +140,7 @@ const runMigrations = async () => {
               INSERT INTO files_new (id, original_name, mime_type, size, file_key, uploaded_at, note_id)
               SELECT id, original_name, mime_type, size, tigris_key, uploaded_at, note_id FROM files;
             `);
-          } catch (e) {
+          } catch (_e) {
             // No data to copy, that's fine
           }
 
@@ -155,7 +155,7 @@ const runMigrations = async () => {
           console.log("Schema migration completed successfully");
           return;
         }
-      } catch (e) {
+      } catch (_e) {
         // Files table doesn't exist, continue with normal migration check
       }
 

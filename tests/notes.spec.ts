@@ -1,12 +1,5 @@
-import { test, expect } from "@playwright/test";
-import {
-  authenticate,
-  createNote,
-  typeInEditor,
-  waitForAutoSave,
-  verifyNoteContent,
-  deleteNote,
-} from "./test-utils";
+import { expect, test } from "@playwright/test";
+import { authenticate, createNote, typeInEditor, waitForAutoSave } from "./test-utils";
 
 test.describe("Note Management", () => {
   test.beforeEach(async ({ page }) => {
@@ -31,7 +24,7 @@ test.describe("Note Management", () => {
 
   test("should auto-save note content while editing", async ({ page }) => {
     // Create a new note
-    const noteId = await createNote(page);
+    const _noteId = await createNote(page);
 
     // Type some content
     const testContent = "This is my test note content";
@@ -49,7 +42,7 @@ test.describe("Note Management", () => {
 
   test("should handle multiple auto-saves correctly", async ({ page }) => {
     // Create a new note
-    const noteId = await createNote(page);
+    const _noteId = await createNote(page);
 
     // Type initial content
     await typeInEditor(page, "First version");
@@ -123,7 +116,7 @@ test.describe("Note Management", () => {
   });
 
   test("should show saving indicator during auto-save", async ({ page }) => {
-    const noteId = await createNote(page);
+    const _noteId = await createNote(page);
 
     // Type content and immediately check for saving indicator
     const textarea = page.locator("#note-editor");

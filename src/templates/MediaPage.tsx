@@ -1,7 +1,7 @@
 import Html from "@kitajs/html";
+import type { MediaFile } from "../services/media-service";
 import { Layout } from "./Layout";
 import { Nav } from "./Nav";
-import type { MediaFile } from "../services/media-service";
 
 interface MediaPageProps {
   files: MediaFile[];
@@ -63,7 +63,9 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                         fill="white"
                         width="48"
                         height="48"
+                        aria-label="Play video"
                       >
+                        <title>Play video</title>
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
@@ -101,13 +103,19 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
             data-on-click="if (event.target === event.currentTarget) $selectedFile = null"
           >
             <div class="modal-content" data-if="$selectedFile">
-              <button class="modal-close" data-on-click="$selectedFile = null" aria-label="Close">
+              <button
+                type="button"
+                class="modal-close"
+                data-on-click="$selectedFile = null"
+                aria-label="Close"
+              >
                 ✕
               </button>
               <div data-if="$selectedFile?.type === 'image'">
                 <img
                   data-attr-src="$selectedFile?.url"
                   data-attr-alt="$selectedFile?.name"
+                  alt=""
                   class="max-w-full max-h-[80vh] mx-auto"
                 />
               </div>
@@ -117,7 +125,9 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                   controls
                   autoplay
                   class="max-w-full max-h-[80vh] mx-auto"
-                />
+                >
+                  <track kind="captions" />
+                </video>
               </div>
               <div data-if="$selectedFile?.type === 'audio'">
                 <div class="audio-player">
@@ -127,19 +137,22 @@ export const MediaPage = ({ files, totalFiles }: MediaPageProps) => {
                     controls="controls"
                     autoplay={true}
                     class="w-full"
-                  />
+                  >
+                    <track kind="captions" />
+                  </audio>
                 </div>
               </div>
               <div data-if="$selectedFile?.type === 'pdf' || $selectedFile?.type === 'epub'">
                 <div class="document-viewer">
                   <p class="text-xl mb-4" data-text="$selectedFile?.name"></p>
-                  <a
-                    data-attr-href="$selectedFile?.type === 'epub' ? '/reader/open/' + $selectedFile?.id : $selectedFile?.url"
+                  <button
+                    type="button"
+                    onclick="window.open($selectedFile?.type === 'epub' ? '/reader/open/' + $selectedFile?.id : $selectedFile?.url, '_blank')"
+                    data-on-click="window.open($selectedFile?.type === 'epub' ? '/reader/open/' + $selectedFile?.id : $selectedFile?.url, '_blank')"
                     class="btn-primary"
-                    target="_blank"
                   >
                     Open Document
-                  </a>
+                  </button>
                 </div>
               </div>
               <div class="modal-footer">
@@ -354,5 +367,5 @@ function formatFileSize(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  return `${Math.round((bytes / k ** i) * 100) / 100} ${sizes[i]}`;
 }

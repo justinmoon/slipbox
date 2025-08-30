@@ -1,6 +1,6 @@
-import { sqliteNoteStorage } from "./services/note-storage";
-import { Note, NoteMetadata, SearchResult } from "./types";
 import { config } from "./config";
+import { sqliteNoteStorage } from "./services/note-storage";
+import type { Note, NoteMetadata, SearchResult } from "./types";
 
 export class NoteStorage {
   async createNote(content: string = ""): Promise<Note> {
