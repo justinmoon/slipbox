@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-SERVER="justin@slipbox"
+SERVER="justin@167.99.112.42"
 APP_DIR="~/apps/slipbox"
 BINARY_NAME="slipbox-server"
 SERVICE_NAME="slipbox"
