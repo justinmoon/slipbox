@@ -1,9 +1,7 @@
 import path from "node:path";
-import { desc, eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../db/index";
-import type { File } from "../db/schema";
-import { files } from "../db/schema";
+import { all, get, run } from "../db/index";
+import type { File } from "../db/types";
 import { localFileStorage } from "./local-file-storage";
 
 export interface UploadFileOptions {
@@ -37,24 +35,46 @@ export class FileStorageService {
       mimeType,
     });
 
-    const [savedFile] = await db
-      .insert(files)
-      .values({
-        id,
-        originalName,
-        mimeType,
-        size,
-        fileKey,
-        noteId: options.noteId,
-      })
-      .returning();
+    const now = new Date();
 
-    return savedFile;
+    run(
+      `INSERT INTO files (id, original_name, mime_type, size, file_key, uploaded_at, note_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, originalName, mimeType, size, fileKey, now.getTime(), options.noteId || null],
+    );
+
+    return {
+      id,
+      originalName,
+      mimeType,
+      size,
+      fileKey,
+      uploadedAt: now,
+      noteId: options.noteId || null,
+    };
   }
 
   async getFile(id: string): Promise<File | null> {
-    const [file] = await db.select().from(files).where(eq(files.id, id)).limit(1);
-    return file || null;
+    const file = get<File>(
+      `SELECT 
+        id, 
+        original_name as originalName, 
+        mime_type as mimeType, 
+        size, 
+        file_key as fileKey, 
+        uploaded_at as uploadedAt, 
+        note_id as noteId 
+       FROM files 
+       WHERE id = ? 
+       LIMIT 1`,
+      [id],
+    );
+
+    if (file) {
+      file.uploadedAt = new Date(file.uploadedAt);
+    }
+
+    return file;
   }
 
   async downloadFile(id: string): Promise<{ buffer: Buffer; file: File } | null> {
@@ -71,8 +91,8 @@ export class FileStorageService {
 
     await localFileStorage.deleteFile(file.fileKey);
 
-    await db.delete(files).where(eq(files.id, id));
-    return true;
+    const result = run(`DELETE FROM files WHERE id = ?`, [id]);
+    return result.changes > 0;
   }
 
   async getFileUrl(id: string, expiresIn: number = 3600): Promise<string | null> {
@@ -83,11 +103,27 @@ export class FileStorageService {
   }
 
   async listFilesByNote(noteId: string): Promise<File[]> {
-    return await db
-      .select()
-      .from(files)
-      .where(eq(files.noteId, noteId))
-      .orderBy(desc(files.uploadedAt));
+    const filesList = all<File>(
+      `SELECT 
+        id, 
+        original_name as originalName, 
+        mime_type as mimeType, 
+        size, 
+        file_key as fileKey, 
+        uploaded_at as uploadedAt, 
+        note_id as noteId 
+       FROM files 
+       WHERE note_id = ? 
+       ORDER BY uploaded_at DESC`,
+      [noteId],
+    );
+
+    // Convert timestamps to Date objects
+    filesList.forEach((file) => {
+      file.uploadedAt = new Date(file.uploadedAt);
+    });
+
+    return filesList;
   }
 
   async deleteFilesByNote(noteId: string): Promise<number> {
@@ -97,8 +133,8 @@ export class FileStorageService {
       await localFileStorage.deleteFile(file.fileKey);
     }
 
-    await db.delete(files).where(eq(files.noteId, noteId));
-    return filesToDelete.length;
+    const result = run(`DELETE FROM files WHERE note_id = ?`, [noteId]);
+    return result.changes;
   }
 
   async getAllFiles(
@@ -108,18 +144,32 @@ export class FileStorageService {
     files: File[];
     total: number;
   }> {
-    const filesList = await db
-      .select()
-      .from(files)
-      .orderBy(desc(files.uploadedAt))
-      .limit(limit)
-      .offset(offset);
+    const filesList = all<File>(
+      `SELECT 
+        id, 
+        original_name as originalName, 
+        mime_type as mimeType, 
+        size, 
+        file_key as fileKey, 
+        uploaded_at as uploadedAt, 
+        note_id as noteId 
+       FROM files 
+       ORDER BY uploaded_at DESC 
+       LIMIT ? OFFSET ?`,
+      [limit, offset],
+    );
 
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(files);
+    // Convert timestamps to Date objects
+    filesList.forEach((file) => {
+      file.uploadedAt = new Date(file.uploadedAt);
+    });
+
+    const totalResult = get<{ count: number }>(`SELECT COUNT(*) as count FROM files`);
+    const total = totalResult?.count || 0;
 
     return {
       files: filesList,
-      total: count,
+      total,
     };
   }
 }
