@@ -985,7 +985,7 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
        FROM epub_reading_positions 
        WHERE file_id = ? 
        LIMIT 1`,
-      [data.fileId]
+      [data.fileId],
     );
 
     const now = new Date();
@@ -995,14 +995,21 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
         `UPDATE epub_reading_positions 
          SET cfi = ?, percentage = ?, font_size = ?, updated_at = ? 
          WHERE id = ?`,
-        [data.cfi, data.percentage || 0, data.fontSize || 100, now, existing.id]
+        [data.cfi, data.percentage || 0, data.fontSize || 100, now, existing.id],
       );
     } else {
       // Create new position
       run(
         `INSERT INTO epub_reading_positions (id, file_id, cfi, percentage, font_size, updated_at) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [crypto.randomUUID(), data.fileId, data.cfi, data.percentage || 0, data.fontSize || 100, now]
+        [
+          crypto.randomUUID(),
+          data.fileId,
+          data.cfi,
+          data.percentage || 0,
+          data.fontSize || 100,
+          now,
+        ],
       );
     }
 
@@ -1028,7 +1035,7 @@ async function handleGetReadingPosition(fileId: string): Promise<Response> {
        FROM epub_reading_positions 
        WHERE file_id = ? 
        LIMIT 1`,
-      [fileId]
+      [fileId],
     );
 
     if (!position) {

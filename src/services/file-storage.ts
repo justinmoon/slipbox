@@ -36,11 +36,11 @@ export class FileStorageService {
     });
 
     const now = new Date();
-    
+
     run(
       `INSERT INTO files (id, original_name, mime_type, size, file_key, uploaded_at, note_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, originalName, mimeType, size, fileKey, now, options.noteId || null]
+      [id, originalName, mimeType, size, fileKey, now, options.noteId || null],
     );
 
     return {
@@ -67,13 +67,13 @@ export class FileStorageService {
        FROM files 
        WHERE id = ? 
        LIMIT 1`,
-      [id]
+      [id],
     );
-    
+
     if (file) {
       file.uploadedAt = new Date(file.uploadedAt);
     }
-    
+
     return file;
   }
 
@@ -115,11 +115,11 @@ export class FileStorageService {
        FROM files 
        WHERE note_id = ? 
        ORDER BY uploaded_at DESC`,
-      [noteId]
+      [noteId],
     );
 
     // Convert timestamps to Date objects
-    filesList.forEach(file => {
+    filesList.forEach((file) => {
       file.uploadedAt = new Date(file.uploadedAt);
     });
 
@@ -156,17 +156,15 @@ export class FileStorageService {
        FROM files 
        ORDER BY uploaded_at DESC 
        LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [limit, offset],
     );
 
     // Convert timestamps to Date objects
-    filesList.forEach(file => {
+    filesList.forEach((file) => {
       file.uploadedAt = new Date(file.uploadedAt);
     });
 
-    const totalResult = get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM files`
-    );
+    const totalResult = get<{ count: number }>(`SELECT COUNT(*) as count FROM files`);
     const total = totalResult?.count || 0;
 
     return {

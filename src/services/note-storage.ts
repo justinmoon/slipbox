@@ -24,13 +24,10 @@ export class SqliteNoteStorage {
       run(
         `INSERT INTO notes (id, content, word_count, char_count, created_at, updated_at) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, content, wordCount, charCount, now, now]
+        [id, content, wordCount, charCount, now, now],
       );
 
-      run(
-        `INSERT INTO note_search_index (id, content) VALUES (?, ?)`,
-        [id, content.toLowerCase()]
-      );
+      run(`INSERT INTO note_search_index (id, content) VALUES (?, ?)`, [id, content.toLowerCase()]);
 
       return {
         id,
@@ -55,7 +52,7 @@ export class SqliteNoteStorage {
        FROM notes 
        WHERE id = ? 
        LIMIT 1`,
-      [id]
+      [id],
     );
 
     if (!note) return null;
@@ -80,15 +77,12 @@ export class SqliteNoteStorage {
         `UPDATE notes 
          SET content = ?, word_count = ?, char_count = ?, updated_at = ? 
          WHERE id = ?`,
-        [content, wordCount, charCount, updatedAt, id]
+        [content, wordCount, charCount, updatedAt, id],
       );
 
       if (result.changes === 0) return null;
 
-      run(
-        `UPDATE note_search_index SET content = ? WHERE id = ?`,
-        [content.toLowerCase(), id]
-      );
+      run(`UPDATE note_search_index SET content = ? WHERE id = ?`, [content.toLowerCase(), id]);
 
       const note = get<Note>(
         `SELECT 
@@ -101,7 +95,7 @@ export class SqliteNoteStorage {
          FROM notes 
          WHERE id = ? 
          LIMIT 1`,
-        [id]
+        [id],
       );
 
       if (note) {
@@ -125,14 +119,14 @@ export class SqliteNoteStorage {
   }> {
     if (search) {
       const searchPattern = `%${search.toLowerCase()}%`;
-      
+
       const totalResult = get<{ count: number }>(
         `SELECT COUNT(*) as count FROM notes 
          WHERE id IN (
            SELECT id FROM note_search_index 
            WHERE content LIKE ?
          )`,
-        [searchPattern]
+        [searchPattern],
       );
       const total = totalResult?.count || 0;
 
@@ -151,11 +145,11 @@ export class SqliteNoteStorage {
          )
          ORDER BY updated_at DESC 
          LIMIT ? OFFSET ?`,
-        [searchPattern, limit, offset]
+        [searchPattern, limit, offset],
       );
 
       // Convert timestamps to Date objects
-      notesList.forEach(note => {
+      notesList.forEach((note) => {
         note.createdAt = new Date(note.createdAt);
         note.updatedAt = new Date(note.updatedAt);
       });
@@ -166,9 +160,7 @@ export class SqliteNoteStorage {
         hasMore: offset + notesList.length < total,
       };
     } else {
-      const totalResult = get<{ count: number }>(
-        `SELECT COUNT(*) as count FROM notes`
-      );
+      const totalResult = get<{ count: number }>(`SELECT COUNT(*) as count FROM notes`);
       const total = totalResult?.count || 0;
 
       const notesList = all<Note>(
@@ -182,11 +174,11 @@ export class SqliteNoteStorage {
          FROM notes 
          ORDER BY updated_at DESC 
          LIMIT ? OFFSET ?`,
-        [limit, offset]
+        [limit, offset],
       );
 
       // Convert timestamps to Date objects
-      notesList.forEach(note => {
+      notesList.forEach((note) => {
         note.createdAt = new Date(note.createdAt);
         note.updatedAt = new Date(note.updatedAt);
       });
@@ -219,11 +211,11 @@ export class SqliteNoteStorage {
        )
        ORDER BY updated_at DESC 
        LIMIT ?`,
-      [searchPattern, limit]
+      [searchPattern, limit],
     );
 
     // Convert timestamps to Date objects
-    notesList.forEach(note => {
+    notesList.forEach((note) => {
       note.createdAt = new Date(note.createdAt);
       note.updatedAt = new Date(note.updatedAt);
     });
@@ -232,9 +224,7 @@ export class SqliteNoteStorage {
   }
 
   async getTotalNotes(): Promise<number> {
-    const result = get<{ count: number }>(
-      `SELECT COUNT(*) as count FROM notes`
-    );
+    const result = get<{ count: number }>(`SELECT COUNT(*) as count FROM notes`);
     return result?.count || 0;
   }
 
@@ -250,11 +240,11 @@ export class SqliteNoteStorage {
        FROM notes 
        ORDER BY updated_at DESC 
        LIMIT ?`,
-      [limit]
+      [limit],
     );
 
     // Convert timestamps to Date objects
-    notesList.forEach(note => {
+    notesList.forEach((note) => {
       note.createdAt = new Date(note.createdAt);
       note.updatedAt = new Date(note.updatedAt);
     });
