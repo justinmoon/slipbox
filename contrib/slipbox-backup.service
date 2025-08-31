@@ -1,0 +1,24 @@
+[Unit]
+Description=Slipbox Restic Backup to Backblaze B2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=%i
+Group=%i
+EnvironmentFile=/etc/slipbox-backup.env
+ExecStart=/bin/bash /usr/local/bin/restic-backup.sh
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/log/slipbox-backup
+
+# Restart on failure with delay
+Restart=on-failure
+RestartSec=1h

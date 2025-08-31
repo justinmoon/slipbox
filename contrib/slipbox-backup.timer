@@ -1,0 +1,16 @@
+[Unit]
+Description=Run Slipbox backup every 6 hours
+Requires=slipbox-backup@.service
+
+[Timer]
+# Run every 6 hours
+OnCalendar=00,06,12,18:00:00
+# Run 10 minutes after boot if missed
+OnBootSec=10min
+# Persist last run time across reboots
+Persistent=true
+# Randomize start time by up to 30 minutes to avoid load spikes
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target
