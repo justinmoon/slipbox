@@ -25,20 +25,20 @@ export class MigrationRunner {
 
   private async loadMigrations(): Promise<Map<string, Migration>> {
     const migrations = new Map<string, Migration>();
-    
+
     // Import migrations directly - they get bundled automatically
     const migration001 = await import("./migrations/001_initial_schema");
-    
+
     migrations.set("001_initial_schema", {
       id: "001_initial_schema",
       up: migration001.up,
       down: migration001.down,
     });
-    
+
     // Add more migrations here as needed
     // const migration002 = await import("./migrations/002_whatever");
     // migrations.set("002_whatever", { ... });
-    
+
     return migrations;
   }
 
