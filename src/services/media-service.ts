@@ -1,7 +1,4 @@
-import { createHash } from "node:crypto";
-import { readdir, stat } from "node:fs/promises";
-import { extname, join } from "node:path";
-import { config } from "../config";
+import { extname } from "node:path";
 import { fileStorage } from "./file-storage";
 
 export interface MediaFile {
@@ -48,10 +45,6 @@ function getMediaType(filename: string): { type: MediaFile["type"]; mimeType: st
   return MEDIA_EXTENSIONS[ext] || { type: "other", mimeType: "application/octet-stream" };
 }
 
-function generateFileId(path: string): string {
-  return createHash("md5").update(path).digest("hex");
-}
-
 export class MediaService {
   async getAllMediaFiles(
     limit: number = 100,
@@ -62,90 +55,41 @@ export class MediaService {
   }> {
     const allFiles: MediaFile[] = [];
 
-    // Get files from database
-    const { files: dbFiles } = await fileStorage.getAllFiles(1000, 0);
-    console.log(`Found ${dbFiles.length} files in database`);
+    // Get all files from filesystem (no more database)
+    const { files: fsFiles } = await fileStorage.getAllFiles(1000, 0);
+    console.log(`Found ${fsFiles.length} files in filesystem`);
 
-    for (const file of dbFiles) {
-      const { type, mimeType } = getMediaType(file.originalName);
-      if (type === "other" && !file.originalName.endsWith(".md")) {
+    for (const file of fsFiles) {
+      const { type, mimeType } = getMediaType(file.filename);
+      if (type === "other" && !file.filename.endsWith(".md")) {
         // Include non-markdown files even if we don't recognize the extension
         allFiles.push({
-          id: file.id,
-          name: file.originalName,
+          id: file.filename,
+          name: file.filename,
           type: "other",
           mimeType: file.mimeType || mimeType,
           size: file.size,
           modified: file.uploadedAt,
-          url: `/api/files/download/${file.id}`,
+          url: `/${file.filename}`,
           thumbnailUrl: undefined,
-          source: "database",
+          source: "filesystem",
         });
       } else if (type !== "other") {
         allFiles.push({
-          id: file.id,
-          name: file.originalName,
+          id: file.filename,
+          name: file.filename,
           type,
           mimeType: file.mimeType || mimeType,
           size: file.size,
           modified: file.uploadedAt,
-          url: `/api/files/download/${file.id}`,
-          thumbnailUrl: type === "image" ? `/api/files/thumbnail/${file.id}` : undefined,
-          source: "database",
+          url: `/${file.filename}`,
+          thumbnailUrl: type === "image" ? `/${file.filename}` : undefined,
+          source: "filesystem",
         });
       }
     }
 
-    // Scan filesystem for additional media files
-    try {
-      const files = await readdir(config.dataDir);
-      console.log(`Scanning ${config.dataDir}, found ${files.length} files`);
-
-      let skipCount = 0;
-      let addCount = 0;
-
-      for (const filename of files) {
-        // Skip markdown files, metadata files, and database files
-        if (
-          filename.endsWith(".md") ||
-          filename.endsWith(".meta.json") ||
-          filename.includes(".db") ||
-          filename === ".DS_Store" ||
-          filename === "files"
-        ) {
-          skipCount++;
-          continue;
-        }
-
-        const filepath = join(config.dataDir, filename);
-        const stats = await stat(filepath);
-
-        if (stats.isFile()) {
-          const { type, mimeType } = getMediaType(filename);
-          const fileId = generateFileId(filepath);
-          addCount++;
-
-          allFiles.push({
-            id: fileId,
-            name: filename,
-            type,
-            mimeType,
-            size: stats.size,
-            modified: stats.mtime,
-            url: `/api/media/file/${fileId}?path=${encodeURIComponent(filename)}`,
-            thumbnailUrl:
-              type === "image"
-                ? `/api/media/thumbnail/${fileId}?path=${encodeURIComponent(filename)}`
-                : undefined,
-            source: "filesystem",
-          });
-        }
-      }
-
-      console.log(`Skipped ${skipCount} files, added ${addCount} files from filesystem`);
-    } catch (error) {
-      console.error("Error scanning filesystem for media files:", error);
-    }
+    // No need to scan filesystem again - we already got all files above
 
     // Sort by type first, then by modified date (to get a mix of file types)
     allFiles.sort((a, b) => {

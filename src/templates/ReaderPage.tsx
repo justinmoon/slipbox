@@ -3,8 +3,7 @@ import { Layout } from "./Layout";
 import { Nav } from "./Nav";
 
 interface EpubFile {
-  id: string;
-  name: string;
+  filename: string;
   size: number;
   modified: Date;
 }
@@ -27,9 +26,9 @@ export const ReaderPage = ({ epubFiles }: ReaderPageProps) => (
         ) : (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {epubFiles.map((book) => (
-              <a href={`/epub/${book.id}`} class="block no-underline">
+              <a href={`/${book.filename}`} class="block no-underline">
                 <div class="border-2 border-dark bg-off-white p-6 cursor-pointer hover:shadow-[3px_3px_0_#111] transition-shadow">
-                  <h3 class="text-xl font-bold mb-2">{book.name}</h3>
+                  <h3 class="text-xl font-bold mb-2">{book.filename.replace(/\.epub$/i, "")}</h3>
                   <div class="flex justify-between text-sm text-gray-600">
                     <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
                     <span class="italic">{book.modified.toLocaleDateString()}</span>

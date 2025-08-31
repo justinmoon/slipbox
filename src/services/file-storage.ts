@@ -1,14 +1,13 @@
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import { desc, eq, sql } from "drizzle-orm";
-import { v4 as uuidv4 } from "uuid";
-import { db } from "../db/index";
-import type { File } from "../db/schema";
-import { files } from "../db/schema";
+import { nanoid } from "nanoid";
 import { localFileStorage } from "./local-file-storage";
 
-export interface UploadFileOptions {
-  noteId?: string;
-  metadata?: Record<string, string>;
+export interface FileInfo {
+  filename: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: Date;
 }
 
 export class FileStorageService {
@@ -16,111 +15,155 @@ export class FileStorageService {
     await localFileStorage.initialize();
   }
 
-  async uploadFile(
-    file: File | Blob,
-    originalName: string,
-    mimeType: string,
-    options: UploadFileOptions = {},
-  ): Promise<File> {
-    const id = uuidv4();
+  async uploadFile(file: File | Blob, originalName: string, mimeType: string): Promise<FileInfo> {
     const extension = path.extname(originalName);
-    const fileKey = `${id}${extension}`;
+    const filename = `${nanoid()}${extension}`;
 
     const buffer =
       file instanceof File
         ? Buffer.from(await file.arrayBuffer())
         : Buffer.from(await (file as Blob).arrayBuffer());
 
-    const { size } = await localFileStorage.uploadFile(fileKey, buffer, {
-      ...options.metadata,
+    await localFileStorage.uploadFile(filename, buffer, {
       originalName,
       mimeType,
     });
 
-    const [savedFile] = await db
-      .insert(files)
-      .values({
-        id,
-        originalName,
+    return {
+      filename,
+      size: buffer.length,
+      mimeType,
+      uploadedAt: new Date(),
+    };
+  }
+
+  async getFile(filename: string): Promise<FileInfo | null> {
+    try {
+      const exists = await localFileStorage.fileExists(filename);
+      if (!exists) return null;
+
+      // Get file stats from filesystem
+      const dataDir = process.env.SLIPBOX_DATA_DIR!;
+      const filePath = path.join(dataDir, filename);
+      const stats = await stat(filePath);
+
+      // Determine mime type from extension
+      const ext = path.extname(filename).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        ".epub": "application/epub+zip",
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+      };
+      const mimeType = mimeTypes[ext] || "application/octet-stream";
+
+      return {
+        filename,
+        size: stats.size,
         mimeType,
-        size,
-        fileKey,
-        noteId: options.noteId,
-      })
-      .returning();
-
-    return savedFile;
+        uploadedAt: stats.mtime,
+      };
+    } catch (error) {
+      console.error(`Error getting file ${filename}:`, error);
+      return null;
+    }
   }
 
-  async getFile(id: string): Promise<File | null> {
-    const [file] = await db.select().from(files).where(eq(files.id, id)).limit(1);
-    return file || null;
-  }
-
-  async downloadFile(id: string): Promise<{ buffer: Buffer; file: File } | null> {
-    const file = await this.getFile(id);
+  async downloadFile(filename: string): Promise<{ buffer: Buffer; file: FileInfo } | null> {
+    const file = await this.getFile(filename);
     if (!file) return null;
 
-    const buffer = await localFileStorage.downloadFile(file.fileKey);
+    const buffer = await localFileStorage.downloadFile(filename);
     return { buffer, file };
   }
 
-  async deleteFile(id: string): Promise<boolean> {
-    const file = await this.getFile(id);
-    if (!file) return false;
-
-    await localFileStorage.deleteFile(file.fileKey);
-
-    await db.delete(files).where(eq(files.id, id));
-    return true;
-  }
-
-  async getFileUrl(id: string, expiresIn: number = 3600): Promise<string | null> {
-    const file = await this.getFile(id);
-    if (!file) return null;
-
-    return await localFileStorage.getFileUrl(file.fileKey, expiresIn);
-  }
-
-  async listFilesByNote(noteId: string): Promise<File[]> {
-    return await db
-      .select()
-      .from(files)
-      .where(eq(files.noteId, noteId))
-      .orderBy(desc(files.uploadedAt));
-  }
-
-  async deleteFilesByNote(noteId: string): Promise<number> {
-    const filesToDelete = await this.listFilesByNote(noteId);
-
-    for (const file of filesToDelete) {
-      await localFileStorage.deleteFile(file.fileKey);
+  async deleteFile(filename: string): Promise<boolean> {
+    try {
+      await localFileStorage.deleteFile(filename);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting file ${filename}:`, error);
+      return false;
     }
+  }
 
-    await db.delete(files).where(eq(files.noteId, noteId));
-    return filesToDelete.length;
+  async getFileUrl(filename: string, expiresIn: number = 3600): Promise<string | null> {
+    const exists = await localFileStorage.fileExists(filename);
+    if (!exists) return null;
+
+    return await localFileStorage.getFileUrl(filename, expiresIn);
   }
 
   async getAllFiles(
     limit: number = 100,
     offset: number = 0,
   ): Promise<{
-    files: File[];
+    files: FileInfo[];
     total: number;
   }> {
-    const filesList = await db
-      .select()
-      .from(files)
-      .orderBy(desc(files.uploadedAt))
-      .limit(limit)
-      .offset(offset);
+    try {
+      const dataDir = process.env.SLIPBOX_DATA_DIR!;
+      const allFiles = await readdir(dataDir);
 
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(files);
+      // Filter out non-files and get stats
+      const fileInfos: FileInfo[] = [];
+      for (const filename of allFiles) {
+        // Skip hidden files and directories
+        if (filename.startsWith(".")) continue;
 
-    return {
-      files: filesList,
-      total: count,
-    };
+        const filePath = path.join(dataDir, filename);
+        try {
+          const stats = await stat(filePath);
+          if (!stats.isFile()) continue;
+
+          const ext = path.extname(filename).toLowerCase();
+          const mimeTypes: Record<string, string> = {
+            ".epub": "application/epub+zip",
+            ".pdf": "application/pdf",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+          };
+          const mimeType = mimeTypes[ext] || "application/octet-stream";
+
+          fileInfos.push({
+            filename,
+            size: stats.size,
+            mimeType,
+            uploadedAt: stats.mtime,
+          });
+        } catch (error) {
+          console.error(`Error getting stats for ${filename}:`, error);
+        }
+      }
+
+      // Sort by upload date (newest first)
+      fileInfos.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
+
+      // Apply pagination
+      const paginatedFiles = fileInfos.slice(offset, offset + limit);
+
+      return {
+        files: paginatedFiles,
+        total: fileInfos.length,
+      };
+    } catch (error) {
+      console.error("Error listing files:", error);
+      return { files: [], total: 0 };
+    }
   }
 }
 

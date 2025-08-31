@@ -8,13 +8,21 @@ import { nanoid } from "nanoid";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-if (args.length !== 2) {
-  console.error("Usage: bun scripts/import-folder.js <source-folder> <output-db-path>");
-  console.error("Example: bun scripts/import-folder.js ~/slipbox ~/Desktop/imported.db");
+if (args.length < 2 || args.length > 3) {
+  console.error(
+    "Usage: bun scripts/import-folder.js <source-folder> <output-db-path> [<files-storage-dir>]",
+  );
+  console.error(
+    "Example: bun scripts/import-folder.js ~/slipbox ~/Desktop/imported.db ~/Desktop/storage",
+  );
+  console.error("");
+  console.error(
+    "If files-storage-dir is provided, non-markdown files will be copied there with proper naming.",
+  );
   process.exit(1);
 }
 
-const [sourceFolder, outputDbPath] = args;
+const [sourceFolder, outputDbPath, filesStorageDir] = args;
 
 // Validate source folder exists
 try {
@@ -32,8 +40,16 @@ try {
 const outputDir = path.dirname(outputDbPath);
 await fs.mkdir(outputDir, { recursive: true });
 
+// Create files storage directory if specified
+if (filesStorageDir) {
+  await fs.mkdir(filesStorageDir, { recursive: true });
+}
+
 console.log(`📁 Source folder: ${sourceFolder}`);
 console.log(`💾 Output database: ${outputDbPath}`);
+if (filesStorageDir) {
+  console.log(`📂 Files storage: ${filesStorageDir}`);
+}
 console.log("");
 
 // Initialize database
@@ -147,6 +163,8 @@ for (const file of files) {
       // Process as file
       const fileId = nanoid();
       const mimeType = getMimeType(filePath);
+      const extension = path.extname(file.name);
+      const fileKey = `${fileId}${extension}`;
 
       db.prepare(`
         INSERT INTO files (id, original_name, mime_type, size, file_key, uploaded_at)
@@ -156,13 +174,22 @@ for (const file of files) {
         file.name,
         mimeType,
         stat.size,
-        file.name, // Using filename as file_key since we're not copying files
+        fileKey, // Proper file key format: {id}.{extension}
         Math.floor(stat.mtime.getTime() / 1000),
       );
 
-      console.log(
-        `📎 Imported file: ${file.name} (${mimeType}, ${(stat.size / 1024).toFixed(1)} KB)`,
-      );
+      // Copy file to storage directory if specified
+      if (filesStorageDir) {
+        const targetPath = path.join(filesStorageDir, fileKey);
+        await fs.copyFile(filePath, targetPath);
+        console.log(
+          `📎 Imported file: ${file.name} (${mimeType}, ${(stat.size / 1024).toFixed(1)} KB) → ${fileKey}`,
+        );
+      } else {
+        console.log(
+          `📎 Imported file: ${file.name} (${mimeType}, ${(stat.size / 1024).toFixed(1)} KB)`,
+        );
+      }
       filesCount++;
     }
   } catch (error) {
@@ -179,5 +206,14 @@ console.log(`📝 Notes imported: ${notesCount}`);
 console.log(`📎 Files imported: ${filesCount}`);
 console.log(`⏭️  Items skipped: ${skippedCount}`);
 console.log(`💾 Database saved to: ${outputDbPath}`);
+if (filesStorageDir) {
+  console.log(`📂 Files copied to: ${filesStorageDir}`);
+}
 console.log("");
 console.log("✅ Import successful!");
+
+if (!filesStorageDir && filesCount > 0) {
+  console.log("");
+  console.log("⚠️  Note: Files were recorded in database but not copied.");
+  console.log("    Run with a third argument to specify storage directory.");
+}

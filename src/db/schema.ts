@@ -28,32 +28,13 @@ export const noteSearchIndex = sqliteTable("note_search_index", {
   content: text("content").notNull(),
 });
 
-export const files = sqliteTable(
-  "files",
-  {
-    id: text("id").primaryKey(),
-    originalName: text("original_name").notNull(),
-    mimeType: text("mime_type").notNull(),
-    size: integer("size").notNull(),
-    fileKey: text("file_key").notNull(),
-    uploadedAt: integer("uploaded_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
-    noteId: text("note_id").references(() => notes.id, { onDelete: "set null" }),
-  },
-  (table) => ({
-    noteIdIdx: index("files_note_id_idx").on(table.noteId),
-    uploadedAtIdx: index("files_uploaded_at_idx").on(table.uploadedAt),
-  }),
-);
+// Files are now stored directly in the filesystem - no database table needed
 
 export const epubReadingPositions = sqliteTable(
   "epub_reading_positions",
   {
     id: text("id").primaryKey(),
-    fileId: text("file_id")
-      .notNull()
-      .references(() => files.id, { onDelete: "cascade" }),
+    filename: text("filename").notNull(), // Just a filename, no FK - e.g., "8506b4fd-79f1-455a-8b57-be859b17defa.epub"
     cfi: text("cfi").notNull(), // EPUB CFI (Canonical Fragment Identifier) for precise position
     percentage: integer("percentage").notNull().default(0), // Reading percentage (0-100)
     fontSize: integer("font_size").notNull().default(100), // Font size percentage (50-200)
@@ -62,14 +43,12 @@ export const epubReadingPositions = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
-    fileIdIdx: index("epub_reading_positions_file_id_idx").on(table.fileId),
+    filenameIdx: index("epub_reading_positions_filename_idx").on(table.filename),
     updatedAtIdx: index("epub_reading_positions_updated_at_idx").on(table.updatedAt),
   }),
 );
 
 export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
-export type File = typeof files.$inferSelect;
-export type NewFile = typeof files.$inferInsert;
 export type EpubReadingPosition = typeof epubReadingPositions.$inferSelect;
 export type NewEpubReadingPosition = typeof epubReadingPositions.$inferInsert;
