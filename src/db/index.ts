@@ -1,9 +1,8 @@
-import path from "node:path";
 import { db } from "./database";
 import { MigrationRunner } from "./migration-runner";
 
 // Run migrations using new system
-const runner = new MigrationRunner(db, path.join(import.meta.dir, "migrations"));
+const runner = new MigrationRunner(db);
 await runner.up();
 
 // Export everything needed
