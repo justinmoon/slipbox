@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { join } from "path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
+import { runMigrations } from "./migrate";
 import * as schema from "./schema";
 
 // ALWAYS require SLIPBOX_DATA_DIR
@@ -35,49 +35,7 @@ sqlite.exec("PRAGMA temp_store = MEMORY");
 
 export const db = drizzle(sqlite, { schema });
 
-// Simple migration runner - works the same in dev and prod
-const runMigrations = async () => {
-  try {
-    // Check if database is already initialized
-    const tables = sqlite
-      .query("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'")
-      .all();
-
-    if (tables.length > 0) {
-      const count = sqlite.query("SELECT COUNT(*) as count FROM notes").get() as { count: number };
-      console.log(`Database already initialized with ${count.count} notes, skipping migrations`);
-      return;
-    }
-
-    console.log("Initializing new database...");
-
-    // Read migration file using Bun.file() - this gets embedded in production builds
-    const migrationPath = join(import.meta.dir, "./migrations/0000_initial_schema.sql");
-    const migrationSql = await Bun.file(migrationPath).text();
-
-    // Apply the migration
-    // Split by statement-breakpoint markers (Drizzle's format)
-    const statements = migrationSql
-      .split("--> statement-breakpoint")
-      .map((s: string) => s.trim())
-      .filter((s: string) => s.length > 0 && !s.startsWith("--"));
-
-    for (const statement of statements) {
-      sqlite.exec(statement);
-    }
-
-    console.log("Database initialization completed successfully");
-  } catch (error) {
-    console.error("Migration failed:", error);
-    // In production, continue anyway - app will use whatever database state exists
-    if (process.env.NODE_ENV === "production") {
-      console.log("WARNING: Migration failed in production, continuing anyway...");
-    } else {
-      throw error;
-    }
-  }
-};
-
-await runMigrations();
+// Run migrations
+await runMigrations(sqlite);
 
 export * from "./schema";
