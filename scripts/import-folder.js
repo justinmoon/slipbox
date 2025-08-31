@@ -3,8 +3,8 @@
 import { Database } from "bun:sqlite";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { nanoid } from "nanoid";
 import mime from "mime-types";
+import { nanoid } from "nanoid";
 
 // Parse command line arguments
 const args = process.argv.slice(2);

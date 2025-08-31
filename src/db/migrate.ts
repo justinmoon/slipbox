@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { join } from "path";
+import { join } from "node:path";
 
 export async function runMigrations(sqlite: Database): Promise<void> {
   try {
