@@ -995,7 +995,7 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
         `UPDATE epub_reading_positions 
          SET cfi = ?, percentage = ?, font_size = ?, updated_at = ? 
          WHERE id = ?`,
-        [data.cfi, data.percentage || 0, data.fontSize || 100, now, existing.id],
+        [data.cfi, data.percentage || 0, data.fontSize || 100, now.getTime(), existing.id],
       );
     } else {
       // Create new position
@@ -1008,7 +1008,7 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
           data.cfi,
           data.percentage || 0,
           data.fontSize || 100,
-          now,
+          now.getTime(),
         ],
       );
     }

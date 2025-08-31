@@ -24,7 +24,7 @@ export class SqliteNoteStorage {
       run(
         `INSERT INTO notes (id, content, word_count, char_count, created_at, updated_at) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, content, wordCount, charCount, now, now],
+        [id, content, wordCount, charCount, now.getTime(), now.getTime()],
       );
 
       run(`INSERT INTO note_search_index (id, content) VALUES (?, ?)`, [id, content.toLowerCase()]);
@@ -77,7 +77,7 @@ export class SqliteNoteStorage {
         `UPDATE notes 
          SET content = ?, word_count = ?, char_count = ?, updated_at = ? 
          WHERE id = ?`,
-        [content, wordCount, charCount, updatedAt, id],
+        [content, wordCount, charCount, updatedAt.getTime(), id],
       );
 
       if (result.changes === 0) return null;

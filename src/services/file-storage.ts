@@ -40,7 +40,7 @@ export class FileStorageService {
     run(
       `INSERT INTO files (id, original_name, mime_type, size, file_key, uploaded_at, note_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, originalName, mimeType, size, fileKey, now, options.noteId || null],
+      [id, originalName, mimeType, size, fileKey, now.getTime(), options.noteId || null],
     );
 
     return {
