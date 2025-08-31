@@ -47,20 +47,15 @@ db.exec("PRAGMA cache_size = -64000");
 db.exec("PRAGMA foreign_keys = ON");
 db.exec("PRAGMA temp_store = MEMORY");
 
-// Read and apply migration
+// Apply migrations using the new migration system
 console.log("🗃️  Creating database schema...");
-const migrationPath = path.join(import.meta.dir, "../src/db/migrations/0000_initial_schema.sql");
-const migrationSql = await Bun.file(migrationPath).text();
 
-// Apply migration statements
-const statements = migrationSql
-  .split("--> statement-breakpoint")
-  .map((s) => s.trim())
-  .filter((s) => s.length > 0 && !s.startsWith("--"));
+// Import and run migrations
+const { MigrationRunner } = await import("../src/db/migration-runner.ts");
+const runner = new MigrationRunner(db);
 
-for (const statement of statements) {
-  db.exec(statement);
-}
+// Run all migrations
+await runner.up();
 
 console.log("✅ Database schema created");
 console.log("");

@@ -57,10 +57,10 @@ mkdir -p "$SLIPBOX_DATA_DIR"
 # Step 3: Create fresh database and run migrations
 echo "3. Creating fresh database with migrations..."
 cd "$WORKTREE_DIR"
-npm run db:migrate 2>/dev/null || {
-    echo "   Migration failed, falling back to direct SQL..."
-    # Apply the migration directly if npm command fails
-    sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" < "$WORKTREE_DIR/src/db/migrations/0000_initial_schema.sql"
+bun run migrate:up 2>/dev/null || {
+    echo "   Migration failed, trying direct bun command..."
+    # Try running the migration script directly
+    bun run src/db/migrations.ts up
 }
 
 NOTE_COUNT=$(sqlite3 "$SLIPBOX_DATA_DIR/slipbox.db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo "0")
