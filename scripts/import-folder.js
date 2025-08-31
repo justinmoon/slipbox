@@ -132,7 +132,7 @@ for (const file of files) {
         Math.floor(stat.birthtime.getTime() / 1000),
         Math.floor(stat.mtime.getTime() / 1000),
         wordCount,
-        charCount
+        charCount,
       );
 
       // Insert into search index
@@ -157,10 +157,12 @@ for (const file of files) {
         mimeType,
         stat.size,
         file.name, // Using filename as file_key since we're not copying files
-        Math.floor(stat.mtime.getTime() / 1000)
+        Math.floor(stat.mtime.getTime() / 1000),
       );
 
-      console.log(`📎 Imported file: ${file.name} (${mimeType}, ${(stat.size / 1024).toFixed(1)} KB)`);
+      console.log(
+        `📎 Imported file: ${file.name} (${mimeType}, ${(stat.size / 1024).toFixed(1)} KB)`,
+      );
       filesCount++;
     }
   } catch (error) {
