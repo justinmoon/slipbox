@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
-import { runMigrations } from "./migrate";
+import { MigrationRunner } from "./migration-runner";
 import * as schema from "./schema";
 
 // ALWAYS require SLIPBOX_DATA_DIR
@@ -35,7 +35,8 @@ sqlite.exec("PRAGMA temp_store = MEMORY");
 
 export const db = drizzle(sqlite, { schema });
 
-// Run migrations
-await runMigrations(sqlite);
+// Run migrations using new system
+const runner = new MigrationRunner(sqlite, path.join(import.meta.dir, "migrations"));
+await runner.up();
 
 export * from "./schema";
