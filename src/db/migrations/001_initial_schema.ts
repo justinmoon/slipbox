@@ -12,10 +12,10 @@ export function up(db: Database) {
       char_count INTEGER DEFAULT 0 NOT NULL
     )
   `);
-  
+
   db.exec("CREATE INDEX notes_updated_at_idx ON notes (updated_at)");
   db.exec("CREATE INDEX notes_created_at_idx ON notes (created_at)");
-  
+
   // Create files table
   db.exec(`
     CREATE TABLE files (
@@ -29,10 +29,10 @@ export function up(db: Database) {
       FOREIGN KEY (note_id) REFERENCES notes(id) ON UPDATE no action ON DELETE set null
     )
   `);
-  
+
   db.exec("CREATE INDEX files_note_id_idx ON files (note_id)");
   db.exec("CREATE INDEX files_uploaded_at_idx ON files (uploaded_at)");
-  
+
   // Create note_search_index table
   db.exec(`
     CREATE TABLE note_search_index (
@@ -41,7 +41,7 @@ export function up(db: Database) {
       FOREIGN KEY (id) REFERENCES notes(id) ON UPDATE no action ON DELETE cascade
     )
   `);
-  
+
   // Create epub_reading_positions table
   db.exec(`
     CREATE TABLE epub_reading_positions (
@@ -54,9 +54,11 @@ export function up(db: Database) {
       FOREIGN KEY (file_id) REFERENCES files(id) ON UPDATE no action ON DELETE cascade
     )
   `);
-  
+
   db.exec("CREATE INDEX epub_reading_positions_file_id_idx ON epub_reading_positions (file_id)");
-  db.exec("CREATE INDEX epub_reading_positions_updated_at_idx ON epub_reading_positions (updated_at)");
+  db.exec(
+    "CREATE INDEX epub_reading_positions_updated_at_idx ON epub_reading_positions (updated_at)",
+  );
 }
 
 export function down(db: Database) {

@@ -19,18 +19,18 @@ const getDbPath = () => {
 if (import.meta.main) {
   const [command, ...args] = Bun.argv.slice(2);
   const dbPath = getDbPath();
-  
+
   // Ensure directory exists
   const { mkdir } = await import("node:fs/promises");
   await mkdir(join(process.cwd(), "data"), { recursive: true });
-  
+
   const db = new Database(dbPath);
-  
+
   // Set pragmas
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA foreign_keys = ON");
-  
+
   const runner = new MigrationRunner(db, join(import.meta.dir, "migrations"));
 
   try {
@@ -38,22 +38,24 @@ if (import.meta.main) {
       case "up":
         await runner.up(args[0]);
         break;
-      
-      case "down":
+
+      case "down": {
         const steps = args[0] ? parseInt(args[0], 10) : 1;
         await runner.down(steps);
         break;
-      
+      }
+
       case "status":
         await runner.status();
         break;
-        
+
       case "reset":
         await runner.reset();
         break;
-      
+
       default:
-        console.log(`
+        console.log(
+          `
 Slipbox Migration Tool
 
 Usage:
@@ -67,7 +69,8 @@ Examples:
   bun run src/db/migrations.ts up 002_users   # Run up to 002_users migration
   bun run src/db/migrations.ts down           # Rollback last migration
   bun run src/db/migrations.ts down 3         # Rollback last 3 migrations
-        `.trim());
+        `.trim(),
+        );
     }
   } catch (error) {
     console.error("Migration error:", error);

@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -29,17 +29,15 @@ export class MigrationRunner {
 
   private async loadMigrations(): Promise<Map<string, Migration>> {
     const files = await readdir(this.migrationsPath);
-    const migrationFiles = files
-      .filter(f => f.endsWith('.ts') && !f.includes('index'))
-      .sort(); // Lexicographic sort
+    const migrationFiles = files.filter((f) => f.endsWith(".ts") && !f.includes("index")).sort(); // Lexicographic sort
 
     const migrations = new Map<string, Migration>();
 
     for (const file of migrationFiles) {
       const path = join(this.migrationsPath, file);
       const migration = await import(path);
-      const id = file.replace('.ts', '');
-      
+      const id = file.replace(".ts", "");
+
       if (!migration.up || !migration.down) {
         throw new Error(`Migration ${file} must export 'up' and 'down' functions`);
       }
@@ -57,7 +55,7 @@ export class MigrationRunner {
   private getAppliedMigrations(): Set<string> {
     const query = this.db.query("SELECT id FROM _migrations ORDER BY id");
     const rows = query.all() as { id: string }[];
-    return new Set(rows.map(r => r.id));
+    return new Set(rows.map((r) => r.id));
   }
 
   async up(target?: string) {
@@ -74,13 +72,10 @@ export class MigrationRunner {
 
     for (const [id, migration] of pending) {
       console.log(`↑ Applying ${id}...`);
-      
+
       this.db.transaction(() => {
         migration.up(this.db);
-        this.db.run(
-          "INSERT INTO _migrations (id, applied_at) VALUES (?, ?)",
-          [id, Date.now()]
-        );
+        this.db.run("INSERT INTO _migrations (id, applied_at) VALUES (?, ?)", [id, Date.now()]);
       })();
 
       console.log(`✓ Applied ${id}`);
@@ -104,7 +99,7 @@ export class MigrationRunner {
       }
 
       console.log(`↓ Rolling back ${id}...`);
-      
+
       this.db.transaction(() => {
         migration.down(this.db);
         this.db.run("DELETE FROM _migrations WHERE id = ?", [id]);
