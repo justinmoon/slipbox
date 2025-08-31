@@ -23,7 +23,7 @@ try {
     console.error(`Error: ${sourceFolder} is not a directory`);
     process.exit(1);
   }
-} catch (error) {
+} catch (_error) {
   console.error(`Error: Cannot access source folder ${sourceFolder}`);
   process.exit(1);
 }
