@@ -103,8 +103,8 @@ sudo chown "$USER:$USER" /var/log/slipbox-backup
 
 # Install systemd services
 echo "Installing systemd services..."
-sudo cp /tmp/slipbox-backup.service /etc/systemd/system/slipbox-backup@.service
-sudo cp /tmp/slipbox-backup.timer "/etc/systemd/system/slipbox-backup@$USER.timer"
+sudo cp /tmp/slipbox-backup.service /etc/systemd/system/slipbox-backup.service
+sudo cp /tmp/slipbox-backup.timer /etc/systemd/system/slipbox-backup.timer
 
 # Clean up temp files
 rm -f /tmp/backup.sh /tmp/restore-backup.sh /tmp/slipbox-backup.service /tmp/slipbox-backup.timer
@@ -114,8 +114,8 @@ sudo systemctl daemon-reload
 
 # Enable and start the timer
 echo "Enabling backup timer..."
-sudo systemctl enable "slipbox-backup@$USER.timer"
-sudo systemctl start "slipbox-backup@$USER.timer"
+sudo systemctl enable slipbox-backup.timer
+sudo systemctl start slipbox-backup.timer
 
 echo "Server setup complete!"
 REMOTE_SCRIPT
@@ -135,7 +135,7 @@ ssh "$VPS_USER@$VPS_HOST" "sudo -E bash -c 'source /etc/slipbox-backup.env && ex
 # Run a test backup
 echo ""
 echo "Running initial backup test..."
-ssh "$VPS_USER@$VPS_HOST" "sudo systemctl start slipbox-backup@$VPS_USER.service"
+ssh "$VPS_USER@$VPS_HOST" "sudo systemctl start slipbox-backup.service"
 
 echo ""
 echo "================================================"
@@ -145,9 +145,9 @@ echo ""
 echo "Backup schedule: Every 6 hours"
 echo ""
 echo "Useful commands (run on server):"
-echo "  - Check status: systemctl status slipbox-backup@$VPS_USER.timer"
-echo "  - View logs: journalctl -u slipbox-backup@$VPS_USER.service -f"
-echo "  - Run backup now: sudo systemctl start slipbox-backup@$VPS_USER.service"
+echo "  - Check status: systemctl status slipbox-backup.timer"
+echo "  - View logs: journalctl -u slipbox-backup -f"
+echo "  - Run backup now: sudo systemctl start slipbox-backup.service"
 echo "  - List snapshots: sudo -u $VPS_USER restic-restore.sh"
 echo ""
 echo "IMPORTANT: Repository password saved above!"

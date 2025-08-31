@@ -71,7 +71,7 @@ else
 fi
 
 # Step 6: Deploy on server
-echo -e "\n${YELLOW}🔧 Syncing systemd service file...${NC}"
+echo -e "\n${YELLOW}🔧 Syncing systemd service files...${NC}"
 # Compare and sync systemd service file if different
 TEMP_SERVICE_FILE=$(mktemp)
 ssh ${SERVER} "cat /etc/systemd/system/slipbox.service" > ${TEMP_SERVICE_FILE} 2>/dev/null || true
@@ -89,6 +89,92 @@ else
     echo -e "${RED}   ⚠ contrib/slipbox.service not found in repo${NC}"
 fi
 rm -f ${TEMP_SERVICE_FILE}
+
+# Update backup service files if they exist on the server
+echo -e "\n${YELLOW}🔧 Checking for backup service files...${NC}"
+BACKUP_EXISTS=$(ssh ${SERVER} "ls /etc/systemd/system/slipbox-backup*.service 2>/dev/null | head -1" || echo "")
+
+if [ -n "${BACKUP_EXISTS}" ]; then
+    echo -e "${YELLOW}   Backup service detected, checking for updates...${NC}"
+    
+    # Determine if it's the old templated (@justin) or new non-templated version
+    if ssh ${SERVER} "test -f /etc/systemd/system/slipbox-backup@.service"; then
+        # Old templated version exists, need to migrate
+        echo -e "${YELLOW}   Migrating from templated to non-templated backup service...${NC}"
+        
+        # Upload new service files
+        scp contrib/slipbox-backup.service ${SERVER}:/tmp/
+        scp contrib/slipbox-backup.timer ${SERVER}:/tmp/
+        
+        # Migrate on server
+        ssh ${SERVER} << 'MIGRATE_BACKUP'
+            set -e
+            # Stop old timer
+            sudo systemctl stop slipbox-backup@justin.timer 2>/dev/null || true
+            sudo systemctl disable slipbox-backup@justin.timer 2>/dev/null || true
+            
+            # Install new service files
+            sudo mv /tmp/slipbox-backup.service /etc/systemd/system/
+            sudo mv /tmp/slipbox-backup.timer /etc/systemd/system/
+            
+            # Remove old templated files
+            sudo rm -f /etc/systemd/system/slipbox-backup@.service
+            sudo rm -f /etc/systemd/system/slipbox-backup@*.timer
+            
+            # Reload and start new timer
+            sudo systemctl daemon-reload
+            sudo systemctl enable slipbox-backup.timer
+            sudo systemctl start slipbox-backup.timer
+            
+            echo "   ✓ Migrated to non-templated backup service"
+MIGRATE_BACKUP
+        echo -e "${GREEN}   ✓ Backup service migrated successfully${NC}"
+        
+    elif ssh ${SERVER} "test -f /etc/systemd/system/slipbox-backup.service"; then
+        # Already using non-templated version, just update if needed
+        TEMP_BACKUP_SERVICE=$(mktemp)
+        TEMP_BACKUP_TIMER=$(mktemp)
+        
+        ssh ${SERVER} "cat /etc/systemd/system/slipbox-backup.service" > ${TEMP_BACKUP_SERVICE} 2>/dev/null || true
+        ssh ${SERVER} "cat /etc/systemd/system/slipbox-backup.timer" > ${TEMP_BACKUP_TIMER} 2>/dev/null || true
+        
+        NEEDS_UPDATE=false
+        
+        if [ -f "contrib/slipbox-backup.service" ] && ! cmp -s "contrib/slipbox-backup.service" ${TEMP_BACKUP_SERVICE}; then
+            echo -e "${YELLOW}   Backup service file differs, updating...${NC}"
+            scp contrib/slipbox-backup.service ${SERVER}:/tmp/
+            NEEDS_UPDATE=true
+        fi
+        
+        if [ -f "contrib/slipbox-backup.timer" ] && ! cmp -s "contrib/slipbox-backup.timer" ${TEMP_BACKUP_TIMER}; then
+            echo -e "${YELLOW}   Backup timer file differs, updating...${NC}"
+            scp contrib/slipbox-backup.timer ${SERVER}:/tmp/
+            NEEDS_UPDATE=true
+        fi
+        
+        if [ "${NEEDS_UPDATE}" = true ]; then
+            ssh ${SERVER} << 'UPDATE_BACKUP'
+                set -e
+                if [ -f /tmp/slipbox-backup.service ]; then
+                    sudo mv /tmp/slipbox-backup.service /etc/systemd/system/
+                fi
+                if [ -f /tmp/slipbox-backup.timer ]; then
+                    sudo mv /tmp/slipbox-backup.timer /etc/systemd/system/
+                fi
+                sudo systemctl daemon-reload
+                sudo systemctl restart slipbox-backup.timer
+                echo "   ✓ Backup service files updated"
+UPDATE_BACKUP
+            echo -e "${GREEN}   ✓ Backup service updated successfully${NC}"
+        else
+            echo -e "${GREEN}   ✓ Backup service files are up to date${NC}"
+        fi
+        
+        rm -f ${TEMP_BACKUP_SERVICE} ${TEMP_BACKUP_TIMER}
+    fi
+else
+    echo -e "${YELLOW}   No backup service found on server (run setup-backup.sh to install)${NC}"
+fi
 
 echo -e "\n${YELLOW}🔄 Deploying on server...${NC}"
 ssh ${SERVER} << 'ENDSSH'

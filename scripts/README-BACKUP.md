@@ -28,13 +28,13 @@ Automated backup system using Restic and Backblaze B2.
 
 ```bash
 # Check backup status
-systemctl status slipbox-backup@username.timer
+systemctl status slipbox-backup.timer
 
 # Run backup now
-systemctl start slipbox-backup@username.service
+systemctl start slipbox-backup.service
 
 # View logs
-journalctl -u slipbox-backup@username.service -f
+journalctl -u slipbox-backup -f
 
 # List snapshots
 sudo -u username restic snapshots

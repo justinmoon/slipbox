@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=%i
-Group=%i
+User=justin
+Group=justin
 EnvironmentFile=/etc/slipbox-backup.env
 ExecStart=/bin/bash /usr/local/bin/restic-backup.sh
 StandardOutput=journal

@@ -1,6 +1,6 @@
 [Unit]
 Description=Run Slipbox backup every 6 hours
-Requires=slipbox-backup@.service
+Requires=slipbox-backup.service
 
 [Timer]
 # Run every 6 hours
