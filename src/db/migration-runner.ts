@@ -120,7 +120,7 @@ export class MigrationRunner {
 
     console.log("\nMigration Status:");
     console.log("=================");
-    
+
     for (const [id] of migrations) {
       const status = applied.has(id) ? "✓ applied" : "○ pending";
       console.log(`${status} ${id}`);

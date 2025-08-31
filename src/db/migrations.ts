@@ -40,7 +40,7 @@ if (import.meta.main) {
         break;
       
       case "down":
-        const steps = args[0] ? parseInt(args[0]) : 1;
+        const steps = args[0] ? parseInt(args[0], 10) : 1;
         await runner.down(steps);
         break;
       
