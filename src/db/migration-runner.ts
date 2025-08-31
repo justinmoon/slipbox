@@ -1,6 +1,4 @@
 import type { Database } from "bun:sqlite";
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
 
 interface Migration {
   id: string;
@@ -10,11 +8,9 @@ interface Migration {
 
 export class MigrationRunner {
   private db: Database;
-  private migrationsPath: string;
 
-  constructor(db: Database, migrationsPath: string = "./src/db/migrations") {
+  constructor(db: Database) {
     this.db = db;
-    this.migrationsPath = migrationsPath;
     this.ensureMigrationsTable();
   }
 
@@ -28,27 +24,21 @@ export class MigrationRunner {
   }
 
   private async loadMigrations(): Promise<Map<string, Migration>> {
-    const files = await readdir(this.migrationsPath);
-    const migrationFiles = files.filter((f) => f.endsWith(".ts") && !f.includes("index")).sort(); // Lexicographic sort
-
     const migrations = new Map<string, Migration>();
-
-    for (const file of migrationFiles) {
-      const path = join(this.migrationsPath, file);
-      const migration = await import(path);
-      const id = file.replace(".ts", "");
-
-      if (!migration.up || !migration.down) {
-        throw new Error(`Migration ${file} must export 'up' and 'down' functions`);
-      }
-
-      migrations.set(id, {
-        id,
-        up: migration.up,
-        down: migration.down,
-      });
-    }
-
+    
+    // Import migrations directly - they get bundled automatically
+    const migration001 = await import("./migrations/001_initial_schema");
+    
+    migrations.set("001_initial_schema", {
+      id: "001_initial_schema",
+      up: migration001.up,
+      down: migration001.down,
+    });
+    
+    // Add more migrations here as needed
+    // const migration002 = await import("./migrations/002_whatever");
+    // migrations.set("002_whatever", { ... });
+    
     return migrations;
   }
 

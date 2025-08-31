@@ -52,8 +52,7 @@ console.log("🗃️  Creating database schema...");
 
 // Import and run migrations
 const { MigrationRunner } = await import("../src/db/migration-runner.ts");
-const migrationsPath = path.join(import.meta.dir, "../src/db/migrations");
-const runner = new MigrationRunner(db, migrationsPath);
+const runner = new MigrationRunner(db);
 
 // Run all migrations
 await runner.up();

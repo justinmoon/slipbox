@@ -36,7 +36,7 @@ sqlite.exec("PRAGMA temp_store = MEMORY");
 export const db = drizzle(sqlite, { schema });
 
 // Run migrations using new system
-const runner = new MigrationRunner(sqlite, path.join(import.meta.dir, "migrations"));
+const runner = new MigrationRunner(sqlite);
 await runner.up();
 
 export * from "./schema";

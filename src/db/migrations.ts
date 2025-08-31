@@ -31,7 +31,7 @@ if (import.meta.main) {
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA foreign_keys = ON");
 
-  const runner = new MigrationRunner(db, join(import.meta.dir, "migrations"));
+  const runner = new MigrationRunner(db);
 
   try {
     switch (command) {
