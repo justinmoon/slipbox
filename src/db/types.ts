@@ -23,29 +23,11 @@ export interface NoteSearchIndex {
   content: string;
 }
 
-export interface File {
-  id: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  fileKey: string;
-  uploadedAt: Date;
-  noteId: string | null;
-}
-
-export interface NewFile {
-  id?: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  fileKey: string;
-  uploadedAt?: Date;
-  noteId?: string | null;
-}
+// Files are now stored directly in the filesystem - no database table
 
 export interface EpubReadingPosition {
   id: string;
-  fileId: string;
+  filename: string; // Just a filename, no FK - e.g., "8506b4fd-79f1-455a-8b57-be859b17defa.epub"
   cfi: string;
   percentage: number;
   fontSize: number;
@@ -54,7 +36,7 @@ export interface EpubReadingPosition {
 
 export interface NewEpubReadingPosition {
   id?: string;
-  fileId: string;
+  filename: string;
   cfi: string;
   percentage?: number;
   fontSize?: number;

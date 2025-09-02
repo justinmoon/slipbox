@@ -84,8 +84,7 @@ function getSessionToken(req: Request): string | null {
 }
 
 interface EpubFile {
-  id: string;
-  name: string;
+  filename: string;
   size: number;
   modified: Date;
 }
@@ -96,10 +95,9 @@ async function getEpubFiles(): Promise<EpubFile[]> {
 
     // Filter for EPUB files
     const epubFiles = files
-      .filter((file) => file.originalName.toLowerCase().endsWith(".epub"))
+      .filter((file) => file.filename.toLowerCase().endsWith(".epub"))
       .map((file) => ({
-        id: file.id,
-        name: file.originalName.replace(/\.epub$/i, ""),
+        filename: file.filename,
         size: file.size,
         modified: file.uploadedAt,
       }));
@@ -357,65 +355,29 @@ Bun.serve({
       return handleEditNote(editMatch[1]);
     }
 
-    // Reader routes - Handle the epub viewer page
-    const epubViewerMatch = path.match(/^\/epub\/([a-f0-9-]+)$/);
-    if (epubViewerMatch) {
-      const fileId = epubViewerMatch[1];
-      return handleEpubViewer(fileId);
+    // File viewer/download routes - handle any file
+    const fileMatch = path.match(/^\/([^/]+\.[a-z0-9]+)$/);
+    if (fileMatch) {
+      const filename = fileMatch[1];
+
+      // Check if it's an EPUB that should be viewed
+      if (filename.endsWith(".epub") && req.headers.get("accept")?.includes("text/html")) {
+        return handleEpubViewer(filename);
+      }
+
+      // Otherwise serve the file directly
+      return handleServeFile(req, filename);
     }
 
-    // Serve EPUB file content
-    if (path.startsWith("/epub-file/")) {
-      const fileId = decodeURIComponent(path.slice(11));
-      return handleServeEpub(req, fileId);
-    }
-
-    // File upload/download routes
+    // File upload route stays as API
     if (path === "/api/files/upload" && req.method === "POST") {
       return handleFileUpload(req);
     }
 
-    const fileMatch = path.match(/^\/api\/files\/([a-f0-9-]+)$/);
-    if (fileMatch) {
-      const fileId = fileMatch[1];
-      if (req.method === "GET") {
-        return handleFileDownload(fileId);
-      } else if (req.method === "DELETE") {
-        return handleFileDelete(fileId);
-      }
-    }
-
-    const fileUrlMatch = path.match(/^\/api\/files\/([a-f0-9-]+)\/url$/);
-    if (fileUrlMatch) {
-      return handleGetFileUrl(fileUrlMatch[1]);
-    }
-
-    // Media file routes
-    const downloadMatch = path.match(/^\/api\/files\/download\/([a-f0-9-]+)$/);
-    if (downloadMatch && req.method === "GET") {
-      return handleFileDownload(downloadMatch[1]);
-    }
-
-    const thumbnailMatch = path.match(/^\/api\/files\/thumbnail\/([a-f0-9-]+)$/);
-    if (thumbnailMatch && req.method === "GET") {
-      return handleThumbnail(thumbnailMatch[1]);
-    }
-
-    // Direct filesystem media access
-    const mediaFileMatch = path.match(/^\/api\/media\/file\/([a-f0-9]+)$/);
-    if (mediaFileMatch && req.method === "GET") {
-      const filepath = url.searchParams.get("path");
-      if (filepath) {
-        return handleDirectMediaFile(filepath);
-      }
-    }
-
-    const mediaThumbnailMatch = path.match(/^\/api\/media\/thumbnail\/([a-f0-9]+)$/);
-    if (mediaThumbnailMatch && req.method === "GET") {
-      const filepath = url.searchParams.get("path");
-      if (filepath) {
-        return handleDirectMediaThumbnail(filepath);
-      }
+    // Delete file API
+    if (path.startsWith("/api/files/delete/") && req.method === "DELETE") {
+      const filename = decodeURIComponent(path.slice(18));
+      return handleFileDelete(filename);
     }
 
     // Reading position API endpoints
@@ -423,7 +385,7 @@ Bun.serve({
       return handleSaveReadingPosition(req);
     }
 
-    const positionMatch = path.match(/^\/api\/reading-position\/([a-f0-9-]+)$/);
+    const positionMatch = path.match(/^\/api\/reading-position\/(.+)$/);
     if (positionMatch && req.method === "GET") {
       return handleGetReadingPosition(positionMatch[1]);
     }
@@ -562,7 +524,7 @@ async function handleSearch(url: URL): Promise<Response> {
   if (!query.trim()) {
     // Return to regular paginated view
     const { notes } = await storage.listNotes(1, config.defaultPageSize);
-    return ServerSentEventGenerator.stream((stream: any) => {
+    return ServerSentEventGenerator.stream((stream: ServerSentEventGenerator) => {
       const notesHtml = notes
         .map(
           (note) =>
@@ -630,7 +592,7 @@ async function handleSearch(url: URL): Promise<Response> {
     `[SEARCH] Pre-built HTML (${htmlContent.length} chars) for ${results.length} results`,
   );
 
-  return ServerSentEventGenerator.stream((stream: any) => {
+  return ServerSentEventGenerator.stream((stream: ServerSentEventGenerator) => {
     stream.mergeFragments(htmlContent, { selector: "#notes-grid", mergeMode: "morph" });
   });
 }
@@ -707,20 +669,17 @@ async function handleReader(): Promise<Response> {
   return htmlResponse(ReaderPage({ epubFiles }) as string);
 }
 
-async function handleEpubViewer(fileId: string): Promise<Response> {
-  console.log("handleEpubViewer called for:", fileId);
-
-  // Get file info from storage
+async function handleEpubViewer(filename: string): Promise<Response> {
   try {
-    const fileInfo = await fileStorage.getFile(fileId);
-    if (!fileInfo || !fileInfo.originalName.toLowerCase().endsWith(".epub")) {
+    const fileInfo = await fileStorage.getFile(filename);
+    if (!fileInfo) {
       return notFound();
     }
 
-    const bookName = fileInfo.originalName.replace(/\.epub$/i, "");
-    const bookUrl = `/epub-file/${encodeURIComponent(fileId)}`;
+    const bookName = filename.replace(/\.epub$/i, ""); // Remove extension for display
+    const bookUrl = `/${filename}`; // Direct file URL
 
-    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId }) as string);
+    return htmlResponse(EpubReaderPage({ bookName, bookUrl, fileId: filename }) as string);
   } catch (error) {
     console.error("Error fetching book:", error);
     return notFound();
@@ -738,10 +697,10 @@ async function handleMedia(): Promise<Response> {
   return htmlResponse(MediaPage({ files, totalFiles: total }) as string);
 }
 
-async function handleServeEpub(req: Request, fileId: string): Promise<Response> {
+async function handleServeFile(req: Request, filename: string): Promise<Response> {
   try {
-    const fileInfo = await fileStorage.getFile(fileId);
-    if (!fileInfo || !fileInfo.originalName.toLowerCase().endsWith(".epub")) {
+    const fileInfo = await fileStorage.getFile(filename);
+    if (!fileInfo) {
       return notFound();
     }
 
@@ -761,7 +720,7 @@ async function handleServeEpub(req: Request, fileId: string): Promise<Response> 
     const rangeHeader = req.headers.get("range");
     if (rangeHeader) {
       // For range requests, we need to download the file and serve the requested range
-      const result = await fileStorage.downloadFile(fileId);
+      const result = await fileStorage.downloadFile(filename);
       if (!result) {
         return notFound();
       }
@@ -785,7 +744,7 @@ async function handleServeEpub(req: Request, fileId: string): Promise<Response> 
     }
 
     // For regular requests, download and serve the full file
-    const result = await fileStorage.downloadFile(fileId);
+    const result = await fileStorage.downloadFile(filename);
     if (!result) {
       return notFound();
     }
@@ -794,7 +753,7 @@ async function handleServeEpub(req: Request, fileId: string): Promise<Response> 
       headers: {
         ...headers,
         "Content-Type": "application/epub+zip",
-        "Content-Disposition": `inline; filename="${fileInfo.originalName}"`,
+        "Content-Disposition": `inline; filename="${filename}"`,
         "Accept-Ranges": "bytes",
       },
     });
@@ -809,7 +768,6 @@ async function handleFileUpload(req: Request): Promise<Response> {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as unknown as File;
-    const noteId = formData.get("noteId") as string | null;
 
     if (!file) {
       return new Response("No file provided", { status: 400 });
@@ -819,7 +777,6 @@ async function handleFileUpload(req: Request): Promise<Response> {
       file,
       file.name,
       file.type || "application/octet-stream",
-      { noteId: noteId || undefined },
     );
 
     return new Response(JSON.stringify(savedFile), {
@@ -831,29 +788,9 @@ async function handleFileUpload(req: Request): Promise<Response> {
   }
 }
 
-async function handleFileDownload(fileId: string): Promise<Response> {
+async function handleFileDelete(filename: string): Promise<Response> {
   try {
-    const result = await fileStorage.downloadFile(fileId);
-    if (!result) {
-      return notFound();
-    }
-
-    return new Response(result.buffer, {
-      headers: {
-        "Content-Type": result.file.mimeType,
-        "Content-Disposition": `attachment; filename="${result.file.originalName}"`,
-        "Content-Length": result.file.size.toString(),
-      },
-    });
-  } catch (error) {
-    console.error("File download error:", error);
-    return new Response("Download failed", { status: 500 });
-  }
-}
-
-async function handleFileDelete(fileId: string): Promise<Response> {
-  try {
-    const success = await fileStorage.deleteFile(fileId);
+    const success = await fileStorage.deleteFile(filename);
     if (!success) {
       return notFound();
     }
@@ -865,111 +802,17 @@ async function handleFileDelete(fileId: string): Promise<Response> {
   }
 }
 
-async function handleGetFileUrl(fileId: string): Promise<Response> {
-  try {
-    const url = await fileStorage.getFileUrl(fileId);
-    if (!url) {
-      return notFound();
-    }
-
-    return new Response(JSON.stringify({ url }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Get file URL error:", error);
-    return new Response("Failed to get URL", { status: 500 });
-  }
-}
-
-// Thumbnail handler for database files
-async function handleThumbnail(fileId: string): Promise<Response> {
-  try {
-    const result = await fileStorage.downloadFile(fileId);
-    if (!result) {
-      return notFound();
-    }
-
-    // For images, return the image directly (browser will handle resizing)
-    if (result.file.mimeType.startsWith("image/")) {
-      return new Response(result.buffer, {
-        headers: {
-          "Content-Type": result.file.mimeType,
-          "Cache-Control": "public, max-age=3600",
-        },
-      });
-    }
-
-    // For other types, return a placeholder
-    return notFound();
-  } catch (error) {
-    console.error("Thumbnail error:", error);
-    return new Response("Thumbnail failed", { status: 500 });
-  }
-}
-
-// Direct filesystem media file handler
-async function handleDirectMediaFile(filepath: string): Promise<Response> {
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const { join, extname } = await import("node:path");
-
-    // Security: prevent directory traversal
-    if (filepath.includes("..") || filepath.includes("/")) {
-      return new Response("Invalid path", { status: 400 });
-    }
-
-    const fullPath = join(config.dataDir, filepath);
-    const buffer = await readFile(fullPath);
-
-    // Determine mime type
-    const ext = extname(filepath).toLowerCase();
-    const mimeTypes: Record<string, string> = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".gif": "image/gif",
-      ".webp": "image/webp",
-      ".mp4": "video/mp4",
-      ".webm": "video/webm",
-      ".mp3": "audio/mpeg",
-      ".wav": "audio/wav",
-      ".pdf": "application/pdf",
-      ".epub": "application/epub+zip",
-    };
-
-    const mimeType = mimeTypes[ext] || "application/octet-stream";
-
-    return new Response(buffer, {
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Disposition": `inline; filename="${filepath}"`,
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
-  } catch (error) {
-    console.error("Direct media file error:", error);
-    return notFound();
-  }
-}
-
-// Direct filesystem thumbnail handler
-async function handleDirectMediaThumbnail(filepath: string): Promise<Response> {
-  // For now, just serve the full image for thumbnails
-  // In production, you'd want proper thumbnail generation
-  return handleDirectMediaFile(filepath);
-}
-
 // Reading position handlers
 async function handleSaveReadingPosition(req: Request): Promise<Response> {
   try {
     const data = (await req.json()) as {
-      fileId: string;
+      filename: string;
       cfi: string;
       percentage: number;
       fontSize?: number;
     };
 
-    if (!data.fileId || !data.cfi) {
+    if (!data.filename || !data.cfi) {
       return new Response("Missing required fields", { status: 400 });
     }
 
@@ -977,15 +820,15 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
     const existing = get<EpubReadingPosition>(
       `SELECT 
         id, 
-        file_id as fileId, 
+        filename, 
         cfi, 
         percentage, 
         font_size as fontSize, 
         updated_at as updatedAt 
        FROM epub_reading_positions 
-       WHERE file_id = ? 
+       WHERE filename = ? 
        LIMIT 1`,
-      [data.fileId],
+      [data.filename],
     );
 
     const now = new Date();
@@ -1000,11 +843,11 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
     } else {
       // Create new position
       run(
-        `INSERT INTO epub_reading_positions (id, file_id, cfi, percentage, font_size, updated_at) 
+        `INSERT INTO epub_reading_positions (id, filename, cfi, percentage, font_size, updated_at) 
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           crypto.randomUUID(),
-          data.fileId,
+          data.filename,
           data.cfi,
           data.percentage || 0,
           data.fontSize || 100,
@@ -1022,20 +865,20 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
   }
 }
 
-async function handleGetReadingPosition(fileId: string): Promise<Response> {
+async function handleGetReadingPosition(filename: string): Promise<Response> {
   try {
     const position = get<EpubReadingPosition>(
       `SELECT 
         id, 
-        file_id as fileId, 
+        filename, 
         cfi, 
         percentage, 
         font_size as fontSize, 
         updated_at as updatedAt 
        FROM epub_reading_positions 
-       WHERE file_id = ? 
+       WHERE filename = ? 
        LIMIT 1`,
-      [fileId],
+      [filename],
     );
 
     if (!position) {

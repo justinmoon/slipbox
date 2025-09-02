@@ -53,8 +53,8 @@ export class LocalFileStorage {
   }
 
   async getFileUrl(key: string, _expiresIn: number = 3600): Promise<string> {
-    // For local development, return a direct URL to the file endpoint
-    return `http://localhost:${process.env.PORT || 3000}/api/files/${key}`;
+    // Return direct URL to the file
+    return `http://localhost:${process.env.PORT || 3000}/${key}`;
   }
 
   async fileExists(key: string): Promise<boolean> {
