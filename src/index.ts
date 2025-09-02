@@ -1,7 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ServerSentEventGenerator } from "@starfederation/datastar-sdk/web";
-import { eq } from "drizzle-orm";
 // @ts-expect-error - Bun-specific import syntax
 import datastarJs from "../dist/client/datastar.js" with { type: "text" };
 // @ts-expect-error - Bun-specific import syntax
@@ -12,8 +11,8 @@ import inlineSearchJs from "../dist/client/inline-search.js" with { type: "text"
 // @ts-expect-error - Bun-specific import syntax
 import styleCss from "../dist/style.css" with { type: "text" };
 import { config } from "./config";
-import { db } from "./db/index";
-import { epubReadingPositions } from "./db/schema";
+import { get, run } from "./db/index";
+import type { EpubReadingPosition } from "./db/types";
 import { fileStorage } from "./services/file-storage";
 import { mediaService } from "./services/media-service";
 import { NoteStorage } from "./storage";
@@ -818,33 +817,43 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
     }
 
     // Check if position exists for this file
-    const existing = await db
-      .select()
-      .from(epubReadingPositions)
-      .where(eq(epubReadingPositions.filename, data.filename))
-      .limit(1);
+    const existing = get<EpubReadingPosition>(
+      `SELECT 
+        id, 
+        filename, 
+        cfi, 
+        percentage, 
+        font_size as fontSize, 
+        updated_at as updatedAt 
+       FROM epub_reading_positions 
+       WHERE filename = ? 
+       LIMIT 1`,
+      [data.filename],
+    );
 
-    if (existing.length > 0) {
+    const now = new Date();
+    if (existing) {
       // Update existing position
-      await db
-        .update(epubReadingPositions)
-        .set({
-          cfi: data.cfi,
-          percentage: data.percentage || 0,
-          fontSize: data.fontSize || 100,
-          updatedAt: new Date(),
-        })
-        .where(eq(epubReadingPositions.id, existing[0].id));
+      run(
+        `UPDATE epub_reading_positions 
+         SET cfi = ?, percentage = ?, font_size = ?, updated_at = ? 
+         WHERE id = ?`,
+        [data.cfi, data.percentage || 0, data.fontSize || 100, now.getTime(), existing.id],
+      );
     } else {
       // Create new position
-      await db.insert(epubReadingPositions).values({
-        id: crypto.randomUUID(),
-        filename: data.filename,
-        cfi: data.cfi,
-        percentage: data.percentage || 0,
-        fontSize: data.fontSize || 100,
-        updatedAt: new Date(),
-      });
+      run(
+        `INSERT INTO epub_reading_positions (id, filename, cfi, percentage, font_size, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          data.filename,
+          data.cfi,
+          data.percentage || 0,
+          data.fontSize || 100,
+          now.getTime(),
+        ],
+      );
     }
 
     return new Response(JSON.stringify({ success: true }), {
@@ -858,13 +867,21 @@ async function handleSaveReadingPosition(req: Request): Promise<Response> {
 
 async function handleGetReadingPosition(filename: string): Promise<Response> {
   try {
-    const position = await db
-      .select()
-      .from(epubReadingPositions)
-      .where(eq(epubReadingPositions.filename, filename))
-      .limit(1);
+    const position = get<EpubReadingPosition>(
+      `SELECT 
+        id, 
+        filename, 
+        cfi, 
+        percentage, 
+        font_size as fontSize, 
+        updated_at as updatedAt 
+       FROM epub_reading_positions 
+       WHERE filename = ? 
+       LIMIT 1`,
+      [filename],
+    );
 
-    if (position.length === 0) {
+    if (!position) {
       return new Response(JSON.stringify({ cfi: null, percentage: 0, fontSize: 100 }), {
         headers: { "Content-Type": "application/json" },
       });
@@ -872,9 +889,9 @@ async function handleGetReadingPosition(filename: string): Promise<Response> {
 
     return new Response(
       JSON.stringify({
-        cfi: position[0].cfi,
-        percentage: position[0].percentage,
-        fontSize: position[0].fontSize || 100,
+        cfi: position.cfi,
+        percentage: position.percentage,
+        fontSize: position.fontSize || 100,
       }),
       {
         headers: { "Content-Type": "application/json" },

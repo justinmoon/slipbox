@@ -1,8 +1,7 @@
-import { desc, eq, sql } from "drizzle-orm";
 import { marked } from "marked";
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../db/index";
-import { type Note, noteSearchIndex, notes } from "../db/schema";
+import { all, get, run, transaction } from "../db/index";
+import type { Note } from "../db/types";
 
 export interface NoteWithHtml extends Note {
   html?: string;
@@ -19,29 +18,48 @@ export class SqliteNoteStorage {
     const id = `${uuidv4()}.md`;
     const wordCount = this.countWords(content);
     const charCount = content.length;
+    const now = new Date();
 
-    const [note] = await db
-      .insert(notes)
-      .values({
+    return transaction(() => {
+      run(
+        `INSERT INTO notes (id, content, word_count, char_count, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, content, wordCount, charCount, now.getTime(), now.getTime()],
+      );
+
+      run(`INSERT INTO note_search_index (id, content) VALUES (?, ?)`, [id, content.toLowerCase()]);
+
+      return {
         id,
         content,
         wordCount,
         charCount,
-      })
-      .returning();
-
-    await db.insert(noteSearchIndex).values({
-      id,
-      content: content.toLowerCase(),
+        createdAt: now,
+        updatedAt: now,
+      };
     });
-
-    return note;
   }
 
   async getNote(id: string): Promise<NoteWithHtml | null> {
-    const [note] = await db.select().from(notes).where(eq(notes.id, id)).limit(1);
+    const note = get<Note>(
+      `SELECT 
+        id, 
+        content, 
+        created_at as createdAt, 
+        updated_at as updatedAt, 
+        word_count as wordCount, 
+        char_count as charCount 
+       FROM notes 
+       WHERE id = ? 
+       LIMIT 1`,
+      [id],
+    );
 
     if (!note) return null;
+
+    // Convert timestamps to Date objects
+    note.createdAt = new Date(note.createdAt);
+    note.updatedAt = new Date(note.updatedAt);
 
     return {
       ...note,
@@ -54,32 +72,44 @@ export class SqliteNoteStorage {
     const charCount = content.length;
     const updatedAt = new Date();
 
-    const [updatedNote] = await db
-      .update(notes)
-      .set({
-        content,
-        wordCount,
-        charCount,
-        updatedAt,
-      })
-      .where(eq(notes.id, id))
-      .returning();
+    return transaction(() => {
+      const result = run(
+        `UPDATE notes 
+         SET content = ?, word_count = ?, char_count = ?, updated_at = ? 
+         WHERE id = ?`,
+        [content, wordCount, charCount, updatedAt.getTime(), id],
+      );
 
-    if (!updatedNote) return null;
+      if (result.changes === 0) return null;
 
-    await db
-      .update(noteSearchIndex)
-      .set({
-        content: content.toLowerCase(),
-      })
-      .where(eq(noteSearchIndex.id, id));
+      run(`UPDATE note_search_index SET content = ? WHERE id = ?`, [content.toLowerCase(), id]);
 
-    return updatedNote;
+      const note = get<Note>(
+        `SELECT 
+          id, 
+          content, 
+          created_at as createdAt, 
+          updated_at as updatedAt, 
+          word_count as wordCount, 
+          char_count as charCount 
+         FROM notes 
+         WHERE id = ? 
+         LIMIT 1`,
+        [id],
+      );
+
+      if (note) {
+        note.createdAt = new Date(note.createdAt);
+        note.updatedAt = new Date(note.updatedAt);
+      }
+
+      return note;
+    });
   }
 
   async deleteNote(id: string): Promise<boolean> {
-    await db.delete(notes).where(eq(notes.id, id));
-    return true;
+    const result = run(`DELETE FROM notes WHERE id = ?`, [id]);
+    return result.changes > 0;
   }
 
   async listNotes({ limit = 10, offset = 0, search }: ListNotesOptions = {}): Promise<{
@@ -89,23 +119,40 @@ export class SqliteNoteStorage {
   }> {
     if (search) {
       const searchPattern = `%${search.toLowerCase()}%`;
-      const searchCondition = sql`${notes.id} IN (
-        SELECT id FROM ${noteSearchIndex} 
-        WHERE ${noteSearchIndex.content} LIKE ${searchPattern}
-      )`;
 
-      const [{ count: total }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(notes)
-        .where(searchCondition);
+      const totalResult = get<{ count: number }>(
+        `SELECT COUNT(*) as count FROM notes 
+         WHERE id IN (
+           SELECT id FROM note_search_index 
+           WHERE content LIKE ?
+         )`,
+        [searchPattern],
+      );
+      const total = totalResult?.count || 0;
 
-      const notesList = await db
-        .select()
-        .from(notes)
-        .where(searchCondition)
-        .orderBy(desc(notes.updatedAt))
-        .limit(limit)
-        .offset(offset);
+      const notesList = all<Note>(
+        `SELECT 
+          id, 
+          content, 
+          created_at as createdAt, 
+          updated_at as updatedAt, 
+          word_count as wordCount, 
+          char_count as charCount 
+         FROM notes 
+         WHERE id IN (
+           SELECT id FROM note_search_index 
+           WHERE content LIKE ?
+         )
+         ORDER BY updated_at DESC 
+         LIMIT ? OFFSET ?`,
+        [searchPattern, limit, offset],
+      );
+
+      // Convert timestamps to Date objects
+      notesList.forEach((note) => {
+        note.createdAt = new Date(note.createdAt);
+        note.updatedAt = new Date(note.updatedAt);
+      });
 
       return {
         notes: notesList,
@@ -113,14 +160,28 @@ export class SqliteNoteStorage {
         hasMore: offset + notesList.length < total,
       };
     } else {
-      const [{ count: total }] = await db.select({ count: sql<number>`count(*)` }).from(notes);
+      const totalResult = get<{ count: number }>(`SELECT COUNT(*) as count FROM notes`);
+      const total = totalResult?.count || 0;
 
-      const notesList = await db
-        .select()
-        .from(notes)
-        .orderBy(desc(notes.updatedAt))
-        .limit(limit)
-        .offset(offset);
+      const notesList = all<Note>(
+        `SELECT 
+          id, 
+          content, 
+          created_at as createdAt, 
+          updated_at as updatedAt, 
+          word_count as wordCount, 
+          char_count as charCount 
+         FROM notes 
+         ORDER BY updated_at DESC 
+         LIMIT ? OFFSET ?`,
+        [limit, offset],
+      );
+
+      // Convert timestamps to Date objects
+      notesList.forEach((note) => {
+        note.createdAt = new Date(note.createdAt);
+        note.updatedAt = new Date(note.updatedAt);
+      });
 
       return {
         notes: notesList,
@@ -135,27 +196,60 @@ export class SqliteNoteStorage {
 
     const searchPattern = `%${searchTerm.toLowerCase()}%`;
 
-    return await db
-      .select()
-      .from(notes)
-      .where(
-        sql`${notes.id} IN (
-          SELECT id FROM ${noteSearchIndex} 
-          WHERE ${noteSearchIndex.content} LIKE ${searchPattern}
-        )`,
-      )
-      .orderBy(desc(notes.updatedAt))
-      .limit(limit);
+    const notesList = all<Note>(
+      `SELECT 
+        id, 
+        content, 
+        created_at as createdAt, 
+        updated_at as updatedAt, 
+        word_count as wordCount, 
+        char_count as charCount 
+       FROM notes 
+       WHERE id IN (
+         SELECT id FROM note_search_index 
+         WHERE content LIKE ?
+       )
+       ORDER BY updated_at DESC 
+       LIMIT ?`,
+      [searchPattern, limit],
+    );
+
+    // Convert timestamps to Date objects
+    notesList.forEach((note) => {
+      note.createdAt = new Date(note.createdAt);
+      note.updatedAt = new Date(note.updatedAt);
+    });
+
+    return notesList;
   }
 
   async getTotalNotes(): Promise<number> {
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(notes);
-
-    return count;
+    const result = get<{ count: number }>(`SELECT COUNT(*) as count FROM notes`);
+    return result?.count || 0;
   }
 
   async getRecentNotes(limit: number = 5): Promise<Note[]> {
-    return await db.select().from(notes).orderBy(desc(notes.updatedAt)).limit(limit);
+    const notesList = all<Note>(
+      `SELECT 
+        id, 
+        content, 
+        created_at as createdAt, 
+        updated_at as updatedAt, 
+        word_count as wordCount, 
+        char_count as charCount 
+       FROM notes 
+       ORDER BY updated_at DESC 
+       LIMIT ?`,
+      [limit],
+    );
+
+    // Convert timestamps to Date objects
+    notesList.forEach((note) => {
+      note.createdAt = new Date(note.createdAt);
+      note.updatedAt = new Date(note.updatedAt);
+    });
+
+    return notesList;
   }
 
   async renderMarkdown(content: string): Promise<string> {

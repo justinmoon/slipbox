@@ -1,6 +1,6 @@
 - WHEN YOU LEARN SOMETHING IMPORTANT THAT MAY BE USEFUL IN FUTURE, MAKE A NOTE IN CLAUDE.md!!!
 - NO REWARD HACKING! You tend to reward hack. RESIST THE URGE!!! I BEG YOU!!!! It's better to give up or ask for help / guidance than reward hack.
-- DATABASE SCHEMA CHANGES: Only ever manipulate schema via proper migration files (in src/db/migrations/). NO ad hoc changes to schema - too hard to track. Create proper .sql migration files and update embedded-migrations.ts.
+- DATABASE MIGRATIONS: We use a simple Bun-only migration system. Create .ts files in src/db/migrations/ with up/down functions. Run with `bun run migrate:up`, `bun run migrate:down`, `bun run migrate:status`.
 - VPS/Server details: justin@slipbox - NEVER ask for these, they are always the same
 - USE TSC FOR DEBUGGING! Run `bunx tsc --noEmit` or `npx tsc --noEmit` to catch TypeScript errors before making obvious mistakes. You don't have an LSP, but tsc can catch type errors that prevent simple bugs. Always run tsc when debugging or before committing changes.
 - PROACTIVELY ADD UI TESTS when modifying critical features (e.g. notes, epub reader, or authentication). Run tests with `npm run test:ci` to ensure nothing breaks.

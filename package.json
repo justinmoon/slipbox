@@ -25,7 +25,12 @@
     "lint": "biome lint --write .",
     "lint:check": "biome lint .",
     "check": "biome check .",
-    "check:apply": "biome check --write ."
+    "check:apply": "biome check --write .",
+    "migrate": "bun run src/db/migrations.ts",
+    "migrate:up": "bun run src/db/migrations.ts up",
+    "migrate:down": "bun run src/db/migrations.ts down",
+    "migrate:status": "bun run src/db/migrations.ts status",
+    "migrate:reset": "bun run src/db/migrations.ts reset"
   },
   "keywords": [],
   "author": "",
@@ -42,8 +47,6 @@
     "@types/express": "^5.0.3",
     "@types/marked": "^5.0.2",
     "@types/uuid": "^10.0.0",
-    "drizzle-kit": "^0.31.4",
-    "drizzle-orm": "^0.44.4",
     "express": "^5.1.0",
     "marked": "^16.2.0",
     "uuid": "^11.1.0"
