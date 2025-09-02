@@ -27,7 +27,7 @@ export interface NoteSearchIndex {
 
 export interface EpubReadingPosition {
   id: string;
-  filename: string;  // Just a filename, no FK - e.g., "8506b4fd-79f1-455a-8b57-be859b17defa.epub"
+  filename: string; // Just a filename, no FK - e.g., "8506b4fd-79f1-455a-8b57-be859b17defa.epub"
   cfi: string;
   percentage: number;
   fontSize: number;

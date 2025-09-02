@@ -38,10 +38,12 @@ export function up(db: Database): void {
 
   // Create indexes
   db.exec(`CREATE INDEX epub_reading_positions_filename_idx ON epub_reading_positions(filename)`);
-  db.exec(`CREATE INDEX epub_reading_positions_updated_at_idx ON epub_reading_positions(updated_at)`);
+  db.exec(
+    `CREATE INDEX epub_reading_positions_updated_at_idx ON epub_reading_positions(updated_at)`,
+  );
 }
 
-export function down(db: Database): void {
+export function down(_db: Database): void {
   // This migration is not reversible since we're dropping the files table
   throw new Error("This migration cannot be reversed - files table data would be lost");
 }
