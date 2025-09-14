@@ -14,7 +14,7 @@ export const Layout = ({ title, children }: LayoutProps) => (
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>hetzner 2</title>
+      <title>hetzner 3</title>
       {EMBEDDED_CSS ? (
         <style>{EMBEDDED_CSS}</style>
       ) : (
