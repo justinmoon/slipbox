@@ -1,5 +1,5 @@
-import net from "node:net";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
