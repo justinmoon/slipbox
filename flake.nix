@@ -200,6 +200,9 @@
             export BROWSER=chrome
             # Avoid broken DBUS env causing Chromium warnings/crashes
             unset DBUS_SESSION_BUS_ADDRESS || true
+            # Force Playwright to use the flake-pinned headless_shell binary regardless of DISPLAY/Xvfb
+            export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(ls -d ${playwright.packages.${system}.playwright-driver.browsers}/chromium_headless_shell-*/chrome-linux/headless_shell 2>/dev/null | head -n1)"
+            echo "Using Chromium executable: $PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"
             export CI=true
             # Enable detailed Playwright debugging
             export DEBUG="pw:browser*,pw:protocol"
