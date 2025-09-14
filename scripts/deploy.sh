@@ -52,8 +52,15 @@ if [ "$CI" = "true" ]; then
   # Remove any existing .new file from previous failed deployment
   rm -f "$BINARY_DIR/$BINARY_NAME.new"
   
+  # The test script creates slipbox-test-binary, not slipbox-linux
+  if [ -f "dist/slipbox-test-binary" ]; then
+    BINARY_SOURCE="dist/slipbox-test-binary"
+  else
+    BINARY_SOURCE="dist/slipbox-linux"
+  fi
+  
   # Copy to .new file - the watcher will handle the rest
-  cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new" || exit 1
+  cp "$BINARY_SOURCE" "$BINARY_DIR/$BINARY_NAME.new" || exit 1
   chmod +x "$BINARY_DIR/$BINARY_NAME.new"
   echo -e "${GREEN}✓ Binary deployed to $BINARY_DIR/$BINARY_NAME.new${NC}"
   echo -e "${YELLOW}Note: Service restart will be handled by systemd watcher${NC}"
