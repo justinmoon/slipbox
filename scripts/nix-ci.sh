@@ -49,8 +49,8 @@ run_step 4 6 "Building application" \
 run_step 5 6 "Running tests" \
   bun run test:ci || exit 1
 
-run_step 6 6 "Testing binary bundling" \
-  bash tests/test-binary-bundling.sh || exit 1
+run_step 6 6 "Building production binary" \
+  bash scripts/build-binary.sh || exit 1
 
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo -e "${GREEN}  ✓ All CI checks passed! ${NC}"

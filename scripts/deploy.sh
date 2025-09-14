@@ -12,19 +12,10 @@ BINARY_DIR="/opt/slipbox"
 BINARY_NAME="slipbox"
 SERVICE_NAME="slipbox"
 
-# Check if we already have a binary from CI tests
-if [ -f "dist/slipbox-test-binary" ]; then
-  echo -e "${YELLOW}Using existing binary from CI tests...${NC}"
-  mv dist/slipbox-test-binary dist/slipbox-linux
-else
-  echo -e "${YELLOW}Building client assets...${NC}"
-  bun run build:client
-
-  echo -e "${YELLOW}Building production binary with embedded assets...${NC}"
-  NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts \
-    --compile \
-    --target=bun-linux-x64 \
-    --outfile dist/slipbox-linux
+# Check if we have a binary already (from CI or manual build)
+if [ ! -f "dist/slipbox-linux" ]; then
+  echo -e "${YELLOW}No binary found, building...${NC}"
+  bash scripts/build-binary.sh
 fi
 
 if [ ! -f "dist/slipbox-linux" ]; then
@@ -52,15 +43,8 @@ if [ "$CI" = "true" ]; then
   # Remove any existing .new file from previous failed deployment
   rm -f "$BINARY_DIR/$BINARY_NAME.new"
   
-  # The test script creates slipbox-test-binary, not slipbox-linux
-  if [ -f "dist/slipbox-test-binary" ]; then
-    BINARY_SOURCE="dist/slipbox-test-binary"
-  else
-    BINARY_SOURCE="dist/slipbox-linux"
-  fi
-  
   # Copy to .new file - the watcher will handle the rest
-  cp "$BINARY_SOURCE" "$BINARY_DIR/$BINARY_NAME.new" || exit 1
+  cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new" || exit 1
   chmod +x "$BINARY_DIR/$BINARY_NAME.new"
   echo -e "${GREEN}✓ Binary deployed to $BINARY_DIR/$BINARY_NAME.new${NC}"
   echo -e "${YELLOW}Note: Service restart will be handled by systemd watcher${NC}"
