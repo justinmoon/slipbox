@@ -19,59 +19,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Skip Bun setup - already installed on NixOS runner
-      # - name: Setup Bun
-      #   uses: oven-sh/setup-bun@v1
-      #   with:
-      #     bun-version: latest
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Check code formatting and linting
-        run: bun run check
-
-      - name: TypeScript type check
-        run: bunx tsc --noEmit
-
-      - name: Setup test data directory
+      - name: DEBUG - Test nix run .#test-one in CI environment
         run: |
-          mkdir -p ~/.slipbox-dev
-          echo "Test data directory created"
+          echo "Testing if nix run .#test-one works in GitHub Actions..."
+          nix run .#test-one
 
-      - name: Build application
-        run: bun run build
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      # Skip Playwright install - Chromium already installed on NixOS
-      # - name: Install Playwright browsers
-      #   run: bunx playwright install chromium
-
-      - name: Run tests
-        run: bun run test:ci
-        env:
-          CI: true
-
-      # Skip binary bundling test - not needed for direct bun run deployment
-      # - name: Test binary bundling
-      #   run: bash tests/test-binary-bundling.sh
+      - name: DEBUG - Intentional failure to prevent merge
+        run: |
+          echo "This is an intentional failure for debugging purposes."
+          echo "We want to see if the nix test above passes before failing."
+          exit 1
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -81,58 +38,3 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      - name: Auto-merge PR
-        if: |
-          success() && 
-          github.event_name == 'pull_request' && 
-          github.event.pull_request.user.login == github.repository_owner
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --squash \
-            --delete-branch
-
-      - name: Deploy to production
-        if: github.ref == 'refs/heads/main' && success()
-        run: |
-          echo "Deploying locally on Hetzner server..."
-          
-          # Build client assets first
-          bun run build:client
-          
-          # Since we're running on the same server, just copy files directly
-          sudo systemctl stop slipbox
-          
-          # Copy source files (we're already in the repo)
-          sudo rsync -av --delete \
-            --exclude node_modules \
-            --exclude .git \
-            --exclude "*.db" \
-            --exclude "*.db-*" \
-            --exclude playwright-report \
-            --exclude test-results \
-            --exclude .claude \
-            --exclude "dist/*.js" \
-            --exclude "dist/*.gz" \
-            --exclude "dist/slipbox-*" \
-            ./ /opt/slipbox/
-          
-          # Install dependencies
-          cd /opt/slipbox
-          sudo -u justin bun install
-          
-          # Restart service
-          sudo systemctl start slipbox
-          
-          # Verify deployment
-          sleep 3
-          if systemctl is-active --quiet slipbox; then
-            echo "✅ Deployment successful!"
-          else
-            echo "❌ Deployment failed!"
-            sudo journalctl -u slipbox -n 20 --no-pager
-            exit 1
-          fi
