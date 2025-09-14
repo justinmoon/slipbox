@@ -33,7 +33,18 @@ jobs:
       - name: Deploy to production
         if: success()
         run: |
-          ./scripts/deploy.sh
+          set -euo pipefail
+          echo "Building production binary package..."
+          out=$(nix build --no-link --print-out-paths .#slipbox-binary)
+          echo "Built package: $out"
+          echo "Installing to system profile..."
+          sudo /run/current-system/sw/bin/nix profile install --profile /nix/var/nix/profiles/slipbox "$out"
+          echo "Restarting service..."
+          sudo systemctl restart slipbox
+          echo "Verifying service health..."
+          sleep 2
+          sudo systemctl is-active slipbox
+          curl -fsS http://localhost:3000/ >/dev/null || (sudo journalctl -u slipbox -n 50 --no-pager; exit 1)
 
       - name: Auto-merge PR
         if: |

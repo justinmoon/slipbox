@@ -60,58 +60,103 @@
         devShells.default = devShell;
         
         # Package definition for the app
-        packages.default = pkgs.stdenv.mkDerivation {
-          pname = "slipbox";
-          version = "1.0.0";
-          
-          src = ./.;
-          
-          nativeBuildInputs = with pkgs; [
-            bun
-            nodejs_20
-            nodePackages.typescript
-            biome
-          ];
-          
-          buildPhase = ''
-            # Copy source to build directory
-            cp -r . $TMPDIR/build
-            cd $TMPDIR/build
+        packages = {
+          default = pkgs.stdenv.mkDerivation {
+            pname = "slipbox";
+            version = "1.0.0";
             
-            # Install dependencies
-            bun install --frozen-lockfile
+            src = ./.;
             
-            # Run checks
-            biome check .
-            tsc --noEmit
+            nativeBuildInputs = with pkgs; [
+              bun
+              nodejs_20
+              nodePackages.typescript
+              biome
+            ];
             
-            # Build the application
-            bun run build:client
-            EMBED_ASSETS=true bun build src/index.ts --outdir $out/dist --target bun
-          '';
-          
-          installPhase = ''
-            mkdir -p $out/bin
+            buildPhase = ''
+              # Copy source to build directory
+              cp -r . $TMPDIR/build
+              cd $TMPDIR/build
+              
+              # Install dependencies
+              bun install --frozen-lockfile
+              
+              # Run checks
+              biome check .
+              tsc --noEmit
+              
+              # Build the application
+              bun run build:client
+              EMBED_ASSETS=true bun build src/index.ts --outdir $out/dist --target bun
+            '';
             
-            # Create wrapper script
-            cat > $out/bin/slipbox <<EOF
-            #!/usr/bin/env bash
-            exec ${pkgs.bun}/bin/bun $out/dist/index.js "\$@"
-            EOF
-            chmod +x $out/bin/slipbox
+            installPhase = ''
+              mkdir -p $out/bin
+              
+              # Create wrapper script
+              cat > $out/bin/slipbox <<EOF
+              #!/usr/bin/env bash
+              exec ${pkgs.bun}/bin/bun $out/dist/index.js "\$@"
+              EOF
+              chmod +x $out/bin/slipbox
+              
+              # Copy necessary files
+              cp -r src $out/
+              cp package.json $out/
+              cp bun.lockb $out/ 2>/dev/null || true
+            '';
             
-            # Copy necessary files
-            cp -r src $out/
-            cp package.json $out/
-            cp bun.lockb $out/ 2>/dev/null || true
-          '';
-          
-          meta = with pkgs.lib; {
-            description = "Zettelkasten-style note-taking app";
-            license = licenses.isc;
-            platforms = platforms.all;
+            meta = with pkgs.lib; {
+              description = "Zettelkasten-style note-taking app";
+              license = licenses.isc;
+              platforms = platforms.all;
+            };
           };
-        };
+        } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          # Production binary package - builds binary inside derivation (Linux only)
+          slipbox-binary = pkgs.stdenv.mkDerivation {
+            pname = "slipbox-binary";
+            version = "1.0.0";
+            
+            src = ./.;
+            
+            nativeBuildInputs = with pkgs; [
+              bun
+              nodejs_20
+              nodePackages.typescript
+              biome
+            ];
+            
+            buildPhase = ''
+              # Copy source to build directory
+              cp -r . $TMPDIR/build
+              cd $TMPDIR/build
+              
+              # Install dependencies
+              bun install --frozen-lockfile
+              
+              # Build client assets
+              bun run build:client
+              
+              # Build the standalone binary with embedded assets
+              NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts \
+                --compile --target=bun-linux-x64 --outfile slipbox-binary
+            '';
+            
+            installPhase = ''
+              mkdir -p $out/bin
+              cp slipbox-binary $out/bin/slipbox
+              chmod +x $out/bin/slipbox
+            '';
+            
+            meta = with pkgs.lib; {
+              description = "Slipbox production binary with embedded assets";
+              license = licenses.isc;
+              platforms = [ "x86_64-linux" ];
+            };
+          };
+        });
         
         # App definition for nix run
         apps.default = flake-utils.lib.mkApp {
