@@ -19,10 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
+      # Skip Bun setup - already installed on NixOS runner
+      # - name: Setup Bun
+      #   uses: oven-sh/setup-bun@v1
+      #   with:
+      #     bun-version: latest
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -59,16 +60,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Install Playwright browsers
-        run: bunx playwright install chromium
+      # Skip Playwright install - Chromium already installed on NixOS
+      # - name: Install Playwright browsers
+      #   run: bunx playwright install chromium
 
       - name: Run tests
         run: bun run test:ci
         env:
           CI: true
 
-      - name: Test binary bundling
-        run: bash tests/test-binary-bundling.sh
+      # Skip binary bundling test - not needed for direct bun run deployment
+      # - name: Test binary bundling
+      #   run: bash tests/test-binary-bundling.sh
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -97,6 +100,9 @@ jobs:
         run: |
           echo "Deploying locally on Hetzner server..."
           
+          # Build client assets first
+          bun run build:client
+          
           # Since we're running on the same server, just copy files directly
           sudo systemctl stop slipbox
           
@@ -106,14 +112,17 @@ jobs:
             --exclude .git \
             --exclude "*.db" \
             --exclude "*.db-*" \
-            --exclude dist \
             --exclude playwright-report \
             --exclude test-results \
+            --exclude .claude \
+            --exclude "dist/*.js" \
+            --exclude "dist/*.gz" \
+            --exclude "dist/slipbox-*" \
             ./ /opt/slipbox/
           
           # Install dependencies
           cd /opt/slipbox
-          sudo -u justin bun install --production
+          sudo -u justin bun install
           
           # Restart service
           sudo systemctl start slipbox
