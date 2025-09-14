@@ -64,13 +64,13 @@ jobs:
           nix profile install --profile ~/.nix-profiles/slipbox "$out"
           
           echo "Creating symlink for service..."
-          # Create a symlink that the service can use
-          rm -f ~/slipbox-binary
-          ln -s ~/.nix-profiles/slipbox/bin/slipbox ~/slipbox-binary
+          # Create a symlink that the service can use (in justin's home)
+          rm -f /home/justin/slipbox-binary
+          ln -s ~/.nix-profiles/slipbox/bin/slipbox /home/justin/slipbox-binary
           
           echo "Triggering service restart via touch file..."
           # Touch a file that a watcher can detect to restart the service
-          touch ~/slipbox-deploy-trigger
+          touch /home/justin/slipbox-deploy-trigger
           
           echo "Waiting for service restart..."
           sleep 5
