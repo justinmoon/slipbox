@@ -19,71 +19,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Skip Bun setup - already installed on NixOS runner
-      # - name: Setup Bun
-      #   uses: oven-sh/setup-bun@v1
-      #   with:
-      #     bun-version: latest
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Check code formatting and linting
+      - name: Run checks and tests in Nix environment
         run: |
-          # Use system biome on NixOS runner to avoid dynamic linking issues
-          if command -v biome &> /dev/null; then
+          # Enter Nix shell and run all checks
+          nix develop --command bash -c "
+            set -e
+            
+            echo '=== Installing dependencies ==='
+            bun install
+            
+            echo '=== Running biome checks ==='
             biome check .
-          else
-            bun run check
-          fi
-
-      - name: TypeScript type check
-        run: |
-          # Use system tsc on NixOS runner to avoid dynamic linking issues
-          if command -v tsc &> /dev/null; then
+            
+            echo '=== Running TypeScript type check ==='
             tsc --noEmit
-          else
-            bunx tsc --noEmit
-          fi
-
-      - name: Setup test data directory
-        run: |
-          mkdir -p ~/.slipbox-dev
-          echo "Test data directory created"
-
-      - name: Build application
-        run: bun run build
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      # Skip Playwright install - Chromium already installed on NixOS
-      # - name: Install Playwright browsers
-      #   run: bunx playwright install chromium
-
-      - name: Run tests
-        run: bun run test:ci
-        env:
-          CI: true
-
-      # Skip binary bundling test - not needed for direct bun run deployment
-      # - name: Test binary bundling
-      #   run: bash tests/test-binary-bundling.sh
+            
+            echo '=== Setting up test data directory ==='
+            mkdir -p ~/.slipbox-dev
+            
+            echo '=== Building application ==='
+            bun run build
+            
+            echo '=== Running tests ==='
+            export CI=true
+            bun run test:ci
+          "
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -113,7 +73,7 @@ jobs:
           echo "Deploying locally on Hetzner server..."
           
           # Build client assets first
-          bun run build:client
+          nix develop --command bun run build:client
           
           # Since we're running on the same server, just copy files directly
           sudo systemctl stop slipbox
