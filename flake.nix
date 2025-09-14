@@ -136,46 +136,6 @@
             echo -e "''${BLUE}════════════════════════════════════════''${NC}"
             echo ""
             
-            # Debug information
-            echo "=== DEBUG: Environment Info ==="
-            echo "Working directory: $(pwd)"
-            echo "Working dir length: $(pwd | wc -c) characters"
-            echo "User: $(whoami)"
-            echo "Home: $HOME"
-            echo ""
-            echo "=== DEBUG: Path Info ==="
-            echo "PATH length: ''${#PATH} characters"
-            echo "PATH: $PATH" | head -c 200
-            echo "..."
-            echo ""
-            echo "=== DEBUG: Playwright Environment ==="
-            echo "PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH: $PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH"
-            echo "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: $PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"
-            echo "CI: $CI"
-            echo "DISPLAY: $DISPLAY"
-            echo ""
-            echo "=== FIXING: Using system Firefox ==="
-            export PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH="${if pkgs.stdenv.isDarwin
-              then "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox"
-              else "${pkgs.firefox}/bin/firefox"}"
-            export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            echo "PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH: $PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH"
-            echo ""
-            echo "=== DEBUG: Firefox Availability ==="
-            FIREFOX_PATH="${if pkgs.stdenv.isDarwin
-              then "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox"
-              else "${pkgs.firefox}/bin/firefox"}"
-            if [ -x "$FIREFOX_PATH" ]; then
-              echo "Firefox executable exists and is executable at $FIREFOX_PATH"
-              $FIREFOX_PATH --version || true
-            else
-              echo "WARNING: Firefox executable does not exist at $FIREFOX_PATH!"
-            fi
-            echo ""
-            echo "=== DEBUG: Process Limits ==="
-            ulimit -a | head -10
-            echo ""
-            
             # Function to run a step
             run_step() {
               local step_num=$1
@@ -196,18 +156,12 @@
               fi
             }
             
-            # Enter nix develop shell and run all commands
+            # Setup environment
             export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
-            # Use playwright-driver browsers
             export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
-            # Avoid broken DBUS env causing browser warnings/crashes
-            unset DBUS_SESSION_BUS_ADDRESS || true
-            echo "Using Playwright browsers from: $PLAYWRIGHT_BROWSERS_PATH"
             export CI=true
-            
-            # Use the current directory (where nix run was executed)
             
             # Run CI steps
             run_step 1 5 "Installing dependencies" \
@@ -222,7 +176,7 @@
             run_step 4 5 "Building application" \
               bash -c "mkdir -p ~/.slipbox-dev && ${pkgs.bun}/bin/bun run build" || exit 1
             
-            run_step 5 5 "Running tests (Chromium with --no-sandbox)" \
+            run_step 5 5 "Running tests" \
               ${pkgs.bun}/bin/bun run test:ci || exit 1
             
             echo -e "''${GREEN}════════════════════════════════════════''${NC}"

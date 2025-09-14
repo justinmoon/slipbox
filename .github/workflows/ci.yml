@@ -18,25 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Browser Environment
+      - name: Run CI
         run: |
-          # Create XDG runtime directory for browser processes
-          export XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/xdg-runtime-$$"
-          mkdir -p "$XDG_RUNTIME_DIR"
-          chmod 700 "$XDG_RUNTIME_DIR"
-          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> $GITHUB_ENV
-          
-          # Raise resource limits
-          ulimit -n 1048576 || ulimit -n 65536 || true
-          ulimit -u 8192 || true
-
-      - name: Run tests
-        env:
-          XDG_RUNTIME_DIR: ${{ env.XDG_RUNTIME_DIR }}
-          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "1"
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: |
-          nix develop --command bash -c "bun install && bun run build:client && bun run test:ci"
+          nix run .#ci
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
