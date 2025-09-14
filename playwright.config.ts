@@ -1,29 +1,6 @@
-import net from "node:net";
 import { defineConfig, devices } from "@playwright/test";
 
-// Function to find an available port
-async function _getAvailablePort(startPort = 3000): Promise<number> {
-  const checkPort = (port: number): Promise<number | null> => {
-    return new Promise((resolve) => {
-      const server = net.createServer();
-      server.listen(port, () => {
-        server.once("close", () => resolve(port));
-        server.close();
-      });
-      server.on("error", () => resolve(null));
-    });
-  };
-
-  let port = startPort;
-  while (port < 65535) {
-    const available = await checkPort(port);
-    if (available) return available;
-    port++;
-  }
-  throw new Error("No available ports found");
-}
-
-const port = 3003; // Use a fixed port for now to debug
+const port = 3003; // Use a fixed port for now
 
 export default defineConfig({
   testDir: "./tests",
@@ -44,8 +21,22 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: process.env.CI ? true : undefined,
+        launchOptions: {
+          args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+        },
+      },
     },
+    // Firefox as fallback
+    // {
+    //   name: "firefox",
+    //   use: {
+    //     ...devices["Desktop Firefox"],
+    //     headless: process.env.CI ? true : undefined,
+    //   },
+    // },
   ],
 
   webServer: {
