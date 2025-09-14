@@ -4,9 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    playwright.url = "github:pietdevries94/playwright-web-flake/1.54.1";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, playwright }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -23,16 +24,13 @@
             nodePackages.typescript-language-server
             biome
             
-            # Testing
-            playwright-driver
+            # Testing - use playwright from the flake
+            playwright.packages.${system}.playwright-test
             
             # Utilities
             git
             rsync
             jq
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-            # Linux-only packages
-            chromium
           ];
           
           shellHook = ''
@@ -52,7 +50,7 @@
           
           # Set up environment variables for Playwright
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
-          PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+          PLAYWRIGHT_BROWSERS_PATH = "${playwright.packages.${system}.playwright-driver.browsers}";
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
@@ -137,6 +135,37 @@
             echo -e "''${BLUE}════════════════════════════════════════''${NC}"
             echo ""
             
+            # Debug information
+            echo "=== DEBUG: Environment Info ==="
+            echo "Working directory: $(pwd)"
+            echo "Working dir length: $(pwd | wc -c) characters"
+            echo "User: $(whoami)"
+            echo "Home: $HOME"
+            echo ""
+            echo "=== DEBUG: Path Info ==="
+            echo "PATH length: ''${#PATH} characters"
+            echo "PATH: $PATH" | head -c 200
+            echo "..."
+            echo ""
+            echo "=== DEBUG: Playwright Environment ==="
+            echo "PLAYWRIGHT_BROWSERS_PATH: $PLAYWRIGHT_BROWSERS_PATH"
+            echo "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: $PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"
+            echo "PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: $PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS"
+            echo "CI: $CI"
+            echo "DISPLAY: $DISPLAY"
+            echo ""
+            echo "=== DEBUG: Browser Availability ==="
+            if [ -d "$PLAYWRIGHT_BROWSERS_PATH" ]; then
+              echo "Browser directory exists"
+              ls -la "$PLAYWRIGHT_BROWSERS_PATH" | head -10
+            else
+              echo "WARNING: Browser directory does not exist!"
+            fi
+            echo ""
+            echo "=== DEBUG: Process Limits ==="
+            ulimit -a | head -10
+            echo ""
+            
             # Function to run a step
             run_step() {
               local step_num=$1
@@ -160,7 +189,7 @@
             # Enter nix develop shell and run all commands
             export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
             export CI=true
             
@@ -180,7 +209,28 @@
               bash -c "mkdir -p ~/.slipbox-dev && ${pkgs.bun}/bin/bun run build" || exit 1
             
             run_step 5 5 "Running tests" \
-              ${pkgs.bun}/bin/bun run test:ci || exit 1
+              ${pkgs.bun}/bin/bun run test:ci || {
+                echo ""
+                echo -e "''${RED}=== DEBUG: Test Failure Analysis ===''${NC}"
+                echo "Tests failed. Checking for common issues..."
+                echo ""
+                echo "1. Checking for Chrome processes:"
+                ps aux | grep -i chrome | head -5 || echo "No chrome processes found"
+                echo ""
+                echo "2. Checking tmp directory:"
+                ls -la /tmp | grep -i playwright | head -5 || echo "No playwright files in /tmp"
+                echo ""
+                echo "3. System error messages:"
+                dmesg | tail -20 2>/dev/null || echo "Cannot read dmesg"
+                echo ""
+                echo "4. Directory permissions:"
+                ls -ld . ~/.slipbox-dev /tmp 2>/dev/null
+                echo ""
+                echo "5. Socket path length check:"
+                echo "Current path + socket would be: $(pwd | wc -c) + ~50 = ~$(($(pwd | wc -c) + 50)) chars"
+                echo "(Linux socket path limit is 108 chars)"
+                exit 1
+              }
             
             echo -e "''${GREEN}════════════════════════════════════════''${NC}"
             echo -e "''${GREEN}  ✓ All CI checks passed! ''${NC}"

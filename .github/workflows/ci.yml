@@ -19,8 +19,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug environment
+        run: |
+          echo "=== Process Info ==="
+          whoami
+          id
+          echo "PWD: $(pwd)"
+          echo "PATH length: ${#PATH}"
+          
+          echo ""
+          echo "=== Directory Info ==="
+          echo "Current dir: $(pwd)"
+          echo "Path length: $(pwd | wc -c)"
+          
+          echo ""
+          echo "=== Environment Variables ==="
+          env | grep -E "PLAYWRIGHT|DISPLAY|CHROME|CI|HOME|USER" || true
+          
+          echo ""
+          echo "=== Nix Info ==="
+          which nix
+          nix --version
+          
+          echo ""
+          echo "=== Test Chrome Launch Directly ==="
+          # Try to find and run chromium directly
+          find /nix/store -name chromium -type f 2>/dev/null | head -5 || echo "No chromium found"
+
       - name: Run checks and tests in Nix environment
         run: |
+          # Add more debugging inside nix run
+          echo "=== Running nix run .#ci with debug ==="
+          echo "Working directory: $(pwd)"
+          
           # Use our CI runner that works properly
           nix run .#ci
 
