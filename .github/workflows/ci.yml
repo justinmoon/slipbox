@@ -19,6 +19,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug environment
+        run: |
+          echo "=== Environment Variables ==="
+          env | grep -E "(DISPLAY|PLAYWRIGHT|DEBUG|PATH|USER|HOME)" || true
+          echo "=== Process Info ==="
+          ps aux | grep -E "(github|runner)" | head -5
+          echo "=== Systemd Context ==="
+          systemctl show --property=NoNewPrivileges,PrivateUsers,ProtectHome,ProtectSystem $$
+          
       - name: Run checks and tests in Nix environment
         run: |
           # Use our CI runner that works properly

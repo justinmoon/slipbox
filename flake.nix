@@ -192,6 +192,9 @@
             export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             export CI=true
+            # Enable detailed Playwright debugging
+            export DEBUG="pw:browser*,pw:protocol"
+            export PLAYWRIGHT_DEBUG=1
             
             # Use the current directory (where nix run was executed)
             
