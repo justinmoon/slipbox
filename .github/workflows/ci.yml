@@ -1,14 +1,15 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [master, main]
+    branches: [master, main, final-ci-fix]
   pull_request:
     branches: [master, main]
 
 jobs:
   test:
-    runs-on: [self-hosted, linux, nixos, hetzner]
+    runs-on: self-hosted
 
     permissions:
       contents: write
@@ -19,59 +20,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Skip Bun setup - already installed on NixOS runner
-      # - name: Setup Bun
-      #   uses: oven-sh/setup-bun@v1
-      #   with:
-      #     bun-version: latest
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Check code formatting and linting
-        run: bun run check
-
-      - name: TypeScript type check
-        run: bunx tsc --noEmit
-
-      - name: Setup test data directory
+      - name: DEBUG - Test nix run .#test-one in CI environment
         run: |
-          mkdir -p ~/.slipbox-dev
-          echo "Test data directory created"
+          echo "Testing if nix run .#test-one works in GitHub Actions..."
+          nix run .#test-one
 
-      - name: Build application
-        run: bun run build
+      - name: DEBUG - Intentional failure to prevent merge
+        run: |
+          echo "This is an intentional failure for debugging purposes."
+          echo "We want to see if the nix test above passes before failing."
+          exit 1
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      # Skip Playwright install - Chromium already installed on NixOS
-      # - name: Install Playwright browsers
-      #   run: bunx playwright install chromium
-
-      - name: Run tests
-        run: bun run test:ci
-        env:
-          CI: true
-
-      # Skip binary bundling test - not needed for direct bun run deployment
-      # - name: Test binary bundling
-      #   run: bash tests/test-binary-bundling.sh
+      - name: Run fast single test (Chromium headless_shell)
+        run: |
+          nix run .#test-one
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -81,19 +43,11 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      - name: Auto-merge PR
-        if: |
-          success() && 
-          github.event_name == 'pull_request' && 
-          github.event.pull_request.user.login == github.repository_owner
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Temporary guard: fail after tests to prevent merge
+        if: success() && github.event_name == 'pull_request'
         run: |
-          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --squash \
-            --delete-branch
+          echo "Intentionally failing to prevent auto-merge while stabilizing CI."
+          exit 1
 
       - name: Deploy to production
         if: github.ref == 'refs/heads/main' && success()
@@ -101,7 +55,7 @@ jobs:
           echo "Deploying locally on Hetzner server..."
           
           # Build client assets first
-          bun run build:client
+          nix develop --command bun run build:client
           
           # Since we're running on the same server, just copy files directly
           sudo systemctl stop slipbox
