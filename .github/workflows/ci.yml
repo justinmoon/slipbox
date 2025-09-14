@@ -18,25 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Environment
-        run: |
-          echo "=== Environment Variables ==="
-          env | sort | head -20
-          echo "=== Process Limits ==="
-          ulimit -a
-          echo "=== User Info ==="
-          id
-          whoami
-          groups
-          echo "=== XDG Runtime ==="
-          echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-not set}"
-          ls -la "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" 2>/dev/null || echo "Runtime dir does not exist"
-          echo "=== Systemd Service Info ==="
-          systemctl show github-runner-hetzner-runner.service | grep -E "NoNewPrivileges|RestrictNamespaces|PrivateUsers|PrivateTmp|TasksMax|LimitNOFILE" || true
-
       - name: Setup Browser Environment
         run: |
-          # Create XDG runtime directory
+          # Create XDG runtime directory for browser processes
           export XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/xdg-runtime-$$"
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"
@@ -45,23 +29,13 @@ jobs:
           # Raise resource limits
           ulimit -n 1048576 || ulimit -n 65536 || true
           ulimit -u 8192 || true
-          
-          # Clear problematic env vars
-          unset DBUS_SESSION_BUS_ADDRESS || true
-          
-          echo "Browser runtime directory created at: $XDG_RUNTIME_DIR"
 
-      - name: Run fast single test
+      - name: Run tests
         env:
           XDG_RUNTIME_DIR: ${{ env.XDG_RUNTIME_DIR }}
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: "1"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-          DEBUG: "pw:browser*"
         run: |
-          # Ensure XDG_RUNTIME_DIR is set
-          echo "Using XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR}"
-          
-          # Run tests directly without nix sandbox to avoid browser issues
           nix develop --command bash -c "bun install && bun run build:client && bun run test:ci"
 
       - name: Upload test results
