@@ -48,10 +48,8 @@
             echo "  Biome: $(biome --version)"
           '';
           
-          # Set up environment variables for Playwright
+          # Prevent npm/bun from downloading browsers (we use Nix-provided ones)
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
-          PLAYWRIGHT_BROWSERS_PATH = "${playwright.packages.${system}.playwright-driver.browsers}";
-          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
       in
@@ -187,10 +185,10 @@
             }
             
             # Enter nix develop shell and run all commands
-            export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
+            # Put playwright-test first in PATH so it takes precedence over node_modules version
+            export PATH="${playwright.packages.${system}.playwright-test}/bin:${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
+            # Playwright-web-flake automatically sets PLAYWRIGHT_BROWSERS_PATH via wrapper
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
-            export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
             export CI=true
             
             # Use the current directory (where nix run was executed)
@@ -209,7 +207,7 @@
               bash -c "mkdir -p ~/.slipbox-dev && ${pkgs.bun}/bin/bun run build" || exit 1
             
             run_step 5 5 "Running tests" \
-              ${pkgs.bun}/bin/bun run test:ci || {
+              ${playwright.packages.${system}.playwright-test}/bin/playwright test --reporter=list || {
                 echo ""
                 echo -e "''${RED}=== DEBUG: Test Failure Analysis ===''${NC}"
                 echo "Tests failed. Checking for common issues..."
