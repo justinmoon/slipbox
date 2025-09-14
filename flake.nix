@@ -24,8 +24,8 @@
             nodePackages.typescript-language-server
             biome
             
-            # Testing - use playwright from the flake
-            playwright.packages.${system}.playwright-test
+            # Testing - browsers only from playwright-web-flake
+            # The test runner comes from npm @playwright/test
             
             # Utilities
             git
@@ -48,7 +48,8 @@
             echo "  Biome: $(biome --version)"
           '';
           
-          # Prevent npm/bun from downloading browsers (we use Nix-provided ones)
+          # Use browsers from playwright-web-flake
+          PLAYWRIGHT_BROWSERS_PATH = "${playwright.packages.${system}.playwright-driver.browsers}";
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
         };
         
@@ -185,9 +186,10 @@
             }
             
             # Enter nix develop shell and run all commands
-            # Put playwright-test first in PATH so it takes precedence over node_modules version
-            export PATH="${playwright.packages.${system}.playwright-test}/bin:${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
-            # Playwright-web-flake automatically sets PLAYWRIGHT_BROWSERS_PATH via wrapper
+            # Use standard PATH with npm playwright, but set browser path from playwright-web-flake
+            export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
+            # Use browsers from playwright-web-flake
+            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             export CI=true
             
@@ -207,7 +209,7 @@
               bash -c "mkdir -p ~/.slipbox-dev && ${pkgs.bun}/bin/bun run build" || exit 1
             
             run_step 5 5 "Running tests" \
-              ${playwright.packages.${system}.playwright-test}/bin/playwright test --reporter=list || {
+              ${pkgs.bun}/bin/bun run test:ci || {
                 echo ""
                 echo -e "''${RED}=== DEBUG: Test Failure Analysis ===''${NC}"
                 echo "Tests failed. Checking for common issues..."
