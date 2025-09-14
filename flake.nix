@@ -25,12 +25,14 @@
             
             # Testing
             playwright-driver
-            chromium
             
             # Utilities
             git
             rsync
             jq
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            # Linux-only packages
+            chromium
           ];
           
           shellHook = ''
