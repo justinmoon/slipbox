@@ -59,7 +59,7 @@ jobs:
           echo "Built package: $out"
           
           echo "Installing to system profile..."
-          sudo nix profile install --profile /nix/var/nix/profiles/slipbox "$out"
+          sudo /run/current-system/sw/bin/nix profile install --profile /nix/var/nix/profiles/slipbox "$out"
           
           echo "Restarting service..."
           sudo systemctl restart slipbox
