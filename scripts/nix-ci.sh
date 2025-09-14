@@ -34,20 +34,23 @@ run_step() {
 }
 
 # Run CI steps
-run_step 1 5 "Installing dependencies" \
+run_step 1 6 "Installing dependencies" \
   bun install || exit 1
 
-run_step 2 5 "Running biome checks" \
+run_step 2 6 "Running biome checks" \
   biome check . || exit 1
 
-run_step 3 5 "TypeScript type checking" \
+run_step 3 6 "TypeScript type checking" \
   tsc --noEmit || exit 1
 
-run_step 4 5 "Building application" \
+run_step 4 6 "Building application" \
   bash -c "mkdir -p ~/.slipbox-dev && bun run build" || exit 1
 
-run_step 5 5 "Running tests" \
+run_step 5 6 "Running tests" \
   bun run test:ci || exit 1
+
+run_step 6 6 "Testing binary bundling" \
+  bash tests/test-binary-bundling.sh || exit 1
 
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo -e "${GREEN}  ✓ All CI checks passed! ${NC}"
