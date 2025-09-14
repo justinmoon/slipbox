@@ -39,10 +39,22 @@ jobs:
         run: bun install
 
       - name: Check code formatting and linting
-        run: bun run check
+        run: |
+          # Use system biome on NixOS runner to avoid dynamic linking issues
+          if command -v biome &> /dev/null; then
+            biome check .
+          else
+            bun run check
+          fi
 
       - name: TypeScript type check
-        run: bunx tsc --noEmit
+        run: |
+          # Use system tsc on NixOS runner to avoid dynamic linking issues
+          if command -v tsc &> /dev/null; then
+            tsc --noEmit
+          else
+            bunx tsc --noEmit
+          fi
 
       - name: Setup test data directory
         run: |
