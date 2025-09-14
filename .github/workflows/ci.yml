@@ -19,6 +19,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: DEBUG - Test nix run .#test-one in CI environment
+        run: |
+          echo "Testing if nix run .#test-one works in GitHub Actions..."
+          nix run .#test-one
+
+      - name: DEBUG - Intentional failure to prevent merge
+        run: |
+          echo "This is an intentional failure for debugging purposes."
+          echo "We want to see if the nix test above passes before failing."
+          exit 1
+
       - name: Run fast single test (Chromium headless_shell)
         run: |
           nix run .#test-one
