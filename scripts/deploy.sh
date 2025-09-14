@@ -12,14 +12,20 @@ BINARY_DIR="/opt/slipbox/bin"
 BINARY_NAME="slipbox"
 SERVICE_NAME="slipbox"
 
-echo -e "${YELLOW}Building client assets...${NC}"
-bun run build:client
+# Check if we already have a binary from CI tests
+if [ -f "dist/slipbox-test-binary" ]; then
+  echo -e "${YELLOW}Using existing binary from CI tests...${NC}"
+  mv dist/slipbox-test-binary dist/slipbox-linux
+else
+  echo -e "${YELLOW}Building client assets...${NC}"
+  bun run build:client
 
-echo -e "${YELLOW}Building production binary with embedded assets...${NC}"
-NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts \
-  --compile \
-  --target=bun-linux-x64 \
-  --outfile dist/slipbox-linux
+  echo -e "${YELLOW}Building production binary with embedded assets...${NC}"
+  NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts \
+    --compile \
+    --target=bun-linux-x64 \
+    --outfile dist/slipbox-linux
+fi
 
 if [ ! -f "dist/slipbox-linux" ]; then
   echo -e "${RED}✗ Build failed! Binary not found.${NC}"

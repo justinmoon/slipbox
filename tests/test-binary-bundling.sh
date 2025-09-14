@@ -19,7 +19,8 @@ echo -e "${YELLOW}Building test binary...${NC}"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     NODE_ENV=production bun build src/index.ts --compile --outfile dist/slipbox-test-binary
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    NODE_ENV=production bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-test-binary
+    # In CI, build with EMBED_ASSETS for production use
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-test-binary
 else
     echo -e "${RED}Unsupported platform: $OSTYPE${NC}"
     exit 1
@@ -50,7 +51,10 @@ BINARY_PID=$!
 cleanup() {
     echo "Cleaning up..."
     kill $BINARY_PID 2>/dev/null || true
-    rm -f dist/slipbox-test-binary
+    # In CI, keep the binary for deployment
+    if [ "$CI" != "true" ]; then
+        rm -f dist/slipbox-test-binary
+    fi
     rm -rf "$TEST_DATA_DIR"
 }
 trap cleanup EXIT
