@@ -1,10 +1,12 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   test:
