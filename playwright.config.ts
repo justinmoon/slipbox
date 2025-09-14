@@ -25,17 +25,13 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         headless: true, // Always headless in CI
         launchOptions: {
-          args: [
+          args: process.env.CI ? [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--no-zygote", // Critical: bypass zygote process that fails in systemd
-            "--single-process", // Run in single process mode
-            "--disable-web-security",
-            "--disable-features=IsolateOrigins,site-per-process",
             "--disable-blink-features=AutomationControlled",
-          ],
+          ] : [],
           // Add timeout for slow launches
           timeout: 30000,
         },
