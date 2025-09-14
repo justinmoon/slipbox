@@ -63,4 +63,3 @@ bun run start
 - **Storage**: SQLite database with filesystem storage for attachments
 - **Styling**: Custom newspaper-style CSS
 - **Testing**: Playwright for UI tests
-# CI Test
