@@ -30,6 +30,7 @@ export default defineConfig({
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
+            "--no-zygote", // Critical: bypass zygote process that's failing
             "--disable-blink-features=AutomationControlled",
           ] : [],
           // Add timeout for slow launches
