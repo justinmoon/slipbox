@@ -48,11 +48,10 @@ fi
 # So just deploy the binary and let a separate process handle restarts
 if [ "$CI" = "true" ]; then
   echo -e "${YELLOW}Running in CI - deploying binary only${NC}"
-  # Copy to temp file then atomic move to avoid "Text file busy" error
+  # Copy to .new file - the watcher will handle the rest
   cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new"
   chmod +x "$BINARY_DIR/$BINARY_NAME.new"
-  mv -f "$BINARY_DIR/$BINARY_NAME.new" "$BINARY_DIR/$BINARY_NAME"
-  echo -e "${GREEN}✓ Binary deployed successfully${NC}"
+  echo -e "${GREEN}✓ Binary deployed to $BINARY_DIR/$BINARY_NAME.new${NC}"
   echo -e "${YELLOW}Note: Service restart will be handled by systemd watcher${NC}"
   exit 0
 fi
