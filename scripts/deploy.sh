@@ -40,11 +40,24 @@ fi
 if [ "$CI" = "true" ]; then
   echo -e "${YELLOW}Running in CI - deploying binary only${NC}"
   
+  # Debug: Show what files exist
+  echo "Current directory: $(pwd)"
+  echo "Files in dist/:"
+  ls -la dist/ || echo "No dist directory"
+  
+  # Check if binary exists
+  if [ ! -f "dist/slipbox-linux" ]; then
+    echo -e "${RED}ERROR: Binary dist/slipbox-linux does not exist!${NC}"
+    echo "Available files in dist:"
+    ls -la dist/
+    exit 1
+  fi
+  
   # Remove any existing .new file from previous failed deployment
   rm -f "$BINARY_DIR/$BINARY_NAME.new"
   
   # Copy to .new file - the watcher will handle the rest
-  cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new" || exit 1
+  cp -v dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new" || exit 1
   chmod +x "$BINARY_DIR/$BINARY_NAME.new"
   echo -e "${GREEN}✓ Binary deployed to $BINARY_DIR/$BINARY_NAME.new${NC}"
   echo -e "${YELLOW}Note: Service restart will be handled by systemd watcher${NC}"
