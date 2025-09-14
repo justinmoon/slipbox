@@ -48,8 +48,14 @@ fi
 # So just deploy the binary and let a separate process handle restarts
 if [ "$CI" = "true" ]; then
   echo -e "${YELLOW}Running in CI - deploying binary only${NC}"
+  echo "Current directory: $(pwd)"
+  echo "Looking for binary at: dist/slipbox-linux"
+  ls -la dist/slipbox-linux || echo "Binary not found!"
+  echo "Target directory: $BINARY_DIR"
+  ls -la "$BINARY_DIR" | head -5
+  
   # Copy to .new file - the watcher will handle the rest
-  cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new"
+  cp -v dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME.new" || exit 1
   chmod +x "$BINARY_DIR/$BINARY_NAME.new"
   echo -e "${GREEN}✓ Binary deployed to $BINARY_DIR/$BINARY_NAME.new${NC}"
   echo -e "${YELLOW}Note: Service restart will be handled by systemd watcher${NC}"
