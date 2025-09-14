@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # This script runs ON the Hetzner server (via CI or directly)
-BINARY_DIR="/opt/slipbox/bin"
+BINARY_DIR="/opt/slipbox"
 BINARY_NAME="slipbox"
 SERVICE_NAME="slipbox"
 
@@ -37,8 +37,7 @@ echo -e "${GREEN}✓ Built binary (${BINARY_SIZE})${NC}"
 
 echo -e "${YELLOW}Deploying binary...${NC}"
 
-# Ensure binary directory exists (should be owned by justin from NixOS config)
-mkdir -p "$BINARY_DIR"
+# Binary directory should already exist and be owned by justin from NixOS config
 
 # Backup current binary if it exists
 if [ -f "$BINARY_DIR/$BINARY_NAME" ]; then
