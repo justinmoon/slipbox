@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, main, ci-test-debug]
+    branches: [master, main, ci-test-debug, minimal-ci-test]
   pull_request:
     branches: [master, main]
 
