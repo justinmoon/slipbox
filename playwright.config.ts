@@ -1,4 +1,6 @@
 import net from "node:net";
+import fs from "node:fs";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 // Function to find an available port
@@ -25,6 +27,26 @@ async function _getAvailablePort(startPort = 3000): Promise<number> {
 
 const port = 3003; // Use a fixed port for now to debug
 
+function resolveHeadlessShellExecutable(): string | undefined {
+  // Prefer explicit override if provided
+  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH &&
+      fs.existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH)) {
+    return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  }
+  const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (!base || !fs.existsSync(base)) return undefined;
+  try {
+    const entries = fs.readdirSync(base, { withFileTypes: true });
+    const candidates = entries
+      .filter((e) => e.isDirectory() && (e.name.startsWith("chromium_headless_shell-") || e.name.startsWith("chromium-headless-shell-")))
+      .map((e) => path.join(base, e.name, "chrome-linux", "headless_shell"));
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+  } catch {}
+  return undefined;
+}
+
 export default defineConfig({
   testDir: "./tests",
   timeout: 60 * 1000, // Increased timeout for tests with setup
@@ -48,6 +70,17 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         // Force headless mode in CI
         headless: process.env.CI ? true : undefined,
+        launchOptions: (() => {
+          const exe = resolveHeadlessShellExecutable();
+          return exe
+            ? {
+                executablePath: exe,
+                args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+              }
+            : {
+                args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+              };
+        })(),
       },
     },
   ],
