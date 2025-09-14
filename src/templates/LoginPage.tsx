@@ -4,7 +4,7 @@ import { Layout } from "./Layout";
 export function LoginPage(props?: { error?: string }) {
   const error = props?.error;
   return (
-    <Layout title="Login - Slipbox">
+    <Layout title="Login - Slipbox!">
       <div class="min-h-screen flex items-center justify-center">
         <div class="w-full max-w-md p-8">
           <div class="bg-off-white border-2 border-dark p-8 shadow-[5px_5px_0px_0px_#111]">

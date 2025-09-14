@@ -16,6 +16,7 @@
 - NEVER delete anything from ~/slipbox or ~/slipbox-backup-do-not-delete.
 - NEVER run `rm -rf /tmp/slipbox-data-*` -- this can delete the files of other git worktrees. Only delete the specific slipbox data dir your git worktree is using.
 - When I ask you to test something, never EVER assume it works without actually verifying that it works.
+- If you encounter weird failures in CI that aren't obviously code errors and may be environment problems -- try first to get it passing with `nix run .#ci` locally, then by running same command on our self-hosted running by syncing code with `hsync` commmand and runnint `nix run .#ci` and only then re-trying via github actions. break problem into small steps makes it easier to solve.
 
 ## UI Testing
 

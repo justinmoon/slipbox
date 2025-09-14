@@ -13,3 +13,5 @@ static/*.js
 static/*.js.map
 static/style.css
 test-data/
+
+.direnv

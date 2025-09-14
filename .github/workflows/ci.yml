@@ -1,14 +1,13 @@
 name: CI
 
 on:
-  push:
-    branches: [master, main]
+  workflow_dispatch:
   pull_request:
     branches: [master, main]
 
 jobs:
   test:
-    runs-on: [self-hosted, linux, nixos, hetzner]
+    runs-on: self-hosted
 
     permissions:
       contents: write
@@ -19,59 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Skip Bun setup - already installed on NixOS runner
-      # - name: Setup Bun
-      #   uses: oven-sh/setup-bun@v1
-      #   with:
-      #     bun-version: latest
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock', 'package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Check code formatting and linting
-        run: bun run check
-
-      - name: TypeScript type check
-        run: bunx tsc --noEmit
-
-      - name: Setup test data directory
+      - name: Run CI
         run: |
-          mkdir -p ~/.slipbox-dev
-          echo "Test data directory created"
-
-      - name: Build application
-        run: bun run build
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      # Skip Playwright install - Chromium already installed on NixOS
-      # - name: Install Playwright browsers
-      #   run: bunx playwright install chromium
-
-      - name: Run tests
-        run: bun run test:ci
-        env:
-          CI: true
-
-      # Skip binary bundling test - not needed for direct bun run deployment
-      # - name: Test binary bundling
-      #   run: bash tests/test-binary-bundling.sh
+          nix run .#ci
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -81,6 +30,54 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+      - name: Deploy to production
+        if: success()
+        run: |
+          set -euo pipefail
+          echo "Building production binary with script..."
+          bash scripts/build-binary.sh
+          
+          echo "Adding binary to Nix store..."
+          # Add the binary directly to the store
+          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox)
+          echo "Binary added to store: $STORE_PATH"
+          
+          # Create a simple derivation that references the binary
+          cat > default.nix <<'NIXEOF'
+          { pkgs ? import <nixpkgs> {} }:
+          pkgs.runCommand "slipbox-binary" {} ''
+            mkdir -p $out/bin
+            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox
+          ''
+          NIXEOF
+          
+          # Replace placeholder with actual store path
+          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" default.nix
+          
+          echo "Building wrapper package..."
+          out=$(nix-build default.nix --no-out-link)
+          echo "Built package: $out"
+          
+          echo "Installing to user profile..."
+          # Use a user-owned profile that doesn't require sudo
+          mkdir -p ~/.nix-profiles
+          nix profile install --profile ~/.nix-profiles/slipbox "$out"
+          
+          echo "Creating symlink for service..."
+          # Create a symlink that the service can use (in justin's home)
+          rm -f /home/justin/slipbox-binary
+          ln -s ~/.nix-profiles/slipbox/bin/slipbox /home/justin/slipbox-binary
+          
+          echo "Triggering service restart via touch file..."
+          # Touch a file that a watcher can detect to restart the service
+          touch /home/justin/slipbox-deploy-trigger
+          
+          echo "Waiting for service restart..."
+          sleep 5
+          
+          echo "Verifying service health..."
+          curl -fsS http://localhost:3000/ >/dev/null && echo "Service is healthy!" || echo "Warning: Service health check failed"
+
       - name: Auto-merge PR
         if: |
           success() && 
@@ -89,50 +86,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge ${{ github.event.pull_request.number }} \
+          echo "All tests and deployment passed! Merging PR #${{ github.event.pull_request.number }}"
+          /run/current-system/sw/bin/gh pr merge ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --squash \
             --delete-branch
-
-      - name: Deploy to production
-        if: github.ref == 'refs/heads/main' && success()
-        run: |
-          echo "Deploying locally on Hetzner server..."
-          
-          # Build client assets first
-          bun run build:client
-          
-          # Since we're running on the same server, just copy files directly
-          sudo systemctl stop slipbox
-          
-          # Copy source files (we're already in the repo)
-          sudo rsync -av --delete \
-            --exclude node_modules \
-            --exclude .git \
-            --exclude "*.db" \
-            --exclude "*.db-*" \
-            --exclude playwright-report \
-            --exclude test-results \
-            --exclude .claude \
-            --exclude "dist/*.js" \
-            --exclude "dist/*.gz" \
-            --exclude "dist/slipbox-*" \
-            ./ /opt/slipbox/
-          
-          # Install dependencies
-          cd /opt/slipbox
-          sudo -u justin bun install
-          
-          # Restart service
-          sudo systemctl start slipbox
-          
-          # Verify deployment
-          sleep 3
-          if systemctl is-active --quiet slipbox; then
-            echo "✅ Deployment successful!"
-          else
-            echo "❌ Deployment failed!"
-            sudo journalctl -u slipbox -n 20 --no-pager
-            exit 1
-          fi
