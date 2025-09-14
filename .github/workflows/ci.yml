@@ -2,8 +2,6 @@ name: CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master, main, ci-fix-attempt-2]
   pull_request:
     branches: [master, main]
 
