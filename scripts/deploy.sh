@@ -37,24 +37,23 @@ echo -e "${GREEN}✓ Built binary (${BINARY_SIZE})${NC}"
 
 echo -e "${YELLOW}Deploying binary...${NC}"
 
-# Ensure binary directory exists
-sudo mkdir -p "$BINARY_DIR"
-sudo chown justin:users "$BINARY_DIR"
+# Ensure binary directory exists (should be owned by justin from NixOS config)
+mkdir -p "$BINARY_DIR"
 
 # Backup current binary if it exists
 if [ -f "$BINARY_DIR/$BINARY_NAME" ]; then
   cp "$BINARY_DIR/$BINARY_NAME" "$BINARY_DIR/$BINARY_NAME.backup"
 fi
 
-# Stop service
-sudo systemctl stop "$SERVICE_NAME"
+# Stop service (polkit allows justin to manage this without sudo)
+systemctl stop "$SERVICE_NAME"
 
 # Deploy new binary
 cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME"
 chmod +x "$BINARY_DIR/$BINARY_NAME"
 
-# Start service
-sudo systemctl start "$SERVICE_NAME"
+# Start service (polkit allows justin to manage this without sudo)
+systemctl start "$SERVICE_NAME"
 
 # Verify deployment
 sleep 3
@@ -75,8 +74,8 @@ else
   echo -e "${RED}✗ Service failed to start! Rolling back...${NC}"
   if [ -f "$BINARY_DIR/$BINARY_NAME.backup" ]; then
     mv "$BINARY_DIR/$BINARY_NAME.backup" "$BINARY_DIR/$BINARY_NAME"
-    sudo systemctl start "$SERVICE_NAME"
+    systemctl start "$SERVICE_NAME"
   fi
-  sudo journalctl -u "$SERVICE_NAME" -n 20 --no-pager
+  journalctl -u "$SERVICE_NAME" -n 20 --no-pager
   exit 1
 fi
