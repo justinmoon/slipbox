@@ -4,10 +4,9 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    playwright.url = "github:pietdevries94/playwright-web-flake/1.54.1";
   };
 
-  outputs = { self, nixpkgs, flake-utils, playwright }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -24,8 +23,8 @@
             nodePackages.typescript-language-server
             biome
             
-            # Testing - browsers only from playwright-web-flake
-            # The test runner comes from npm @playwright/test
+            # Testing - use playwright-driver browsers
+            playwright-driver.browsers
             
             # Utilities
             git
@@ -46,11 +45,13 @@
             echo "  Node: $(node --version)"
             echo "  TypeScript: $(tsc --version)"
             echo "  Biome: $(biome --version)"
+            echo "  Playwright browsers: ${pkgs.playwright-driver.browsers}"
           '';
           
-          # Use browsers from playwright-web-flake
-          PLAYWRIGHT_BROWSERS_PATH = "${playwright.packages.${system}.playwright-driver.browsers}";
+          # Tell Playwright to use Nix-provided browsers
+          PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
       in
@@ -147,23 +148,27 @@
             echo "..."
             echo ""
             echo "=== DEBUG: Playwright Environment ==="
-            echo "PLAYWRIGHT_BROWSERS_PATH: $PLAYWRIGHT_BROWSERS_PATH"
+            echo "PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH: $PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH"
             echo "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: $PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"
-            echo "PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: $PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS"
             echo "CI: $CI"
             echo "DISPLAY: $DISPLAY"
             echo ""
-            echo "=== FIXING: Setting up playwright browser path ==="
-            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
+            echo "=== FIXING: Using system Firefox ==="
+            export PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH="${if pkgs.stdenv.isDarwin
+              then "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox"
+              else "${pkgs.firefox}/bin/firefox"}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            echo "PLAYWRIGHT_BROWSERS_PATH: $PLAYWRIGHT_BROWSERS_PATH"
+            echo "PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH: $PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH"
             echo ""
-            echo "=== DEBUG: Browser Availability ==="
-            if [ -d "$PLAYWRIGHT_BROWSERS_PATH" ]; then
-              echo "Browser directory exists"
-              ls -la "$PLAYWRIGHT_BROWSERS_PATH" | head -10
+            echo "=== DEBUG: Firefox Availability ==="
+            FIREFOX_PATH="${if pkgs.stdenv.isDarwin
+              then "${pkgs.firefox}/Applications/Firefox.app/Contents/MacOS/firefox"
+              else "${pkgs.firefox}/bin/firefox"}"
+            if [ -x "$FIREFOX_PATH" ]; then
+              echo "Firefox executable exists and is executable at $FIREFOX_PATH"
+              $FIREFOX_PATH --version || true
             else
-              echo "WARNING: Browser directory does not exist!"
+              echo "WARNING: Firefox executable does not exist at $FIREFOX_PATH!"
             fi
             echo ""
             echo "=== DEBUG: Process Limits ==="
@@ -191,22 +196,15 @@
             }
             
             # Enter nix develop shell and run all commands
-            # Use standard PATH with npm playwright, but set browser path from playwright-web-flake
             export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
-            # Use browsers from playwright-web-flake
-            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
+            # Use playwright-driver browsers
+            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            # Force Chromium in CI since the pinned browsers are Chromium-only
-            export BROWSER=chrome
-            # Avoid broken DBUS env causing Chromium warnings/crashes
+            export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+            # Avoid broken DBUS env causing browser warnings/crashes
             unset DBUS_SESSION_BUS_ADDRESS || true
-            # Force Playwright to use the flake-pinned headless_shell binary regardless of DISPLAY/Xvfb
-            export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(ls -d ${playwright.packages.${system}.playwright-driver.browsers}/chromium_headless_shell-*/chrome-linux/headless_shell 2>/dev/null | head -n1)"
-            echo "Using Chromium executable: $PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"
+            echo "Using Playwright browsers from: $PLAYWRIGHT_BROWSERS_PATH"
             export CI=true
-            # Enable detailed Playwright debugging
-            export DEBUG="pw:browser*,pw:protocol"
-            export PLAYWRIGHT_DEBUG=1
             
             # Use the current directory (where nix run was executed)
             
@@ -244,13 +242,12 @@
 
             # Tooling env
             export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
-            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
+            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-            export BROWSER=chrome
+            export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
             unset DBUS_SESSION_BUS_ADDRESS || true
-            export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(ls -d ${playwright.packages.${system}.playwright-driver.browsers}/chromium_headless_shell-*/chrome-linux/headless_shell 2>/dev/null | head -n1)"
-
-            echo "Using Chromium executable: ''${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}"
+            
+            echo "Using Playwright browsers from: ''${PLAYWRIGHT_BROWSERS_PATH}"
             echo "Running single test target: ''${TEST_TARGET} (timeout ''${TIMEOUT_MS}ms)"
 
             ${pkgs.bun}/bin/bun install
