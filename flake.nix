@@ -114,40 +114,23 @@
             };
           };
         } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          # Production binary package - builds binary inside derivation (Linux only)
-          slipbox-binary = pkgs.stdenv.mkDerivation {
+          # Production binary package - wraps pre-built binary (Linux only)
+          # The binary must be built first using scripts/build-binary.sh
+          slipbox-binary = pkgs.stdenvNoCC.mkDerivation {
             pname = "slipbox-binary";
             version = "1.0.0";
             
-            src = ./.;
-            
-            nativeBuildInputs = with pkgs; [
-              bun
-              nodejs_20
-              nodePackages.typescript
-              biome
-            ];
-            
-            buildPhase = ''
-              # Copy source to build directory
-              cp -r . $TMPDIR/build
-              cd $TMPDIR/build
-              
-              # Install dependencies
-              bun install --frozen-lockfile
-              
-              # Build client assets
-              bun run build:client
-              
-              # Build the standalone binary with embedded assets
-              NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts \
-                --compile --target=bun-linux-x64 --outfile slipbox-binary
-            '';
+            dontUnpack = true;
             
             installPhase = ''
               mkdir -p $out/bin
-              cp slipbox-binary $out/bin/slipbox
-              chmod +x $out/bin/slipbox
+              if [ -f ${./dist/slipbox-linux} ]; then
+                cp ${./dist/slipbox-linux} $out/bin/slipbox
+                chmod +x $out/bin/slipbox
+              else
+                echo "Error: dist/slipbox-linux not found. Run scripts/build-binary.sh first."
+                exit 1
+              fi
             '';
             
             meta = with pkgs.lib; {

@@ -34,7 +34,9 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          echo "Building production binary package..."
+          echo "Building production binary with script..."
+          bash scripts/build-binary.sh
+          echo "Building Nix package wrapper..."
           out=$(nix build --no-link --print-out-paths .#slipbox-binary)
           echo "Built package: $out"
           echo "Installing to system profile..."
