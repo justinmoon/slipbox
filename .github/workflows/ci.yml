@@ -30,13 +30,19 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      - name: Auto-merge Dependabot PRs
-        if: github.actor == 'dependabot[bot]' && success()
+      - name: Auto-merge PR
+        if: |
+          success() && 
+          github.event_name == 'pull_request' && 
+          github.event.pull_request.user.login == github.repository_owner
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr merge --auto --merge "${{ github.event.pull_request.html_url }}"
-          gh pr review --approve "${{ github.event.pull_request.html_url }}"
+          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --squash \
+            --delete-branch
 
       - name: Deploy to production
         if: github.ref == 'refs/heads/main' && success()
