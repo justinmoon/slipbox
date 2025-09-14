@@ -21,29 +21,8 @@ jobs:
 
       - name: Run checks and tests in Nix environment
         run: |
-          # Enter Nix shell and run all checks
-          nix develop --command bash -c "
-            set -e
-            
-            echo '=== Installing dependencies ==='
-            bun install
-            
-            echo '=== Running biome checks ==='
-            biome check .
-            
-            echo '=== Running TypeScript type check ==='
-            tsc --noEmit
-            
-            echo '=== Setting up test data directory ==='
-            mkdir -p ~/.slipbox-dev
-            
-            echo '=== Building application ==='
-            bun run build
-            
-            echo '=== Running tests ==='
-            export CI=true
-            bun run test:ci
-          "
+          # Use our CI runner that works properly
+          nix run .#ci
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
