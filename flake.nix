@@ -198,6 +198,8 @@
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             # Force Chromium in CI since the pinned browsers are Chromium-only
             export BROWSER=chrome
+            # Avoid broken DBUS env causing Chromium warnings/crashes
+            unset DBUS_SESSION_BUS_ADDRESS || true
             export CI=true
             # Enable detailed Playwright debugging
             export DEBUG="pw:browser*,pw:protocol"

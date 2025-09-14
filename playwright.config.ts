@@ -65,6 +65,16 @@ export default defineConfig({
               ...devices["Desktop Chrome"],
               // Force headless mode in CI
               headless: process.env.CI ? true : undefined,
+              // Extra stability flags for CI / headless environments
+              launchOptions: {
+                args: [
+                  "--no-sandbox",
+                  "--disable-gpu",
+                  "--in-process-gpu",
+                  "--disable-software-rasterizer",
+                  "--disable-dev-shm-usage",
+                ],
+              },
             },
           },
         ]
