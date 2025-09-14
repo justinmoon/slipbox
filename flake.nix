@@ -153,6 +153,11 @@
             echo "CI: $CI"
             echo "DISPLAY: $DISPLAY"
             echo ""
+            echo "=== FIXING: Setting up playwright browser path ==="
+            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
+            export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+            echo "PLAYWRIGHT_BROWSERS_PATH: $PLAYWRIGHT_BROWSERS_PATH"
+            echo ""
             echo "=== DEBUG: Browser Availability ==="
             if [ -d "$PLAYWRIGHT_BROWSERS_PATH" ]; then
               echo "Browser directory exists"
