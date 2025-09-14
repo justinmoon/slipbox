@@ -196,6 +196,8 @@
             # Use browsers from playwright-web-flake
             export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+            # Force Chromium in CI since the pinned browsers are Chromium-only
+            export BROWSER=chrome
             export CI=true
             # Enable detailed Playwright debugging
             export DEBUG="pw:browser*,pw:protocol"
