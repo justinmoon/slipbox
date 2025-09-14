@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, fresh-ci-test]
   pull_request:
     branches: [master, main]
 
 jobs:
   test:
-    runs-on: [self-hosted, linux, nixos, hetzner]
+    runs-on: self-hosted
 
     permissions:
       contents: write
