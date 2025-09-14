@@ -30,44 +30,15 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+      - name: Auto-merge Dependabot PRs
+        if: github.actor == 'dependabot[bot]' && success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge --auto --merge "${{ github.event.pull_request.html_url }}"
+          gh pr review --approve "${{ github.event.pull_request.html_url }}"
+
       - name: Deploy to production
         if: github.ref == 'refs/heads/main' && success()
         run: |
-          echo "Deploying locally on Hetzner server..."
-          
-          # Build client assets first
-          nix develop --command bun run build:client
-          
-          # Since we're running on the same server, just copy files directly
-          sudo systemctl stop slipbox
-          
-          # Copy source files (we're already in the repo)
-          sudo rsync -av --delete \
-            --exclude node_modules \
-            --exclude .git \
-            --exclude "*.db" \
-            --exclude "*.db-*" \
-            --exclude playwright-report \
-            --exclude test-results \
-            --exclude .claude \
-            --exclude "dist/*.js" \
-            --exclude "dist/*.gz" \
-            --exclude "dist/slipbox-*" \
-            ./ /opt/slipbox/
-          
-          # Install dependencies
-          cd /opt/slipbox
-          sudo -u justin bun install
-          
-          # Restart service
-          sudo systemctl start slipbox
-          
-          # Verify deployment
-          sleep 3
-          if systemctl is-active --quiet slipbox; then
-            echo "✅ Deployment successful!"
-          else
-            echo "❌ Deployment failed!"
-            sudo journalctl -u slipbox -n 20 --no-pager
-            exit 1
-          fi
+          ./scripts/deploy.sh
