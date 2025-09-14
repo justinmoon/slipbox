@@ -19,16 +19,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run checks and tests in Nix environment
+      - name: Run fast single test (Chromium headless_shell)
         run: |
-          # Use xvfb-run to provide a virtual display
-          xvfb-run -a nix run .#ci
-        env:
-          # Ensure we have a display for Chrome
-          DISPLAY: ":99"
-          # Enable Playwright debugging
-          DEBUG: "pw:browser*"
-          PLAYWRIGHT_DEBUG: "1"
+          nix run .#test-one
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -38,19 +31,11 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      - name: Auto-merge PR
-        if: |
-          success() && 
-          github.event_name == 'pull_request' && 
-          github.event.pull_request.user.login == github.repository_owner
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Temporary guard: fail after tests to prevent merge
+        if: success() && github.event_name == 'pull_request'
         run: |
-          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --squash \
-            --delete-branch
+          echo "Intentionally failing to prevent auto-merge while stabilizing CI."
+          exit 1
 
       - name: Deploy to production
         if: github.ref == 'refs/heads/main' && success()

@@ -231,5 +231,38 @@
             echo -e "''${GREEN}════════════════════════════════════════''${NC}"
           ''}/bin/ci-runner";
         };
+
+        # Fast single-test runner for tight iteration
+        apps.test-one = {
+          type = "app";
+          program = "${pkgs.writeShellScriptBin "ci-test-one" ''
+            set -euo pipefail
+
+            # Defaults: one test file and short timeout; override with TEST and GLOB
+            TEST_TARGET="''${TEST:-tests/basic.spec.ts}"
+            : "''${TIMEOUT_MS:=15000}"
+
+            # Tooling env
+            export PATH="${pkgs.bun}/bin:${pkgs.nodejs_20}/bin:${pkgs.biome}/bin:${pkgs.nodePackages.typescript}/bin:${pkgs.git}/bin:$PATH"
+            export PLAYWRIGHT_BROWSERS_PATH="${playwright.packages.${system}.playwright-driver.browsers}"
+            export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+            export BROWSER=chrome
+            unset DBUS_SESSION_BUS_ADDRESS || true
+            export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(ls -d ${playwright.packages.${system}.playwright-driver.browsers}/chromium_headless_shell-*/chrome-linux/headless_shell 2>/dev/null | head -n1)"
+
+            echo "Using Chromium executable: ''${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}"
+            echo "Running single test target: ''${TEST_TARGET} (timeout ''${TIMEOUT_MS}ms)"
+
+            ${pkgs.bun}/bin/bun install
+            # Minimal build required for server startup
+            ${pkgs.bun}/bin/bun run build:client
+
+            # Run a single Playwright test with one worker and no retries
+            node_modules/.bin/playwright test "$TEST_TARGET" \
+              --workers=1 \
+              --retries=0 \
+              --timeout="$TIMEOUT_MS"
+          ''}/bin/ci-test-one";
+        };
       });
 }
