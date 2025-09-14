@@ -12,12 +12,14 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-SERVER="justin@167.99.112.42"
-APP_DIR="~/apps/slipbox"
+SERVER="justin@135.181.179.143"
+APP_DIR="/opt/slipbox"
+BINARY_DIR="${APP_DIR}/bin"
+DATA_DIR="/var/lib/slipbox"
 BINARY_NAME="slipbox-server"
 SERVICE_NAME="slipbox"
 
-echo -e "${GREEN}🚀 Starting deployment to DigitalOcean...${NC}"
+echo -e "${GREEN}🚀 Starting deployment to Hetzner...${NC}"
 
 # Step 1: Build client modules and CSS
 echo -e "\n${YELLOW}📦 Building client modules...${NC}"
@@ -56,11 +58,11 @@ echo -e "\n${YELLOW}📤 Uploading to server...${NC}"
 if command -v pv &> /dev/null; then
     # Use pv for progress bar
     FILE_SIZE=$(stat -f%z dist/slipbox-deploy.tar.gz 2>/dev/null || stat -c%s dist/slipbox-deploy.tar.gz 2>/dev/null)
-    pv -p -e -s ${FILE_SIZE} dist/slipbox-deploy.tar.gz | ssh ${SERVER} "cat > ${APP_DIR}/slipbox-deploy.tar.gz"
+    pv -p -e -s ${FILE_SIZE} dist/slipbox-deploy.tar.gz | ssh ${SERVER} "cat > /tmp/slipbox-deploy.tar.gz"
 else
     # Fall back to scp with verbose output for some progress indication
     echo -e "${YELLOW}   (Installing 'pv' will show a progress bar: brew install pv)${NC}"
-    scp -v dist/slipbox-deploy.tar.gz ${SERVER}:${APP_DIR}/ 2>&1 | grep -E "Sending file|Transferred" | while IFS= read -r line; do
+    scp -v dist/slipbox-deploy.tar.gz ${SERVER}:/tmp/ 2>&1 | grep -E "Sending file|Transferred" | while IFS= read -r line; do
         echo -e "${YELLOW}   → ${line}${NC}"
     done
     # Check if scp succeeded (since we're piping output)
@@ -71,144 +73,48 @@ else
 fi
 
 # Step 6: Deploy on server
-echo -e "\n${YELLOW}🔧 Syncing systemd service files...${NC}"
-# Compare and sync systemd service file if different
-TEMP_SERVICE_FILE=$(mktemp)
-ssh ${SERVER} "cat /etc/systemd/system/slipbox.service" > ${TEMP_SERVICE_FILE} 2>/dev/null || true
+# Skipping systemd service sync - managed by NixOS
+echo -e "\n${YELLOW}🔧 Systemd service managed by NixOS, skipping sync...${NC}"
 
-if [ -f "contrib/slipbox.service" ]; then
-    if ! cmp -s "contrib/slipbox.service" ${TEMP_SERVICE_FILE}; then
-        echo -e "${YELLOW}   Service file differs, updating on server...${NC}"
-        scp contrib/slipbox.service ${SERVER}:/tmp/slipbox.service
-        ssh ${SERVER} "sudo mv /tmp/slipbox.service /etc/systemd/system/slipbox.service && sudo systemctl daemon-reload"
-        echo -e "${GREEN}   ✓ Service file updated${NC}"
-    else
-        echo -e "${GREEN}   ✓ Service file is up to date${NC}"
-    fi
-else
-    echo -e "${RED}   ⚠ contrib/slipbox.service not found in repo${NC}"
-fi
-rm -f ${TEMP_SERVICE_FILE}
-
-# Update backup service files if they exist on the server
-echo -e "\n${YELLOW}🔧 Checking for backup service files...${NC}"
-BACKUP_EXISTS=$(ssh ${SERVER} "ls /etc/systemd/system/slipbox-backup*.service 2>/dev/null | head -1" || echo "")
-
-if [ -n "${BACKUP_EXISTS}" ]; then
-    echo -e "${YELLOW}   Backup service detected, checking for updates...${NC}"
-    
-    # Determine if it's the old templated (@justin) or new non-templated version
-    if ssh ${SERVER} "test -f /etc/systemd/system/slipbox-backup@.service"; then
-        # Old templated version exists, need to migrate
-        echo -e "${YELLOW}   Migrating from templated to non-templated backup service...${NC}"
-        
-        # Upload new service files
-        scp contrib/slipbox-backup.service ${SERVER}:/tmp/
-        scp contrib/slipbox-backup.timer ${SERVER}:/tmp/
-        
-        # Migrate on server
-        ssh ${SERVER} << 'MIGRATE_BACKUP'
-            set -e
-            # Stop old timer
-            sudo systemctl stop slipbox-backup@justin.timer 2>/dev/null || true
-            sudo systemctl disable slipbox-backup@justin.timer 2>/dev/null || true
-            
-            # Install new service files
-            sudo mv /tmp/slipbox-backup.service /etc/systemd/system/
-            sudo mv /tmp/slipbox-backup.timer /etc/systemd/system/
-            
-            # Remove old templated files
-            sudo rm -f /etc/systemd/system/slipbox-backup@.service
-            sudo rm -f /etc/systemd/system/slipbox-backup@*.timer
-            
-            # Reload and start new timer
-            sudo systemctl daemon-reload
-            sudo systemctl enable slipbox-backup.timer
-            sudo systemctl start slipbox-backup.timer
-            
-            echo "   ✓ Migrated to non-templated backup service"
-MIGRATE_BACKUP
-        echo -e "${GREEN}   ✓ Backup service migrated successfully${NC}"
-        
-    elif ssh ${SERVER} "test -f /etc/systemd/system/slipbox-backup.service"; then
-        # Already using non-templated version, just update if needed
-        TEMP_BACKUP_SERVICE=$(mktemp)
-        TEMP_BACKUP_TIMER=$(mktemp)
-        
-        ssh ${SERVER} "cat /etc/systemd/system/slipbox-backup.service" > ${TEMP_BACKUP_SERVICE} 2>/dev/null || true
-        ssh ${SERVER} "cat /etc/systemd/system/slipbox-backup.timer" > ${TEMP_BACKUP_TIMER} 2>/dev/null || true
-        
-        NEEDS_UPDATE=false
-        
-        if [ -f "contrib/slipbox-backup.service" ] && ! cmp -s "contrib/slipbox-backup.service" ${TEMP_BACKUP_SERVICE}; then
-            echo -e "${YELLOW}   Backup service file differs, updating...${NC}"
-            scp contrib/slipbox-backup.service ${SERVER}:/tmp/
-            NEEDS_UPDATE=true
-        fi
-        
-        if [ -f "contrib/slipbox-backup.timer" ] && ! cmp -s "contrib/slipbox-backup.timer" ${TEMP_BACKUP_TIMER}; then
-            echo -e "${YELLOW}   Backup timer file differs, updating...${NC}"
-            scp contrib/slipbox-backup.timer ${SERVER}:/tmp/
-            NEEDS_UPDATE=true
-        fi
-        
-        if [ "${NEEDS_UPDATE}" = true ]; then
-            ssh ${SERVER} << 'UPDATE_BACKUP'
-                set -e
-                if [ -f /tmp/slipbox-backup.service ]; then
-                    sudo mv /tmp/slipbox-backup.service /etc/systemd/system/
-                fi
-                if [ -f /tmp/slipbox-backup.timer ]; then
-                    sudo mv /tmp/slipbox-backup.timer /etc/systemd/system/
-                fi
-                sudo systemctl daemon-reload
-                sudo systemctl restart slipbox-backup.timer
-                echo "   ✓ Backup service files updated"
-UPDATE_BACKUP
-            echo -e "${GREEN}   ✓ Backup service updated successfully${NC}"
-        else
-            echo -e "${GREEN}   ✓ Backup service files are up to date${NC}"
-        fi
-        
-        rm -f ${TEMP_BACKUP_SERVICE} ${TEMP_BACKUP_TIMER}
-    fi
-else
-    echo -e "${YELLOW}   No backup service found on server (run setup-backup.sh to install)${NC}"
-fi
+# Backup services will be managed separately via setup-backup.sh script
 
 echo -e "\n${YELLOW}🔄 Deploying on server...${NC}"
-ssh ${SERVER} << 'ENDSSH'
+ssh ${SERVER} << ENDSSH
     set -e
-    cd ~/apps/slipbox
     
-    # Backup current binary only (not the entire dist)
-    if [ -f slipbox-server ]; then
-        cp slipbox-server slipbox-server.backup
+    # Ensure directories exist
+    sudo mkdir -p ${BINARY_DIR}
+    sudo chown ${USER}:users ${BINARY_DIR}
+    
+    # Backup current binary if it exists
+    if [ -f ${BINARY_DIR}/${BINARY_NAME} ]; then
+        cp ${BINARY_DIR}/${BINARY_NAME} ${BINARY_DIR}/${BINARY_NAME}.backup
     fi
     
-    # Extract and install new binary (assets are embedded)
+    # Extract and install new binary
+    cd /tmp
     mv slipbox-deploy.tar.gz slipbox-linux.gz
     gunzip -f slipbox-linux.gz
-    mv slipbox-linux slipbox-server
-    chmod +x slipbox-server
+    mv slipbox-linux ${BINARY_DIR}/${BINARY_NAME}
+    chmod +x ${BINARY_DIR}/${BINARY_NAME}
     
     # Clean up deployment file
     rm -f slipbox-linux.gz 2>/dev/null || true
     
     # Restart service
-    sudo systemctl restart slipbox
+    sudo systemctl restart ${SERVICE_NAME}
     
     # Wait for service to start
     sleep 2
     
     # Check if service is running
-    if systemctl is-active --quiet slipbox; then
+    if systemctl is-active --quiet ${SERVICE_NAME}; then
         echo "✓ Service restarted successfully"
     else
         echo "❌ Service failed to start! Rolling back..."
-        if [ -f slipbox-server.backup ]; then
-            mv slipbox-server.backup slipbox-server
-            sudo systemctl restart slipbox
+        if [ -f ${BINARY_DIR}/${BINARY_NAME}.backup ]; then
+            mv ${BINARY_DIR}/${BINARY_NAME}.backup ${BINARY_DIR}/${BINARY_NAME}
+            sudo systemctl restart ${SERVICE_NAME}
         fi
         exit 1
     fi
@@ -218,10 +124,10 @@ ssh ${SERVER} << 'ENDSSH'
         echo "✓ App is responding on port 3000"
         echo "✓ Deployment successful"
         # Clean up backup file after successful deployment
-        rm -f slipbox-server.backup
+        rm -f ${BINARY_DIR}/${BINARY_NAME}.backup
         echo "✓ Cleaned up backup file"
     else
-        echo "❌ App is not responding! Check logs with: sudo journalctl -u slipbox -n 50"
+        echo "❌ App is not responding! Check logs with: sudo journalctl -u ${SERVICE_NAME} -n 50"
         exit 1
     fi
 ENDSSH

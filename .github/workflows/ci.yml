@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, nixos, hetzner]
 
     permissions:
       contents: write
@@ -93,18 +93,37 @@ jobs:
             --delete-branch
 
       - name: Deploy to production
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        if: github.ref == 'refs/heads/main' && success()
         run: |
-          echo "Running deployment test..."
+          echo "Deploying locally on Hetzner server..."
           
-          # Setup SSH
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 167.99.112.42 >> ~/.ssh/known_hosts
+          # Since we're running on the same server, just copy files directly
+          sudo systemctl stop slipbox
           
-          # Run the deploy script
-          bun run deploy
+          # Copy source files (we're already in the repo)
+          sudo rsync -av --delete \
+            --exclude node_modules \
+            --exclude .git \
+            --exclude "*.db" \
+            --exclude "*.db-*" \
+            --exclude dist \
+            --exclude playwright-report \
+            --exclude test-results \
+            ./ /opt/slipbox/
           
-          echo "Deployment completed successfully"
+          # Install dependencies
+          cd /opt/slipbox
+          sudo -u justin bun install --production
+          
+          # Restart service
+          sudo systemctl start slipbox
+          
+          # Verify deployment
+          sleep 3
+          if systemctl is-active --quiet slipbox; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+            sudo journalctl -u slipbox -n 20 --no-pager
+            exit 1
+          fi
