@@ -2,6 +2,8 @@
 
 A Zettelkasten-style note-taking app built with Datastar framework and Bun.
 
+Now with self-hosted CI/CD on Hetzner!
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0.0 or higher)
