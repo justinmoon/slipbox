@@ -50,9 +50,10 @@
             echo "  Biome: $(biome --version)"
           '';
           
-          # Set up environment variables
+          # Set up environment variables for Playwright
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
           PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
+          PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
       in
