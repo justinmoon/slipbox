@@ -44,7 +44,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { 
+      use: {
         ...devices["Desktop Chrome"],
         // Force headless mode in CI
         headless: process.env.CI ? true : undefined,
