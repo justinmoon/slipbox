@@ -29,8 +29,10 @@ const port = 3003; // Use a fixed port for now to debug
 
 function resolveHeadlessShellExecutable(): string | undefined {
   // Prefer explicit override if provided
-  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH &&
-      fs.existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH)) {
+  if (
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH &&
+    fs.existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH)
+  ) {
     return process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
   }
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH;
@@ -38,7 +40,12 @@ function resolveHeadlessShellExecutable(): string | undefined {
   try {
     const entries = fs.readdirSync(base, { withFileTypes: true });
     const candidates = entries
-      .filter((e) => e.isDirectory() && (e.name.startsWith("chromium_headless_shell-") || e.name.startsWith("chromium-headless-shell-")))
+      .filter(
+        (e) =>
+          e.isDirectory() &&
+          (e.name.startsWith("chromium_headless_shell-") ||
+            e.name.startsWith("chromium-headless-shell-")),
+      )
       .map((e) => path.join(base, e.name, "chrome-linux", "headless_shell"));
     for (const p of candidates) {
       if (fs.existsSync(p)) return p;
