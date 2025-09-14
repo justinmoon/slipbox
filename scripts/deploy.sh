@@ -44,14 +44,25 @@ if [ -f "$BINARY_DIR/$BINARY_NAME" ]; then
   cp "$BINARY_DIR/$BINARY_NAME" "$BINARY_DIR/$BINARY_NAME.backup"
 fi
 
-# Stop service (polkit allows justin to manage this without sudo)
+# In CI environment, we can't restart services due to NoNewPrivileges
+# So just deploy the binary and let a separate process handle restarts
+if [ "$CI" = "true" ]; then
+  echo -e "${YELLOW}Running in CI - deploying binary only${NC}"
+  cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME"
+  chmod +x "$BINARY_DIR/$BINARY_NAME"
+  echo -e "${GREEN}✓ Binary deployed successfully${NC}"
+  echo -e "${YELLOW}Note: Service restart will be handled separately${NC}"
+  exit 0
+fi
+
+# Non-CI deployment: stop, deploy, start
 systemctl stop "$SERVICE_NAME"
 
 # Deploy new binary
 cp dist/slipbox-linux "$BINARY_DIR/$BINARY_NAME"
 chmod +x "$BINARY_DIR/$BINARY_NAME"
 
-# Start service (polkit allows justin to manage this without sudo)
+# Start service 
 systemctl start "$SERVICE_NAME"
 
 # Verify deployment
