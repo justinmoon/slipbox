@@ -3,7 +3,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [master, main, playwright-fix]
+    branches: [master, main, fix-runner-v2]
   pull_request:
     branches: [master, main]
 
