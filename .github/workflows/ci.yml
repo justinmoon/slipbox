@@ -36,13 +36,34 @@ jobs:
           set -euo pipefail
           echo "Building production binary with script..."
           bash scripts/build-binary.sh
-          echo "Building Nix package wrapper..."
-          out=$(nix build --no-link --print-out-paths .#slipbox-binary)
+          
+          echo "Adding binary to Nix store..."
+          # Add the binary directly to the store
+          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox)
+          echo "Binary added to store: $STORE_PATH"
+          
+          # Create a simple derivation that references the binary
+          cat > default.nix <<'NIXEOF'
+          { pkgs ? import <nixpkgs> {} }:
+          pkgs.runCommand "slipbox-binary" {} ''
+            mkdir -p $out/bin
+            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox
+          ''
+          NIXEOF
+          
+          # Replace placeholder with actual store path
+          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" default.nix
+          
+          echo "Building wrapper package..."
+          out=$(nix-build default.nix --no-out-link)
           echo "Built package: $out"
+          
           echo "Installing to system profile..."
-          sudo /run/current-system/sw/bin/nix profile install --profile /nix/var/nix/profiles/slipbox "$out"
+          sudo nix profile install --profile /nix/var/nix/profiles/slipbox "$out"
+          
           echo "Restarting service..."
           sudo systemctl restart slipbox
+          
           echo "Verifying service health..."
           sleep 2
           sudo systemctl is-active slipbox
