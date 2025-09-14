@@ -22,6 +22,12 @@ jobs:
       - name: DEBUG - Test nix run .#test-one in CI environment
         run: |
           echo "Testing if nix run .#test-one works in GitHub Actions..."
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "Looking for flake.nix..."
+          find . -name "flake.nix" -type f | head -5
+          echo "Running nix test..."
           nix run .#test-one
 
       - name: DEBUG - Intentional failure to prevent merge
