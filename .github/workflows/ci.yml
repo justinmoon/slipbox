@@ -87,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "All tests and deployment passed! Merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge ${{ github.event.pull_request.number }} \
+          /run/current-system/sw/bin/gh pr merge ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --squash \
             --delete-branch
