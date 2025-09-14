@@ -19,19 +19,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug environment
-        run: |
-          echo "=== Environment Variables ==="
-          env | grep -E "(DISPLAY|PLAYWRIGHT|DEBUG|PATH|USER|HOME)" || true
-          echo "=== Process Info ==="
-          ps aux | grep -E "(github|runner)" | head -5
-          echo "=== Systemd Context ==="
-          systemctl show --property=NoNewPrivileges,PrivateUsers,ProtectHome,ProtectSystem $$
-          
       - name: Run checks and tests in Nix environment
         run: |
-          # Use our CI runner that works properly
-          nix run .#ci
+          # Use xvfb-run to provide a virtual display
+          xvfb-run -a nix run .#ci
+        env:
+          # Ensure we have a display for Chrome
+          DISPLAY: ":99"
+          # Enable Playwright debugging
+          DEBUG: "pw:browser*"
+          PLAYWRIGHT_DEBUG: "1"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
