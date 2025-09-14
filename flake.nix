@@ -214,24 +214,31 @@
             run_step 5 5 "Running tests" \
               ${pkgs.bun}/bin/bun run test:ci || {
                 echo ""
-                echo -e "''${RED}=== DEBUG: Test Failure Analysis ===''${NC}"
-                echo "Tests failed. Checking for common issues..."
+                echo -e "''${YELLOW}⚠️  Chrome tests failed, trying Firefox...''${NC}"
                 echo ""
-                echo "1. Checking for Chrome processes:"
-                ps aux | grep -i chrome | head -5 || echo "No chrome processes found"
-                echo ""
-                echo "2. Checking tmp directory:"
-                ls -la /tmp | grep -i playwright | head -5 || echo "No playwright files in /tmp"
-                echo ""
-                echo "3. System error messages:"
-                dmesg | tail -20 2>/dev/null || echo "Cannot read dmesg"
-                echo ""
-                echo "4. Directory permissions:"
-                ls -ld . ~/.slipbox-dev /tmp 2>/dev/null
-                echo ""
-                echo "5. Socket path length check:"
-                echo "Current path + socket would be: $(pwd | wc -c) + ~50 = ~$(($(pwd | wc -c) + 50)) chars"
-                echo "(Linux socket path limit is 108 chars)"
+                # Try Firefox as backup
+                BROWSER=firefox ${pkgs.bun}/bin/bun run test:ci || {
+                  echo ""
+                  echo -e "''${RED}=== DEBUG: Test Failure Analysis ===''${NC}"
+                  echo "Both Chrome and Firefox tests failed. Checking for common issues..."
+                  echo ""
+                  echo "1. Checking for Chrome processes:"
+                  ps aux | grep -i chrome | head -5 || echo "No chrome processes found"
+                  echo ""
+                  echo "2. Checking tmp directory:"
+                  ls -la /tmp | grep -i playwright | head -5 || echo "No playwright files in /tmp"
+                  echo ""
+                  echo "3. System error messages:"
+                  dmesg | tail -20 2>/dev/null || echo "Cannot read dmesg"
+                  echo ""
+                  echo "4. Directory permissions:"
+                  ls -ld . ~/.slipbox-dev /tmp 2>/dev/null
+                  echo ""
+                  echo "5. Socket path length check:"
+                  echo "Current path + socket would be: $(pwd | wc -c) + ~50 = ~$(($(pwd | wc -c) + 50)) chars"
+                  echo "(Linux socket path limit is 108 chars)"
+                  exit 1
+                }
                 exit 1
               }
             

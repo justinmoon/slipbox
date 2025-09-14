@@ -42,14 +42,25 @@ export default defineConfig({
   },
 
   projects: [
-    {
+    // Primary browser (Chrome) - use if BROWSER env var is not set or set to "chrome"
+    ...(!process.env.BROWSER || process.env.BROWSER === "chrome" ? [{
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
         // Force headless mode in CI
         headless: process.env.CI ? true : undefined,
       },
-    },
+    }] : []),
+    
+    // Backup browser (Firefox) - use if BROWSER env var is set to "firefox"
+    ...(process.env.BROWSER === "firefox" ? [{
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        // Force headless mode in CI
+        headless: process.env.CI ? true : undefined,
+      },
+    }] : []),
   ],
 
   webServer: {
