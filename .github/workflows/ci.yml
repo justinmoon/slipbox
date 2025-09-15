@@ -34,49 +34,48 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          echo "Building production binary with script..."
+          echo "=== Deployment v2: CI User Profile ==="
+          echo "Building production binary..."
           bash scripts/build-binary.sh
           
           echo "Adding binary to Nix store..."
-          # Add the binary directly to the store
-          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox)
+          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox-server)
           echo "Binary added to store: $STORE_PATH"
           
-          # Create a simple derivation that references the binary
-          cat > default.nix <<'NIXEOF'
+          # Create wrapper package
+          cat > slipbox-wrapper.nix <<'NIXEOF'
           { pkgs ? import <nixpkgs> {} }:
-          pkgs.runCommand "slipbox-binary" {} ''
+          pkgs.runCommand "slipbox-server" {} ''
             mkdir -p $out/bin
-            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox
+            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox-server
           ''
           NIXEOF
           
-          # Replace placeholder with actual store path
-          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" default.nix
+          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" slipbox-wrapper.nix
           
           echo "Building wrapper package..."
-          out=$(nix-build default.nix --no-out-link)
-          echo "Built package: $out"
+          WRAPPER_PATH=$(nix-build slipbox-wrapper.nix --no-out-link)
+          echo "Built package: $WRAPPER_PATH"
           
-          echo "Installing to user profile..."
-          # Use a user-owned profile that doesn't require sudo
-          mkdir -p ~/.nix-profiles
-          nix profile install --profile ~/.nix-profiles/slipbox "$out"
+          echo "Installing to CI user's profile..."
+          # Install to CI user's profile (justin has sudo rights to do this)
+          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH" 2>/dev/null || \
+          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH"
           
-          echo "Creating symlink for service..."
-          # Create a symlink that the service can use (in justin's home)
-          rm -f /home/justin/slipbox-binary
-          ln -s ~/.nix-profiles/slipbox/bin/slipbox /home/justin/slipbox-binary
+          echo "Restarting service (CI user has polkit permissions)..."
+          sudo -u ci systemctl restart slipbox
           
-          echo "Triggering service restart via touch file..."
-          # Touch a file that a watcher can detect to restart the service
-          touch /home/justin/slipbox-deploy-trigger
-          
-          echo "Waiting for service restart..."
+          echo "Waiting for service to start..."
           sleep 5
           
           echo "Verifying service health..."
-          curl -fsS http://localhost:3000/ >/dev/null && echo "Service is healthy!" || echo "Warning: Service health check failed"
+          if systemctl is-active slipbox && curl -fsS http://localhost:3000/ >/dev/null; then
+            echo "✅ Deployment successful! Service is healthy"
+          else
+            echo "❌ Service health check failed"
+            systemctl status slipbox --no-pager | head -20
+            exit 1
+          fi
 
       - name: Auto-merge PR
         if: |
