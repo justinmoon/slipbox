@@ -32,7 +32,7 @@ jobs:
 
       - name: Deploy to production
         if: success()
-        run: ci-deploy slipbox dist/slipbox-linux
+        run: ci-deploy slipbox dist/slipbox
 
       - name: Auto-merge PR
         if: |

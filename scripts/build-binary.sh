@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}Building production binary...${NC}"
 
 # Clean up any previous build artifacts
-rm -f dist/slipbox-linux dist/slipbox-darwin
+rm -f dist/slipbox dist/slipbox-linux dist/slipbox-darwin
 
 # Build client assets first
 echo -e "${YELLOW}Building client assets...${NC}"
@@ -19,15 +19,14 @@ bun run build:client
 # Build the binary for current platform
 echo -e "${YELLOW}Building binary with embedded assets...${NC}"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --outfile dist/slipbox-darwin
-    BINARY_FILE="dist/slipbox-darwin"
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --outfile dist/slipbox
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
-    BINARY_FILE="dist/slipbox-linux"
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox
 else
     echo -e "${RED}Unsupported platform: $OSTYPE${NC}"
     exit 1
 fi
+BINARY_FILE="dist/slipbox"
 
 # Check binary was created
 if [ ! -f "$BINARY_FILE" ]; then
