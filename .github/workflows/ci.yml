@@ -20,9 +20,7 @@ jobs:
 
       - name: Run CI
         run: |
-          # TODO: Re-enable tests once deployment is fixed
-          # nix run .#ci
-          echo "Skipping tests temporarily for faster iteration"
+          nix run .#ci
 
       - name: Build production package
         if: success()
