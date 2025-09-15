@@ -17,17 +17,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: /build/slipbox
 
       - name: Run CI
-        working-directory: /build/slipbox
         run: |
           nix run .#ci
 
       - name: Build production package
         if: success()
-        working-directory: /build/slipbox
         run: |
           nix build .#slipbox
           echo "Store path: $(readlink result)"
@@ -37,13 +33,18 @@ jobs:
         if: always()
         with:
           name: playwright-report
-          path: /build/slipbox/playwright-report/
+          path: playwright-report/
           retention-days: 30
 
       - name: Deploy to production
         if: success()
-        working-directory: /build/slipbox
-        run: ci-deploy slipbox .#slipbox
+        run: |
+          # Clean and sync to consistent build directory for nix profile tracking
+          rm -rf /build/slipbox
+          mkdir -p /build/slipbox
+          cp -r . /build/slipbox/
+          cd /build/slipbox
+          ci-deploy slipbox .#slipbox
 
       - name: Auto-merge PR
         if: |
