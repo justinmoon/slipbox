@@ -32,50 +32,7 @@ jobs:
 
       - name: Deploy to production
         if: success()
-        run: |
-          set -euo pipefail
-          echo "=== Deployment v2: CI User Profile ==="
-          echo "Building production binary..."
-          bash scripts/build-binary.sh
-          
-          echo "Adding binary to Nix store..."
-          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox-server)
-          echo "Binary added to store: $STORE_PATH"
-          
-          # Create wrapper package
-          cat > slipbox-wrapper.nix <<'NIXEOF'
-          { pkgs ? import <nixpkgs> {} }:
-          pkgs.runCommand "slipbox-server" {} ''
-            mkdir -p $out/bin
-            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox-server
-          ''
-          NIXEOF
-          
-          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" slipbox-wrapper.nix
-          
-          echo "Building wrapper package..."
-          WRAPPER_PATH=$(nix-build slipbox-wrapper.nix --no-out-link)
-          echo "Built package: $WRAPPER_PATH"
-          
-          echo "Installing to CI user's profile..."
-          # Install to CI user's profile (justin has sudo rights to do this)
-          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH" 2>/dev/null || \
-          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH"
-          
-          echo "Restarting service (CI user has polkit permissions)..."
-          sudo -u ci systemctl restart slipbox
-          
-          echo "Waiting for service to start..."
-          sleep 5
-          
-          echo "Verifying service health..."
-          if systemctl is-active slipbox && curl -fsS http://localhost:3000/ >/dev/null; then
-            echo "✅ Deployment successful! Service is healthy"
-          else
-            echo "❌ Service health check failed"
-            systemctl status slipbox --no-pager | head -20
-            exit 1
-          fi
+        run: ci-deploy slipbox dist/slipbox-linux
 
       - name: Auto-merge PR
         if: |
