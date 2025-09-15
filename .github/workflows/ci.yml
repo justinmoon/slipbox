@@ -40,32 +40,7 @@ jobs:
 
       - name: Deploy to production
         if: success()
-        run: |
-          set -euo pipefail
-          echo "=== Flake-based Deployment ==="
-          
-          echo "Building slipbox from flake..."
-          nix build .#slipbox
-          
-          echo "Installing to user profile..."
-          # Use flake reference so upgrades work properly
-          nix profile upgrade .#slipbox 2>/dev/null || \
-          nix profile install .#slipbox
-          
-          echo "Restarting service..."
-          sudo systemctl restart slipbox
-          
-          echo "Waiting for service to start..."
-          sleep 5
-          
-          echo "Verifying service health..."
-          if systemctl is-active slipbox && curl -fsS http://localhost:3000/ >/dev/null; then
-            echo "✅ Deployment successful! Service is healthy"
-          else
-            echo "❌ Service health check failed"
-            systemctl status slipbox --no-pager | head -20
-            exit 1
-          fi
+        run: ci-deploy slipbox .#slipbox
 
       - name: Auto-merge PR
         if: |
