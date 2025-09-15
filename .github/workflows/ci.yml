@@ -40,7 +40,33 @@ jobs:
 
       - name: Deploy to production
         if: success()
-        run: ci-deploy slipbox $(readlink -f result)
+        run: |
+          set -euo pipefail
+          echo "=== Flake-based Deployment ==="
+          
+          echo "Building slipbox from flake..."
+          nix build .#slipbox
+          
+          echo "Installing to CI user's profile..."
+          # Use flake reference so upgrades work properly
+          # The profile path is a named profile that persists across deployments
+          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox 2>/dev/null || \
+          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox
+          
+          echo "Restarting service..."
+          sudo -u ci systemctl restart slipbox
+          
+          echo "Waiting for service to start..."
+          sleep 5
+          
+          echo "Verifying service health..."
+          if systemctl is-active slipbox && curl -fsS http://localhost:3000/ >/dev/null; then
+            echo "✅ Deployment successful! Service is healthy"
+          else
+            echo "❌ Service health check failed"
+            systemctl status slipbox --no-pager | head -20
+            exit 1
+          fi
 
       - name: Auto-merge PR
         if: |
