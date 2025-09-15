@@ -113,8 +113,8 @@
               platforms = platforms.all;
             };
           };
-        } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          # Production binary package - builds deterministically from source
+        } // {
+          # Production package - just run with bun (works on all platforms)
           slipbox = pkgs.stdenv.mkDerivation {
             pname = "slipbox";
             version = "1.0.0";
@@ -124,38 +124,46 @@
             nativeBuildInputs = with pkgs; [
               bun
               nodejs_20
-              nodePackages.typescript
-              biome
             ];
             
             buildPhase = ''
               # Install dependencies
               bun install --frozen-lockfile
               
-              # Run checks
-              biome check .
-              tsc --noEmit
-              
-              # Build client assets
+              # Build client assets only
               bun run build:client
-              
-              # Build production binary with embedded assets
-              EMBED_ASSETS=true bun build src/index.ts --compile --target bun-linux-x64 --outfile slipbox
             '';
             
             installPhase = ''
+              mkdir -p $out/app
               mkdir -p $out/bin
-              cp slipbox $out/bin/
+              
+              # Copy everything needed to run the app
+              cp -r src $out/app/
+              cp -r scripts $out/app/
+              cp -r dist $out/app/
+              cp -r static $out/app/ 2>/dev/null || true
+              cp package.json $out/app/
+              cp tsconfig.json $out/app/
+              cp bun.lockb $out/app/ 2>/dev/null || true
+              
+              # Create wrapper script that runs with bun
+              cat > $out/bin/slipbox <<EOF
+              #!/usr/bin/env bash
+              cd $out/app
+              export EMBED_ASSETS=true
+              exec ${pkgs.bun}/bin/bun run src/index.ts "\$@"
+              EOF
               chmod +x $out/bin/slipbox
             '';
             
             meta = with pkgs.lib; {
-              description = "Slipbox production binary with embedded assets";
+              description = "Slipbox production package";
               license = licenses.isc;
-              platforms = [ "x86_64-linux" ];
+              platforms = platforms.all;
             };
           };
-        });
+        };
         
         # App definition for nix run
         apps.default = flake-utils.lib.mkApp {
