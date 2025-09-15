@@ -113,33 +113,7 @@
               platforms = platforms.all;
             };
           };
-        } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-          # Production binary package - wraps pre-built binary (Linux only)
-          # The binary must be built first using scripts/build-binary.sh
-          slipbox-binary = pkgs.stdenvNoCC.mkDerivation {
-            pname = "slipbox-binary";
-            version = "1.0.0";
-            
-            dontUnpack = true;
-            
-            installPhase = ''
-              mkdir -p $out/bin
-              if [ -f ${./dist/slipbox-linux} ]; then
-                cp ${./dist/slipbox-linux} $out/bin/slipbox
-                chmod +x $out/bin/slipbox
-              else
-                echo "Error: dist/slipbox-linux not found. Run scripts/build-binary.sh first."
-                exit 1
-              fi
-            '';
-            
-            meta = with pkgs.lib; {
-              description = "Slipbox production binary with embedded assets";
-              license = licenses.isc;
-              platforms = [ "x86_64-linux" ];
-            };
-          };
-        });
+        };
         
         # App definition for nix run
         apps.default = flake-utils.lib.mkApp {

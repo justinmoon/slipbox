@@ -34,35 +34,18 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          echo "=== New Deployment Flow (v2) ==="
-          echo "Building production binary..."
-          bash scripts/build-binary.sh
+          echo "=== Flake-based Deployment ==="
           
-          echo "Adding binary to Nix store..."
-          STORE_PATH=$(nix store add-file dist/slipbox-linux --name slipbox-server)
-          echo "Binary added to store: $STORE_PATH"
-          
-          # Create wrapper package
-          cat > slipbox-wrapper.nix <<'NIXEOF'
-          { pkgs ? import <nixpkgs> {} }:
-          pkgs.runCommand "slipbox-server" {} ''
-            mkdir -p $out/bin
-            ln -s STORE_PATH_PLACEHOLDER $out/bin/slipbox-server
-          ''
-          NIXEOF
-          
-          sed -i "s|STORE_PATH_PLACEHOLDER|$STORE_PATH|" slipbox-wrapper.nix
-          
-          echo "Building wrapper package..."
-          WRAPPER_PATH=$(nix-build slipbox-wrapper.nix --no-out-link)
-          echo "Built package: $WRAPPER_PATH"
+          echo "Building slipbox from flake..."
+          nix build .#slipbox
           
           echo "Installing to CI user's profile..."
-          # Install to CI user's profile (justin has sudo rights to do this)
-          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH" 2>/dev/null || \
-          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox "$WRAPPER_PATH"
+          # Use flake reference so upgrades work properly
+          # The profile path is a named profile that persists across deployments
+          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox 2>/dev/null || \
+          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox
           
-          echo "Restarting service (CI user has polkit permissions)..."
+          echo "Restarting service..."
           sudo -u ci systemctl restart slipbox
           
           echo "Waiting for service to start..."
