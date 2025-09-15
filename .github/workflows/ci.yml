@@ -48,7 +48,23 @@ jobs:
           # Copy all files and folders, excluding .git to save space
           rsync -av --exclude='.git' --exclude='node_modules' --exclude='result' . /build/slipbox/
           cd /build/slipbox
-          ci-deploy slipbox .#slipbox
+          
+          # Build and install directly
+          echo "Building slipbox..."
+          nix build .#slipbox
+          
+          echo "Removing old installation..."
+          nix profile remove slipbox 2>/dev/null || true
+          
+          echo "Installing new version..."
+          nix profile install .#slipbox
+          
+          echo "Restarting service directly..."
+          sudo systemctl restart slipbox || echo "Failed to restart with sudo, trying without..."
+          systemctl restart slipbox || echo "Failed to restart service"
+          
+          echo "Checking service status..."
+          systemctl status slipbox --no-pager || true
 
       - name: Auto-merge PR
         if: |
