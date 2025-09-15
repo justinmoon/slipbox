@@ -1,0 +1,45 @@
+name: Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to rollback'
+        required: true
+        default: 'slipbox'
+        type: choice
+        options:
+          - slipbox
+          - haven
+
+jobs:
+  rollback:
+    runs-on: self-hosted
+    steps:
+      - name: Rollback deployment
+        run: |
+          SERVICE=${{ inputs.service }}
+          
+          echo "Rolling back $SERVICE..."
+          
+          # Rollback profile
+          nix profile rollback \
+            --profile /nix/var/nix/profiles/per-user/ci/$SERVICE
+          
+          # Restart service
+          systemctl restart $SERVICE
+          
+          # Verify
+          sleep 5
+          if systemctl is-active $SERVICE; then
+            echo "✅ Rollback successful"
+          else
+            echo "❌ Rollback failed"
+            exit 1
+          fi
+      
+      - name: Show deployment history
+        run: |
+          SERVICE=${{ inputs.service }}
+          echo "=== Deployment History for $SERVICE ==="
+          nix profile history --profile /nix/var/nix/profiles/per-user/ci/$SERVICE | tail -10
