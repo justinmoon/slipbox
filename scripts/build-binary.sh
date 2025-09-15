@@ -16,17 +16,29 @@ rm -f dist/slipbox dist/slipbox-linux dist/slipbox-darwin
 echo -e "${YELLOW}Building client assets...${NC}"
 bun run build:client
 
-# Build the binary for current platform
+# Build binaries
 echo -e "${YELLOW}Building binary with embedded assets...${NC}"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --outfile dist/slipbox
+    # On Mac, build both Darwin and Linux versions
+    echo "Building Darwin binary..."
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --outfile dist/slipbox-darwin
+    echo "Building Linux binary..."
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
+    BINARY_FILE="dist/slipbox-darwin"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox
+    # On Linux, build Linux version (can't cross-compile to Darwin with bun)
+    NODE_ENV=production EMBED_ASSETS=true bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/slipbox-linux
+    BINARY_FILE="dist/slipbox-linux"
 else
     echo -e "${RED}Unsupported platform: $OSTYPE${NC}"
     exit 1
 fi
-BINARY_FILE="dist/slipbox"
+
+# For deployment, copy the Linux binary to the standard name
+if [ -f "dist/slipbox-linux" ]; then
+    cp dist/slipbox-linux dist/slipbox
+    echo -e "${GREEN}✓ Copied Linux binary to dist/slipbox for deployment${NC}"
+fi
 
 # Check binary was created
 if [ ! -f "$BINARY_FILE" ]; then
