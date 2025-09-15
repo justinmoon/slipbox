@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DIR=$(ssh justin@135.181.179.143 "mktemp -d /tmp/slipbox-XXXXXX")
-echo "🚀 Deploying to $DIR"
+# Use a consistent directory for deployments so nix profile upgrade works
+DEPLOY_DIR="/build/slipbox"
+echo "🚀 Deploying to $DEPLOY_DIR"
 
-hsync . "justin@135.181.179.143:$DIR"
-ssh justin@135.181.179.143 "cd $DIR && nix build .#slipbox && ci-deploy slipbox .#slipbox"
+# Sync code to build directory
+hsync . "justin@135.181.179.143:$DEPLOY_DIR"
+
+# Build and deploy
+ssh justin@135.181.179.143 "cd $DEPLOY_DIR && nix build .#slipbox && ci-deploy slipbox .#slipbox"
