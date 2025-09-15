@@ -47,14 +47,13 @@ jobs:
           echo "Building slipbox from flake..."
           nix build .#slipbox
           
-          echo "Installing to CI user's profile..."
+          echo "Installing to user profile..."
           # Use flake reference so upgrades work properly
-          # The profile path is a named profile that persists across deployments
-          sudo -u ci nix profile upgrade --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox 2>/dev/null || \
-          sudo -u ci nix profile install --profile /nix/var/nix/profiles/per-user/ci/slipbox .#slipbox
+          nix profile upgrade .#slipbox 2>/dev/null || \
+          nix profile install .#slipbox
           
           echo "Restarting service..."
-          sudo -u ci systemctl restart slipbox
+          systemctl restart slipbox
           
           echo "Waiting for service to start..."
           sleep 5
