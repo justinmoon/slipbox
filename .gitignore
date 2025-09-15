@@ -15,3 +15,4 @@ static/style.css
 test-data/
 
 .direnv
+/result
