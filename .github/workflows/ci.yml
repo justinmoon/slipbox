@@ -53,7 +53,7 @@ jobs:
           nix profile install .#slipbox
           
           echo "Restarting service..."
-          systemctl restart slipbox
+          sudo systemctl restart slipbox
           
           echo "Waiting for service to start..."
           sleep 5
