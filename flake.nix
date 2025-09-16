@@ -121,9 +121,8 @@
             
             src = ./.;
             
-            # Disable sandbox to allow network access for bun install
-            # This is a tradeoff - less pure but simpler than FOD
-            __noChroot = true;
+            # Note: Requires --impure flag to allow network access during build
+            # This is a tradeoff - less pure but much simpler than FOD
             
             nativeBuildInputs = with pkgs; [
               bun
