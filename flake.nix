@@ -54,7 +54,9 @@
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
           # Hash with playwright 1.54.1 - dontFixup prevents shebang patching
-          outputHash = "sha256-/6T7DHTkG4HVIXogZz33gEvwdD5tkg4zY25sdSVSJgU=";
+          # Linux hash (CI): sha256-B3gCCXYKNKDXBZ1t9AoTf9S78+JqN4zOmOWmPDWvP/g=
+          # Darwin hash (local): sha256-/6T7DHTkG4HVIXogZz33gEvwdD5tkg4zY25sdSVSJgU=
+          outputHash = "sha256-B3gCCXYKNKDXBZ1t9AoTf9S78+JqN4zOmOWmPDWvP/g=";
         };
         
         # Define the development shell environment
