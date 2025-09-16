@@ -155,12 +155,8 @@ jobs:
           fi
 
           pr_num="${{ github.event.pull_request.number }}"
-          repo="$GITHUB_REPOSITORY"
-          sha=$(GH_TOKEN="$GH_TOKEN" gh pr view "$pr_num" --repo "$repo" --json mergeCommit -q .mergeCommit.oid || true)
-          if [ -z "${sha:-}" ]; then
-            echo "PR not merged yet or no merge commit available; skipping bump."
-            exit 0
-          fi
+          # Use PR head SHA to bump; push-based bump will also update on merge
+          sha="${{ github.event.pull_request.head.sha }}"
           echo "Creating PR in configs to bump slipbox to $sha"
 
           tmpdir="/tmp/configs-$$-${RANDOM}"
