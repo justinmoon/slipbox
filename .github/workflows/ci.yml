@@ -54,7 +54,7 @@ jobs:
             --delete-branch
 
       - name: Create PR in configs repo
-        if: github.event_name == 'push'
+        if: always()
         env:
           FALLBACK_GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -71,7 +71,21 @@ jobs:
             echo "Missing GH_TOKEN (and no PAT file found)" >&2
             exit 1
           fi
-          sha="${GITHUB_SHA}"
+          # Determine SHA to bump
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            pr_num="${{ github.event.pull_request.number }}"
+            merged_sha=$(GH_TOKEN="$GH_TOKEN" gh pr view "$pr_num" --repo "$GITHUB_REPOSITORY" --json mergeCommit -q .mergeCommit.oid || true)
+            if [ -z "${merged_sha:-}" ]; then
+              echo "PR not merged yet or no merge commit available; skipping bump."
+              exit 0
+            fi
+            sha="$merged_sha"
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            sha="${GITHUB_SHA}"
+          else
+            echo "Unsupported event '${GITHUB_EVENT_NAME}', skipping bump."
+            exit 0
+          fi
           echo "Creating PR in configs to bump slipbox to $sha"
 
           tmpdir="/tmp/configs-$$-${RANDOM}"
