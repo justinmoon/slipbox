@@ -130,3 +130,61 @@ jobs:
             --head "$branch" \
             --title "Bump slipbox to ${sha:0:7}" \
             --body-file /tmp/pr-body-$$.md
+
+  bump-configs:
+    name: Bump Configs (PR flow)
+    if: github.event_name == 'pull_request'
+    needs: build
+    runs-on: [self-hosted, nixos, hetzner]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create PR in configs repo (PR flow)
+        run: |
+          set -euo pipefail
+          # Resolve PAT
+          if [ -z "${GH_TOKEN:-}" ]; then
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found); skipping bump." >&2
+            exit 0
+          fi
+
+          pr_num="${{ github.event.pull_request.number }}"
+          repo="$GITHUB_REPOSITORY"
+          sha=$(GH_TOKEN="$GH_TOKEN" gh pr view "$pr_num" --repo "$repo" --json mergeCommit -q .mergeCommit.oid || true)
+          if [ -z "${sha:-}" ]; then
+            echo "PR not merged yet or no merge commit available; skipping bump."
+            exit 0
+          fi
+          echo "Creating PR in configs to bump slipbox to $sha"
+
+          tmpdir="/tmp/configs-$$-${RANDOM}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$tmpdir"
+          cd "$tmpdir"
+
+          git config user.name 'slipbox-bot'
+          git config user.email 'bot@users.noreply.github.com'
+
+          branch="bump-slipbox-${sha:0:7}"
+          git checkout -b "$branch"
+
+          nix flake lock \
+            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
+            --update-input slipbox
+
+          git add flake.lock
+          git commit -m "bump: slipbox to ${sha:0:7}" || { echo "No changes to commit"; exit 0; }
+
+          git push -u origin "$branch"
+
+          gh pr create \
+            --repo justinmoon/configs \
+            --base master \
+            --head "$branch" \
+            --title "Bump slipbox to ${sha:0:7}" \
+            --body "Automated bump from slipbox CI (PR #${pr_num})."
