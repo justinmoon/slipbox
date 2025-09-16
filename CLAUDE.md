@@ -174,39 +174,26 @@ Why SSE navigation fails:
 
 **Rule: Use SSE for DOM updates, use client-side JS for navigation**
 
-## VPS Deployment (Digital Ocean Droplet)
+## GitOps Deployment (Hetzner NixOS)
 
-### Server Details
-- Host: slipbox (ssh justin@slipbox)
-- User: justin (all services run under this account)
-- OS: Ubuntu 25.04 (Linux 6.14.0)
+Production is deployed via GitOps on Hetzner (NixOS). Do not attempt imperative or SCP-based deploys.
 
-### Deployment Strategy
-- Deploy via SCP of binaries (keep it simple)
-- All apps stored in: `~/apps/<app-name>`
-- Services managed with systemd
+### CI/CD Flow
+- PRs: build with `nix build .#server --impure --option sandbox false` and smoke test `./result/bin/slipbox`.
+- PRs are auto-merged using a PAT available to the self-hosted runner.
+- Push to `master`: CI opens a PR in `justinmoon/configs` bumping the Slipbox flake input in `flake.lock`.
+- Merge in `configs`: a `nixos-deploy` service hard-resets to `origin/master` and runs `nixos-rebuild switch` on Hetzner.
 
-### Directory Structure
-```
-~/apps/
-└── slipbox/          # Main application
-    ├── slipbox       # Binary
-    └── data/         # Application data
+### Self‑Hosted Runner
+- Declared via `github-runner-factory.nix` (factory function `mkRunner`).
+- PAT for CI operations is stored on the server at `~/configs/secrets/github-pat.txt` (mode 600).
+- If runner registration breaks, follow the re-registration snippet in `configs/hetzner/README.md`.
 
-~/.local/bin/
-└── claude            # Claude Code native binary
-```
+### Local Debugging Shortcuts
+- Typecheck fast: `bunx tsc --noEmit`
+- Nix build like CI: `nix build .#server --impure --option sandbox false`
+- Smoke test locally: `SLIPBOX_DATA_DIR=/tmp/smoke PORT=3101 ./result/bin/slipbox`
 
-### Claude Code Installation
-Claude Code is installed as a native binary (no Node.js dependency):
-```bash
-# Install native binary
-curl -fsSL https://claude.ai/install.sh | bash
-
-# PATH configuration (added to ~/.bashrc)
-export PATH="$HOME/.local/bin:$PATH"
-```
-- Version: 1.0.98 (as of 2025-08-30)
-- Location: ~/.local/bin/claude
-- Auto-updates: Built-in
-- No runtime dependencies
+### Notes
+- Avoid imperative deploy scripts; production mirrors the `configs` repo’s master.
+- Keep changes small so the GitOps bump PRs stay clean and merge automatically.
