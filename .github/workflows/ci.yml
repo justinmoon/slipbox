@@ -101,12 +101,12 @@ jobs:
           ln -sf "$RUNNER_PROFILE/bin/slipbox" "$SYMLINK_DIR/slipbox"
           echo "Symlink created: $SYMLINK_DIR/slipbox"
           
-          # Restart service
+          # Restart service (using polkit, no sudo needed)
           echo "Restarting slipbox service..."
-          sudo systemctl restart slipbox
+          systemctl restart slipbox
           
           echo "Checking service status..."
-          sudo systemctl status slipbox --no-pager || true
+          systemctl status slipbox --no-pager || true
           
           # Test endpoint
           sleep 3
