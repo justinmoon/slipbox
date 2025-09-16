@@ -14,7 +14,7 @@
         
         # Fixed-Output Derivation for dependencies
         # This ensures deterministic, reproducible builds
-        bunDeps = pkgs.stdenv.mkDerivation {
+        bunDeps = pkgs.stdenvNoCC.mkDerivation {
           pname = "slipbox-deps";
           version = "1.0.0";
           
@@ -34,7 +34,7 @@
             export HOME=$TMPDIR
             
             # Install with frozen lockfile - deterministic!
-            bun install --frozen-lockfile --no-progress --no-summary
+            bun install --frozen-lockfile --no-progress --no-summary --ignore-scripts
             
             # Remove cache to reduce output size
             rm -rf $HOME/.bun
@@ -47,11 +47,14 @@
             cp bun.lock $out/
           '';
           
+          # Prevent Nix from patching shebangs which causes store path references
+          dontFixup = true;
+          
           # Fixed-output derivation settings
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
-          # Hash without playwright dependency (which breaks FOD)
-          outputHash = "sha256-ORanqdMdYFc5xxM4SKfwjVaXXezySZYNFvGOjDmz1eE=";
+          # Hash with playwright - dontFixup prevents shebang patching
+          outputHash = "sha256-bzKYS4le7PLHxzzQ4Jjjfy1dEDg22jZkhoUA/sF/MTo=";
         };
         
         # Define the development shell environment
@@ -97,14 +100,44 @@
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
+        # Non-FOD version for debugging
+        bunDepsNonFOD = pkgs.stdenvNoCC.mkDerivation {
+          pname = "slipbox-deps-nonfod";
+          version = "1.0.0";
+          
+          src = pkgs.runCommand "dep-src" {} ''
+            mkdir -p $out
+            cp ${./package.json} $out/package.json
+            cp ${./bun.lock} $out/bun.lock
+          '';
+          
+          nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
+          
+          buildPhase = ''
+            cp $src/* .
+            export HOME=$TMPDIR
+            bun install --frozen-lockfile --no-progress --no-summary --ignore-scripts
+            
+            # Clean up problematic files
+            rm -rf node_modules/.bin
+            rm -rf $HOME/.bun
+          '';
+          
+          installPhase = ''
+            mkdir -p $out
+            cp -r node_modules $out/
+            cp bun.lock $out/
+          '';
+        };
+        
       in
       {
         devShells.default = devShell;
         
-        # Package definition for the app
         packages = {
           # Expose deps package for manual building/testing
           deps = bunDeps;
+          depsNonFOD = bunDepsNonFOD;
           
           default = pkgs.stdenv.mkDerivation {
             pname = "slipbox";
