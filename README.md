@@ -4,6 +4,18 @@ A Zettelkasten-style note-taking app built with Datastar framework and Bun.
 
 Now with self-hosted CI/CD on Hetzner!
 
+## GitOps Deployment
+
+This repo uses a GitOps flow:
+- PRs build with `nix build .#server --impure --option sandbox false` and smoke test.
+- PRs are auto-merged using a PAT available to the runner.
+- Pushes to `master` open a PR in `justinmoon/configs` bumping Slipbox in `flake.lock`.
+- After merge, Hetzner deploys via `nixos-rebuild switch` from the `configs` repo.
+
+Runner PAT configuration:
+- The self-hosted runner reads a GitHub PAT from `~/configs/secrets/github-pat.txt` on the server.
+- You can rotate this any time; the workflow also supports the `GH_TOKEN` secret if defined.
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0.0 or higher)

@@ -55,6 +55,77 @@
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
+        # Production package derivation used by GitOps
+        slipboxDrv = pkgs.stdenv.mkDerivation {
+          pname = "slipbox";
+          version = "1.0.0";
+          
+          src = ./.;
+          
+          # Note: Requires --impure flag to allow network access during build
+          # This is a tradeoff - less pure but much simpler than FOD
+          
+          nativeBuildInputs = with pkgs; [
+            bun
+            nodejs_20
+            cacert  # For npm/bun downloads
+          ];
+          
+          buildPhase = ''
+            # Copy source files
+            cp -r $src/src .
+            cp -r $src/scripts .
+            cp -r $src/static . 2>/dev/null || true
+            cp $src/package.json .
+            cp $src/bun.lock .
+            cp $src/tsconfig.json .
+            cp $src/tailwind.config.js . 2>/dev/null || true
+            cp $src/postcss.config.js . 2>/dev/null || true
+            cp $src/biome.json . 2>/dev/null || true
+            
+            # Install dependencies with impure network access
+            export HOME=$TMPDIR
+            export NIX_SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+            echo "Installing dependencies..."
+            bun install --frozen-lockfile
+            
+            # Build client assets (Tailwind CSS)
+            echo "Building client assets..."
+            bun run build:client
+          '';
+          
+          installPhase = ''
+            mkdir -p $out/app $out/bin
+            
+            # Copy built application
+            cp -r src $out/app/
+            cp -r dist $out/app/
+            cp -r static $out/app/ 2>/dev/null || true
+            cp -r scripts $out/app/
+            cp -r node_modules $out/app/
+            cp package.json $out/app/
+            cp tsconfig.json $out/app/
+            cp bun.lock $out/app/
+            
+            # Create wrapper script
+            cat > $out/bin/slipbox <<EOF
+            #!/usr/bin/env bash
+            cd $out/app
+            export NODE_ENV=\''${NODE_ENV:-production}
+            export SLIPBOX_DATA_DIR=\''${SLIPBOX_DATA_DIR:-/var/lib/slipbox}
+            export PORT=\''${PORT:-3000}
+            exec ${pkgs.bun}/bin/bun run src/index.ts "\$@"
+            EOF
+            chmod +x $out/bin/slipbox
+          '';
+          
+          meta = with pkgs.lib; {
+            description = "Slipbox production package";
+            license = licenses.isc;
+            platforms = platforms.all;
+          };
+        };
+
       in
       {
         devShells.default = devShell;
@@ -114,76 +185,9 @@
             };
           };
         } // {
-          # Production package - simple approach, no FOD
-          slipbox = pkgs.stdenv.mkDerivation {
-            pname = "slipbox";
-            version = "1.0.0";
-            
-            src = ./.;
-            
-            # Note: Requires --impure flag to allow network access during build
-            # This is a tradeoff - less pure but much simpler than FOD
-            
-            nativeBuildInputs = with pkgs; [
-              bun
-              nodejs_20
-              cacert  # For npm/bun downloads
-            ];
-            
-            buildPhase = ''
-              # Copy source files
-              cp -r $src/src .
-              cp -r $src/scripts .
-              cp -r $src/static . 2>/dev/null || true
-              cp $src/package.json .
-              cp $src/bun.lock .
-              cp $src/tsconfig.json .
-              cp $src/tailwind.config.js . 2>/dev/null || true
-              cp $src/postcss.config.js . 2>/dev/null || true
-              cp $src/biome.json . 2>/dev/null || true
-              
-              # Install dependencies with impure network access
-              export HOME=$TMPDIR
-              export NIX_SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-              echo "Installing dependencies..."
-              bun install --frozen-lockfile
-              
-              # Build client assets (Tailwind CSS)
-              echo "Building client assets..."
-              bun run build:client
-            '';
-            
-            installPhase = ''
-              mkdir -p $out/app $out/bin
-              
-              # Copy built application
-              cp -r src $out/app/
-              cp -r dist $out/app/
-              cp -r static $out/app/ 2>/dev/null || true
-              cp -r scripts $out/app/
-              cp -r node_modules $out/app/
-              cp package.json $out/app/
-              cp tsconfig.json $out/app/
-              cp bun.lock $out/app/
-              
-              # Create wrapper script
-              cat > $out/bin/slipbox <<EOF
-              #!/usr/bin/env bash
-              cd $out/app
-              export NODE_ENV=\''${NODE_ENV:-production}
-              export SLIPBOX_DATA_DIR=\''${SLIPBOX_DATA_DIR:-/var/lib/slipbox}
-              export PORT=\''${PORT:-3000}
-              exec ${pkgs.bun}/bin/bun run src/index.ts "\$@"
-              EOF
-              chmod +x $out/bin/slipbox
-            '';
-            
-            meta = with pkgs.lib; {
-              description = "Slipbox production package";
-              license = licenses.isc;
-              platforms = platforms.all;
-            };
-          };
+          # Production package - exposed as both 'slipbox' and 'server' for parity with hello-http
+          slipbox = slipboxDrv;
+          server = slipboxDrv;
         };
         
         # App definition for nix run

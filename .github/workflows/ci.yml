@@ -17,7 +17,7 @@ jobs:
 
       - name: Build with Nix (impure)
         run: |
-          nix build .#slipbox --impure --option sandbox false
+          nix build .#server --impure --option sandbox false
 
       - name: Smoke test server starts
         run: |
