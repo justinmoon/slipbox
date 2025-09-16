@@ -30,6 +30,8 @@ jobs:
 
       - name: Deploy to production
         if: success()
+        env:
+          NIX_CONFIG: "sandbox = false"
         run: |
           # Runner's StateDirectory
           BUILD_DIR="/var/lib/github-runner/hetzner-runner/builds"
@@ -54,6 +56,11 @@ jobs:
           echo "Current user: $(whoami)"
           echo "Current directory: $(pwd)"
           echo "Nix trusted users: $(nix show-config | grep trusted-users || echo 'not found')"
+          echo "Nix sandbox setting: $(nix show-config | grep -E '^sandbox' || echo 'not found')"
+          
+          # Test if we can actually disable sandbox
+          echo "Testing sandbox disable..."
+          nix-build --expr "with import <nixpkgs> {}; hello" --option sandbox false 2>&1 | grep -E "ignoring|restricted" || echo "No sandbox warnings"
           
           # Build with Nix (--impure and no sandbox for network access)
           echo "Building slipbox version: $GIT_COMMIT"
