@@ -1,0 +1,60 @@
+name: Bump Configs
+on:
+  repository_dispatch:
+    types: [bump-configs]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: [self-hosted, nixos, hetzner]
+    steps:
+      - name: Bump configs to provided SHA
+        run: |
+          set -euo pipefail
+          # Resolve PAT
+          if [ -z "${GH_TOKEN:-}" ]; then
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found)" >&2
+            exit 1
+          fi
+
+          sha="${{ github.event.client_payload.sha }}"
+          if [ -z "${sha:-}" ]; then
+            echo "No sha in client_payload; aborting" >&2
+            exit 1
+          fi
+          echo "Dispatch bump to SHA: $sha"
+
+          tmpdir="/tmp/configs-$$-${RANDOM}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$tmpdir"
+          cd "$tmpdir"
+
+          git config user.name 'slipbox-bot'
+          git config user.email 'bot@users.noreply.github.com'
+
+          branch="bump-slipbox-${sha:0:7}"
+          git checkout -b "$branch"
+
+          nix flake lock \
+            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
+            --update-input slipbox
+
+          git add flake.lock
+          git commit -m "bump: slipbox to ${sha:0:7}" || { echo "No changes to commit"; exit 0; }
+          git push -u origin "$branch"
+
+          gh pr create \
+            --repo justinmoon/configs \
+            --base master \
+            --head "$branch" \
+            --title "Bump slipbox to ${sha:0:7}" \
+            --body "Automated bump via repository_dispatch from slipbox CI."
