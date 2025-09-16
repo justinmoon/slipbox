@@ -37,6 +37,10 @@ jobs:
               fi
             done
           fi
+          # Fallback to GitHub-provided token (sufficient for merging PRs in this repo)
+          if [ -z "${GH_TOKEN:-}" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
+            export GH_TOKEN="$GITHUB_TOKEN"
+          fi
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "Missing GH_TOKEN (and no PAT file found)" >&2
             exit 1
