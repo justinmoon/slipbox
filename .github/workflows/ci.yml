@@ -29,9 +29,17 @@ jobs:
       - name: Auto-merge PR
         if: github.event_name == 'pull_request'
         run: |
-          # Load PAT from local file on runner (fallback to secret if present)
+          # Resolve token robustly: prefer GH_TOKEN, else read from absolute path
           if [ -z "${GH_TOKEN:-}" ]; then
-            export GH_TOKEN="$(grep -E '^(gh(p|s|u)p?_?|github_pat_)' ~/configs/secrets/github-pat.txt | head -n1 | tr -d '\r\n')"
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found)" >&2
+            exit 1
           fi
           echo "Auto-merging PR #${{ github.event.pull_request.number }}"
           gh pr merge ${{ github.event.pull_request.number }} \
@@ -43,9 +51,17 @@ jobs:
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
-          # Load PAT from local file on runner (fallback to secret if present)
+          # Resolve token robustly: prefer GH_TOKEN, else read from absolute path
           if [ -z "${GH_TOKEN:-}" ]; then
-            export GH_TOKEN="$(grep -E '^(gh(p|s|u)p?_?|github_pat_)' ~/configs/secrets/github-pat.txt | head -n1 | tr -d '\r\n')"
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found)" >&2
+            exit 1
           fi
           sha="${GITHUB_SHA}"
           echo "Creating PR in configs to bump slipbox to $sha"
