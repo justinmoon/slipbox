@@ -78,55 +78,33 @@ jobs:
 
       # gh CLI is already installed on our self-hosted runner
       
-      - name: Create PR in configs repo
+      - name: Build Linux binary
+        if: github.event_name == 'push'
+        run: |
+          echo "Building Linux binary for deployment..."
+          bun run build:linux
+          
+      - name: Deploy to server
         if: github.event_name == 'push'
         env:
-          GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          sha="${GITHUB_SHA}"
-          echo "Creating PR in configs repo to update slipbox to SHA: $sha"
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
           
-          # Use unique temp directory to avoid permission issues
-          temp_dir="/tmp/configs-$$-${RANDOM}"
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$temp_dir"
-          cd "$temp_dir"
+          # Add server to known hosts
+          ssh-keyscan -H slipbox >> ~/.ssh/known_hosts 2>/dev/null || true
           
-          # Configure git
-          git config user.name 'slipbox-bot'
-          git config user.email 'bot@users.noreply.github.com'
+          # Deploy binary
+          echo "Deploying binary to server..."
+          scp -i ~/.ssh/deploy_key dist/slipbox-linux justin@slipbox:/opt/slipbox/slipbox.new
           
-          # Create branch for the update
-          branch="bump-slipbox-${sha:0:7}"
-          git checkout -b "$branch"
+          # Make it executable and move into place
+          ssh -i ~/.ssh/deploy_key justin@slipbox "chmod +x /opt/slipbox/slipbox.new && mv /opt/slipbox/slipbox.new /opt/slipbox/slipbox"
           
-          # Update flake.lock
-          nix flake lock \
-            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
-            --update-input slipbox
+          # Restart service
+          ssh -i ~/.ssh/deploy_key justin@slipbox "sudo systemctl restart slipbox"
           
-          # Commit and push
-          git add flake.lock
-          git commit -m "bump: slipbox to ${sha:0:7}" || exit 0  # Exit if no changes
-          
-          # Push using GitHub token
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git"
-          git push origin "$branch"
-          
-          # Create PR using gh CLI
-          cat > /tmp/pr-body.md << EOF
-          Automated PR to update slipbox to commit ${sha}
-          
-          This PR was automatically created by the slipbox CI workflow.
-          
-          Changes:
-          - Updated flake.lock to use slipbox@${sha}
-          
-          After merging, the GitOps deployment will automatically apply this update.
-          EOF
-          
-          gh pr create \
-            --repo justinmoon/configs \
-            --base master \
-            --head "$branch" \
-            --title "Bump slipbox to ${sha:0:7}" \
-            --body-file /tmp/pr-body.md
+          echo "✅ Deployment complete!"
