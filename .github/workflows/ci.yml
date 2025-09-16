@@ -26,6 +26,32 @@ jobs:
           rm -rf /tmp/slipbox-test-$$
           echo "Server starts successfully"
 
+      - name: Dispatch bump-configs (PR pre-merge)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # Resolve PAT
+          if [ -z "${GH_TOKEN:-}" ]; then
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\\r\\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found); skipping bump." >&2
+            exit 0
+          fi
+          sha="${{ github.event.pull_request.head.sha }}"
+          echo "Dispatching repository_dispatch bump-configs with sha=$sha"
+          GH_HEADER="Authorization: token $GH_TOKEN"
+          curl -sSf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -H "$GH_HEADER" \
+            https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches \
+            -d "$(jq -n --arg sha "$sha" '{event_type:"bump-configs", client_payload:{sha:$sha}}')"
+
       - name: Auto-merge PR
         if: github.event_name == 'pull_request'
         env:
