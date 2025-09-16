@@ -121,6 +121,10 @@
             
             src = ./.;
             
+            # Disable sandbox to allow network access for bun install
+            # This is a tradeoff - less pure but simpler than FOD
+            __noChroot = true;
+            
             nativeBuildInputs = with pkgs; [
               bun
               nodejs_20
