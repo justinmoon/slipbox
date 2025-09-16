@@ -28,8 +28,6 @@ jobs:
 
       - name: Auto-merge PR
         if: github.event_name == 'pull_request'
-        env:
-          FALLBACK_GITHUB_TOKEN: ${{ github.token }}
         run: |
           # Resolve token robustly: prefer GH_TOKEN, else read from absolute path
           if [ -z "${GH_TOKEN:-}" ]; then
@@ -38,10 +36,6 @@ jobs:
                 export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
               fi
             done
-          fi
-          # Fallback to GitHub-provided token (sufficient for merging PRs in this repo)
-          if [ -z "${GH_TOKEN:-}" ] && [ -n "${FALLBACK_GITHUB_TOKEN:-}" ]; then
-            export GH_TOKEN="$FALLBACK_GITHUB_TOKEN"
           fi
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "Missing GH_TOKEN (and no PAT file found)" >&2
