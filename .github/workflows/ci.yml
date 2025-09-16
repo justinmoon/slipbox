@@ -21,7 +21,7 @@ jobs:
       - name: Run tests
         run: |
           echo "Building test version..."
-          nix build .#slipbox --impure
+          nix build .#slipbox --impure --option sandbox false
           
           # Run playwright tests if enabled
           # export PLAYWRIGHT_BROWSERS_PATH="${{ env.PLAYWRIGHT_BROWSERS_PATH }}"
@@ -50,9 +50,9 @@ jobs:
           # Touch flake.nix to bust Nix eval cache
           touch flake.nix
           
-          # Build with Nix (--impure allows network access for deps)
+          # Build with Nix (--impure and no sandbox for network access)
           echo "Building slipbox version: $GIT_COMMIT"
-          nix build .#slipbox --impure
+          nix build .#slipbox --impure --option sandbox false
           
           # Update runner-owned profile
           RUNNER_PROFILE="/var/lib/github-runner/slipbox-runner/profile"

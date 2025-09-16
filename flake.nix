@@ -142,8 +142,9 @@
               cp $src/postcss.config.js . 2>/dev/null || true
               cp $src/biome.json . 2>/dev/null || true
               
-              # Install dependencies (simple approach - no FOD)
+              # Install dependencies with impure network access
               export HOME=$TMPDIR
+              export NIX_SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               echo "Installing dependencies..."
               bun install --frozen-lockfile
               
