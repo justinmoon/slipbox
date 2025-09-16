@@ -12,51 +12,6 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Fixed-Output Derivation for dependencies
-        # This ensures deterministic, reproducible builds
-        bunDeps = pkgs.stdenvNoCC.mkDerivation {
-          pname = "slipbox-deps";
-          version = "1.0.0";
-          
-          # Only files that determine dependencies
-          src = pkgs.runCommand "dep-src" {} ''
-            mkdir -p $out
-            cp ${./package.json} $out/package.json
-            cp ${./bun.lock} $out/bun.lock
-          '';
-          
-          nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
-          
-          buildPhase = ''
-            cp $src/* .
-            
-            # Set up environment for bun
-            export HOME=$TMPDIR
-            
-            # Install with frozen lockfile - deterministic!
-            bun install --frozen-lockfile --no-progress --no-summary --ignore-scripts
-            
-            # Remove cache to reduce output size
-            rm -rf $HOME/.bun
-          '';
-          
-          installPhase = ''
-            mkdir -p $out
-            cp -r node_modules $out/
-            # Keep the lock file for reference
-            cp bun.lock $out/
-          '';
-          
-          # Prevent Nix from patching shebangs which causes store path references
-          dontFixup = true;
-          
-          # Fixed-output derivation settings
-          outputHashMode = "recursive";
-          outputHashAlgo = "sha256";
-          # Hash with playwright 1.54.1 - dontFixup prevents shebang patching
-          outputHash = "sha256-/6T7DHTkG4HVIXogZz33gEvwdD5tkg4zY25sdSVSJgU=";
-        };
-        
         # Define the development shell environment
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -100,44 +55,11 @@
           PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
         };
         
-        # Non-FOD version for debugging
-        bunDepsNonFOD = pkgs.stdenvNoCC.mkDerivation {
-          pname = "slipbox-deps-nonfod";
-          version = "1.0.0";
-          
-          src = pkgs.runCommand "dep-src" {} ''
-            mkdir -p $out
-            cp ${./package.json} $out/package.json
-            cp ${./bun.lock} $out/bun.lock
-          '';
-          
-          nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
-          
-          buildPhase = ''
-            cp $src/* .
-            export HOME=$TMPDIR
-            bun install --frozen-lockfile --no-progress --no-summary --ignore-scripts
-            
-            # Clean up problematic files
-            rm -rf node_modules/.bin
-            rm -rf $HOME/.bun
-          '';
-          
-          installPhase = ''
-            mkdir -p $out
-            cp -r node_modules $out/
-            cp bun.lock $out/
-          '';
-        };
-        
       in
       {
         devShells.default = devShell;
         
         packages = {
-          # Expose deps package for manual building/testing
-          deps = bunDeps;
-          depsNonFOD = bunDepsNonFOD;
           
           default = pkgs.stdenv.mkDerivation {
             pname = "slipbox";
@@ -192,7 +114,7 @@
             };
           };
         } // {
-          # Production package - uses FOD for deterministic builds
+          # Production package - simple approach, no FOD
           slipbox = pkgs.stdenv.mkDerivation {
             pname = "slipbox";
             version = "1.0.0";
@@ -202,6 +124,7 @@
             nativeBuildInputs = with pkgs; [
               bun
               nodejs_20
+              cacert  # For npm/bun downloads
             ];
             
             buildPhase = ''
@@ -210,17 +133,16 @@
               cp -r $src/scripts .
               cp -r $src/static . 2>/dev/null || true
               cp $src/package.json .
+              cp $src/bun.lock .
               cp $src/tsconfig.json .
               cp $src/tailwind.config.js . 2>/dev/null || true
               cp $src/postcss.config.js . 2>/dev/null || true
               cp $src/biome.json . 2>/dev/null || true
               
-              # Link dependencies from FOD (deterministic!)
-              ln -s ${bunDeps}/node_modules node_modules
-              
-              # Verify critical dependencies
-              test -d node_modules/@starfederation/datastar || (echo "Datastar dependency missing!" && exit 1)
-              test -d node_modules/tailwindcss || (echo "Tailwind dependency missing!" && exit 1)
+              # Install dependencies (simple approach - no FOD)
+              export HOME=$TMPDIR
+              echo "Installing dependencies..."
+              bun install --frozen-lockfile
               
               # Build client assets (Tailwind CSS)
               echo "Building client assets..."
@@ -235,10 +157,10 @@
               cp -r dist $out/app/
               cp -r static $out/app/ 2>/dev/null || true
               cp -r scripts $out/app/
-              cp -r ${bunDeps}/node_modules $out/app/node_modules
+              cp -r node_modules $out/app/
               cp package.json $out/app/
               cp tsconfig.json $out/app/
-              cp ${bunDeps}/bun.lock $out/app/
+              cp bun.lock $out/app/
               
               # Create wrapper script
               cat > $out/bin/slipbox <<EOF
