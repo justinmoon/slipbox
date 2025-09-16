@@ -50,6 +50,11 @@ jobs:
           # Touch flake.nix to bust Nix eval cache
           touch flake.nix
           
+          # Debug: Check who we are and what nix sees
+          echo "Current user: $(whoami)"
+          echo "Current directory: $(pwd)"
+          echo "Nix trusted users: $(nix show-config | grep trusted-users || echo 'not found')"
+          
           # Build with Nix (--impure and no sandbox for network access)
           echo "Building slipbox version: $GIT_COMMIT"
           nix build .#slipbox --impure --option sandbox false
