@@ -220,7 +220,8 @@
               cp $src/biome.json . 2>/dev/null || true
               
               # Link dependencies from FOD (deterministic!)
-              ln -s ${bunDeps}/node_modules node_modules
+              # TODO: Fix FOD issue and use bunDeps instead of bunDepsTemp
+              ln -s ${bunDepsTemp}/node_modules node_modules
               
               # Verify critical dependencies
               test -d node_modules/@starfederation/datastar || (echo "Datastar dependency missing!" && exit 1)
@@ -239,10 +240,10 @@
               cp -r dist $out/app/
               cp -r static $out/app/ 2>/dev/null || true
               cp -r scripts $out/app/
-              cp -r ${bunDeps}/node_modules $out/app/node_modules
+              cp -r ${bunDepsTemp}/node_modules $out/app/node_modules
               cp package.json $out/app/
               cp tsconfig.json $out/app/
-              cp ${bunDeps}/bun.lock $out/app/
+              cp ${bunDepsTemp}/bun.lock $out/app/
               
               # Create wrapper script
               cat > $out/bin/slipbox <<EOF
