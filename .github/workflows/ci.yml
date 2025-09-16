@@ -26,38 +26,17 @@ jobs:
           rm -rf /tmp/slipbox-test-$$
           echo "Server starts successfully"
 
-      - name: Dispatch bump-configs (PR pre-merge)
-        if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          # Resolve PAT
-          if [ -z "${GH_TOKEN:-}" ]; then
-            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
-              if [ -f "$p" ]; then
-                export GH_TOKEN="$(cat "$p" | tr -d '\\r\\n')"; break;
-              fi
-            done
-          fi
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "Missing GH_TOKEN (and no PAT file found); skipping bump." >&2
-            exit 0
-          fi
-          sha="${{ github.event.pull_request.head.sha }}"
-          echo "Dispatching repository_dispatch bump-configs with sha=$sha"
-          GH_HEADER="Authorization: token $GH_TOKEN"
-          curl -sSf -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Content-Type: application/json" \
-            -H "$GH_HEADER" \
-            https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches \
-            -d "$(jq -n --arg sha "$sha" '{event_type:"bump-configs", client_payload:{sha:$sha}}')"
+      # Pre-merge bump disabled: we only bump configs after merge (on push)
+      # - name: Dispatch bump-configs (PR pre-merge)
+      #   if: github.event_name == 'pull_request'
+      #   run: |
+      #     echo "Skipping pre-merge bump; handled on push to master after merge."
 
       - name: Auto-merge PR
         if: github.event_name == 'pull_request'
-        env:
-          FALLBACK_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # Resolve token robustly: prefer GH_TOKEN, else read from absolute path
+          set -euo pipefail
+          # Require personal access token from absolute path (do not use GITHUB_TOKEN)
           if [ -z "${GH_TOKEN:-}" ]; then
             for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
               if [ -f "$p" ]; then
@@ -65,15 +44,11 @@ jobs:
               fi
             done
           fi
-          # Fallback to GitHub-provided token (sufficient for merging PRs in this repo)
-          if [ -z "${GH_TOKEN:-}" ] && [ -n "${FALLBACK_GITHUB_TOKEN:-}" ]; then
-            export GH_TOKEN="$FALLBACK_GITHUB_TOKEN"
-          fi
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "Missing GH_TOKEN (and no PAT file found)" >&2
+            echo "Missing GH_TOKEN (PAT). Place it at /home/justin/configs/secrets/github-pat.txt" >&2
             exit 1
           fi
-          echo "Auto-merging PR #${{ github.event.pull_request.number }}"
+          echo "Auto-merging PR #${{ github.event.pull_request.number }} with PAT"
           gh pr merge ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --squash \
