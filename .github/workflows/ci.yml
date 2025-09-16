@@ -26,6 +26,51 @@ jobs:
           rm -rf /tmp/slipbox-test-$$
           echo "Server starts successfully"
 
+      - name: Create PR in configs repo (PR pre-merge)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # Resolve PAT
+          if [ -z "${GH_TOKEN:-}" ]; then
+            for p in /home/justin/configs/secrets/github-pat.txt ~justin/configs/secrets/github-pat.txt ~/configs/secrets/github-pat.txt; do
+              if [ -f "$p" ]; then
+                export GH_TOKEN="$(cat "$p" | tr -d '\r\n')"; break;
+              fi
+            done
+          fi
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "Missing GH_TOKEN (and no PAT file found); skipping bump." >&2
+            exit 0
+          fi
+          sha="${{ github.event.pull_request.head.sha }}"
+          echo "Creating PR in configs to bump slipbox to $sha (pre-merge)"
+
+          tmpdir="/tmp/configs-$$-${RANDOM}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$tmpdir"
+          cd "$tmpdir"
+
+          git config user.name 'slipbox-bot'
+          git config user.email 'bot@users.noreply.github.com'
+
+          branch="bump-slipbox-${sha:0:7}"
+          git checkout -b "$branch" || git checkout "$branch"
+
+          nix flake lock \
+            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
+            --update-input slipbox
+
+          git add flake.lock
+          git commit -m "bump: slipbox to ${sha:0:7}" || { echo "No changes to commit"; exit 0; }
+
+          git push -u origin "$branch"
+
+          gh pr create \
+            --repo justinmoon/configs \
+            --base master \
+            --head "$branch" \
+            --title "Bump slipbox to ${sha:0:7}" \
+            --body "Automated bump from slipbox CI (pre-merge)."
+
       - name: Auto-merge PR
         if: github.event_name == 'pull_request'
         env:
