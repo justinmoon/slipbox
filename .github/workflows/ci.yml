@@ -32,7 +32,7 @@ jobs:
         if: success()
         run: |
           # Runner's StateDirectory
-          BUILD_DIR="/var/lib/github-runner/slipbox-runner/builds"
+          BUILD_DIR="/var/lib/github-runner/hetzner-runner/builds"
           echo "Using build directory: $BUILD_DIR"
           mkdir -p "$BUILD_DIR"
           
@@ -55,7 +55,7 @@ jobs:
           nix build .#slipbox --impure --option sandbox false
           
           # Update runner-owned profile
-          RUNNER_PROFILE="/var/lib/github-runner/slipbox-runner/profile"
+          RUNNER_PROFILE="/var/lib/github-runner/hetzner-runner/profile"
           echo "Using runner profile: $RUNNER_PROFILE"
           
           # Check current profile
@@ -84,7 +84,7 @@ jobs:
           echo "✅ Slipbox installed in runner's profile"
           
           # Create/update symlink for systemd
-          SYMLINK_DIR="/var/lib/github-runner/slipbox-runner/bin"
+          SYMLINK_DIR="/var/lib/github-runner/hetzner-runner/bin"
           mkdir -p "$SYMLINK_DIR"
           ln -sf "$RUNNER_PROFILE/bin/slipbox" "$SYMLINK_DIR/slipbox"
           echo "Symlink created: $SYMLINK_DIR/slipbox"
