@@ -53,8 +53,8 @@
           # Fixed-output derivation settings
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
-          # Hash with playwright - dontFixup prevents shebang patching
-          outputHash = "sha256-bzKYS4le7PLHxzzQ4Jjjfy1dEDg22jZkhoUA/sF/MTo=";
+          # Hash with playwright 1.54.1 - dontFixup prevents shebang patching
+          outputHash = "sha256-/6T7DHTkG4HVIXogZz33gEvwdD5tkg4zY25sdSVSJgU=";
         };
         
         # Define the development shell environment
