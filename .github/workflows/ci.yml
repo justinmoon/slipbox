@@ -1,117 +1,122 @@
 name: CI
-
 on:
-  workflow_dispatch:
+  push:
+    branches: [ master ]
   pull_request:
-    branches: [master, main]
+    branches: [ master ]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  test-and-deploy:
-    runs-on: self-hosted
-
-    permissions:
-      contents: write
-      pull-requests: write
-      checks: write
-
+  build:
+    runs-on: [self-hosted, nixos, hetzner]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
+      # No need to install Bun - our Hetzner server already has it!
+      
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      
+      - name: Type check
+        run: bun run typecheck
+      
+      - name: Lint check
+        run: bun run lint:check
+      
+      - name: Build client
+        run: bun run build:client
+      
+      - name: Build server
+        run: EMBED_ASSETS=true bun build src/index.ts --outdir dist --target bun
+      
       - name: Run tests
         run: |
-          echo "Building test version..."
-          nix build .#slipbox --impure --option sandbox false
+          # Start test server
+          rm -rf /tmp/slipbox-test-$$ || true
+          TEST_DATA_DIR=/tmp/slipbox-test-$$ PORT=3001 bun dist/index.js &
+          SERVER_PID=$!
           
-          # Run playwright tests if enabled
-          # export PLAYWRIGHT_BROWSERS_PATH="${{ env.PLAYWRIGHT_BROWSERS_PATH }}"
-          # TODO: Re-enable tests after deployment is stable
-          # nix run .#ci
-
-      - name: Deploy to production
-        if: success()
-        env:
-          NIX_CONFIG: "sandbox = false"
-        run: |
-          # Runner's StateDirectory
-          BUILD_DIR="/var/lib/github-runner/hetzner-runner/builds"
-          echo "Using build directory: $BUILD_DIR"
-          mkdir -p "$BUILD_DIR"
-          
-          # Get git commit for version tracking
-          export GIT_COMMIT=$(git rev-parse --short HEAD)
-          
-          # Clean and sync to build directory
-          echo "Syncing to build directory..."
-          rm -rf "$BUILD_DIR"/*
-          rm -rf "$BUILD_DIR"/.??* 2>/dev/null || true
-          # CRITICAL: Exclude .git to avoid git+file:// URLs
-          rsync -av --exclude='node_modules' --exclude='result' --exclude='.git' . "$BUILD_DIR"/
-          cd "$BUILD_DIR"
-          
-          # Touch flake.nix to bust Nix eval cache
-          touch flake.nix
-          
-          # Build with Nix (--impure and no sandbox for network access)
-          echo "Building slipbox version: $GIT_COMMIT"
-          nix build .#slipbox --impure --option sandbox false
-          
-          # Update runner-owned profile
-          RUNNER_PROFILE="/var/lib/github-runner/hetzner-runner/profile"
-          echo "Using runner profile: $RUNNER_PROFILE"
-          
-          # Check current profile
-          echo "Current profile contents:"
-          nix profile list --profile "$RUNNER_PROFILE" | grep slipbox || echo "No slipbox in profile"
-          
-          # Update or install
-          if nix profile list --profile "$RUNNER_PROFILE" 2>/dev/null | grep -E 'slipbox' > /dev/null; then
-            echo 'Slipbox found in profile, upgrading...'
-            nix profile upgrade --profile "$RUNNER_PROFILE" slipbox || {
-              echo '⚠️ Upgrade failed, removing and reinstalling...'
-              nix profile remove --profile "$RUNNER_PROFILE" slipbox
-              nix profile install --profile "$RUNNER_PROFILE" .#slipbox
-            }
-          else
-            echo 'Slipbox not in profile, installing...'
-            nix profile install --profile "$RUNNER_PROFILE" .#slipbox
-          fi
-          
-          # Verify installation
-          if ! nix profile list --profile "$RUNNER_PROFILE" | grep -q slipbox; then
-            echo "❌ ERROR: slipbox not found in profile!"
-            exit 1
-          fi
-          
-          echo "✅ Slipbox installed in runner's profile"
-          
-          # Create/update symlink for systemd
-          SYMLINK_DIR="/var/lib/github-runner/hetzner-runner/bin"
-          mkdir -p "$SYMLINK_DIR"
-          ln -sf "$RUNNER_PROFILE/bin/slipbox" "$SYMLINK_DIR/slipbox"
-          echo "Symlink created: $SYMLINK_DIR/slipbox"
-          
-          # Restart service (using polkit, no sudo needed)
-          echo "Restarting slipbox service..."
-          systemctl restart slipbox
-          
-          echo "Checking service status..."
-          systemctl status slipbox --no-pager || true
-          
-          # Test endpoint
+          # Wait for server to start
           sleep 3
-          curl -s http://localhost:3000 | head -20 && echo "✅ Slipbox is running" || echo "❌ Failed to verify"
+          
+          # Run tests
+          bun run test:ci || TEST_EXIT=$?
+          
+          # Cleanup
+          kill $SERVER_PID || true
+          rm -rf /tmp/slipbox-test-$$ || true
+          
+          # Exit with test result
+          exit ${TEST_EXIT:-0}
 
       - name: Auto-merge PR
-        if: |
-          success() && 
-          github.event_name == 'pull_request' && 
-          github.event.pull_request.user.login == github.repository_owner
+        if: github.event_name == 'pull_request'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # IMPORTANT: Must use INFRA_TOKEN (PAT) instead of GITHUB_TOKEN
+          # because GitHub Actions using GITHUB_TOKEN cannot trigger other workflows.
+          # We need the merge to trigger push CI on main branch to create configs PR.
+          GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
         run: |
-          echo "All tests passed! Merging PR #${{ github.event.pull_request.number }}"
+          echo "Auto-merging PR #${{ github.event.pull_request.number }}"
           gh pr merge ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --squash \
             --delete-branch
+
+      # gh CLI is already installed on our self-hosted runner
+      
+      - name: Create PR in configs repo
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
+        run: |
+          sha="${GITHUB_SHA}"
+          echo "Creating PR in configs repo to update slipbox to SHA: $sha"
+          
+          # Use unique temp directory to avoid permission issues
+          temp_dir="/tmp/configs-$$-${RANDOM}"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$temp_dir"
+          cd "$temp_dir"
+          
+          # Configure git
+          git config user.name 'slipbox-bot'
+          git config user.email 'bot@users.noreply.github.com'
+          
+          # Create branch for the update
+          branch="bump-slipbox-${sha:0:7}"
+          git checkout -b "$branch"
+          
+          # Update flake.lock
+          nix flake lock \
+            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
+            --update-input slipbox
+          
+          # Commit and push
+          git add flake.lock
+          git commit -m "bump: slipbox to ${sha:0:7}" || exit 0  # Exit if no changes
+          
+          # Push using GitHub token
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git"
+          git push origin "$branch"
+          
+          # Create PR using gh CLI
+          cat > /tmp/pr-body.md << EOF
+          Automated PR to update slipbox to commit ${sha}
+          
+          This PR was automatically created by the slipbox CI workflow.
+          
+          Changes:
+          - Updated flake.lock to use slipbox@${sha}
+          
+          After merging, the GitOps deployment will automatically apply this update.
+          EOF
+          
+          gh pr create \
+            --repo justinmoon/configs \
+            --base master \
+            --head "$branch" \
+            --title "Bump slipbox to ${sha:0:7}" \
+            --body-file /tmp/pr-body.md
