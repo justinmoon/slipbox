@@ -12,41 +12,6 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Temporary non-FOD to calculate hash
-        bunDepsTemp = pkgs.stdenv.mkDerivation {
-          pname = "slipbox-deps-temp";
-          version = "1.0.0";
-          
-          # Only files that determine dependencies
-          src = pkgs.runCommand "dep-src" {} ''
-            mkdir -p $out
-            cp ${./package.json} $out/package.json
-            cp ${./bun.lock} $out/bun.lock
-          '';
-          
-          nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
-          
-          buildPhase = ''
-            cp $src/* .
-            
-            # Set up environment for bun
-            export HOME=$TMPDIR
-            
-            # Install with frozen lockfile - deterministic!
-            bun install --frozen-lockfile --no-progress --no-summary
-            
-            # Remove cache to reduce output size
-            rm -rf $HOME/.bun
-          '';
-          
-          installPhase = ''
-            mkdir -p $out
-            cp -r node_modules $out/
-            # Keep the lock file for reference
-            cp bun.lock $out/
-          '';
-        };
-        
         # Fixed-Output Derivation for dependencies
         # This ensures deterministic, reproducible builds
         bunDeps = pkgs.stdenv.mkDerivation {
@@ -85,9 +50,8 @@
           # Fixed-output derivation settings
           outputHashMode = "recursive";
           outputHashAlgo = "sha256";
-          # This hash must be updated when dependencies change
-          # To update: set to lib.fakeHash, build, copy hash from error
-          outputHash = "sha256-Jitdwtz7Fox6rv1ogLdMzhH7Bb3FpG+mXQGlISAv2eA=";
+          # Hash without playwright dependency (which breaks FOD)
+          outputHash = "sha256-ORanqdMdYFc5xxM4SKfwjVaXXezySZYNFvGOjDmz1eE=";
         };
         
         # Define the development shell environment
@@ -141,7 +105,6 @@
         packages = {
           # Expose deps package for manual building/testing
           deps = bunDeps;
-          depsTemp = bunDepsTemp; # Temporary for calculating hash
           
           default = pkgs.stdenv.mkDerivation {
             pname = "slipbox";
@@ -220,8 +183,7 @@
               cp $src/biome.json . 2>/dev/null || true
               
               # Link dependencies from FOD (deterministic!)
-              # TODO: Fix FOD issue and use bunDeps instead of bunDepsTemp
-              ln -s ${bunDepsTemp}/node_modules node_modules
+              ln -s ${bunDeps}/node_modules node_modules
               
               # Verify critical dependencies
               test -d node_modules/@starfederation/datastar || (echo "Datastar dependency missing!" && exit 1)
@@ -240,10 +202,10 @@
               cp -r dist $out/app/
               cp -r static $out/app/ 2>/dev/null || true
               cp -r scripts $out/app/
-              cp -r ${bunDepsTemp}/node_modules $out/app/node_modules
+              cp -r ${bunDeps}/node_modules $out/app/node_modules
               cp package.json $out/app/
               cp tsconfig.json $out/app/
-              cp ${bunDepsTemp}/bun.lock $out/app/
+              cp ${bunDeps}/bun.lock $out/app/
               
               # Create wrapper script
               cat > $out/bin/slipbox <<EOF
