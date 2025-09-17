@@ -1,7 +1,5 @@
 name: CI
 on:
-  push:
-    branches: [ master ]
   pull_request:
     branches: [ master ]
 
@@ -31,7 +29,6 @@ jobs:
           echo "Server starts successfully"
 
       - name: Auto-merge PR
-        if: github.event_name == 'pull_request'
         run: |
           # Load PAT from local file on runner (fallback to secret if present)
           if [ -z "${GH_TOKEN:-}" ]; then
@@ -42,57 +39,3 @@ jobs:
             --repo ${{ github.repository }} \
             --squash \
             --delete-branch
-
-      - name: Create PR in configs repo
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          # Load PAT from local file on runner (fallback to secret if present)
-          if [ -z "${GH_TOKEN:-}" ]; then
-            export GH_TOKEN="$(grep -E '^(gh(p|s|u)p?_?|github_pat_)' ~/configs/secrets/github-pat.txt | head -n1 | tr -d '\r\n')"
-          fi
-          sha="${GITHUB_SHA}"
-          echo "Creating PR in configs to bump slipbox to $sha"
-
-          tmpdir="/tmp/configs-$$-${RANDOM}"
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/justinmoon/configs.git" "$tmpdir"
-          cd "$tmpdir"
-
-          git config user.name 'slipbox-bot'
-          git config user.email 'bot@users.noreply.github.com'
-
-          branch="bump-slipbox-${sha:0:7}"
-          git checkout -b "$branch"
-
-          # Update flake.lock to point slipbox input to this commit
-          nix flake lock \
-            --override-input slipbox "github:justinmoon/slipbox/${sha}" \
-            --update-input slipbox
-
-          git add flake.lock
-          git commit -m "bump: slipbox to ${sha:0:7}" || echo "No changes to commit"
-
-          # Only push and open PR if there are changes
-          if git diff --quiet origin/master..HEAD; then
-            echo "No lockfile changes; skipping PR."
-            exit 0
-          fi
-
-          git push -u origin "$branch"
-
-          cat > /tmp/pr-body-$$.md << 'EOF'
-          Automated PR to update slipbox to the latest commit.
-
-          This PR was created by slipbox CI. After merge, the GitOps pipeline
-          on Hetzner will rebuild and deploy via nixos-rebuild.
-          
-          Note: Ensure configs/flake.nix declares a `slipbox` input and the
-          slipbox service uses the flake package rather than an imperative path.
-          EOF
-
-          gh pr create \
-            --repo justinmoon/configs \
-            --base master \
-            --head "$branch" \
-            --title "Bump slipbox to ${sha:0:7}" \
-            --body-file /tmp/pr-body-$$.md
