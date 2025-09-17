@@ -8,7 +8,7 @@ export function LoginPage(props?: { error?: string }) {
       <div class="min-h-screen flex items-center justify-center">
         <div class="w-full max-w-md p-8">
           <div class="bg-off-white border-2 border-dark p-8 shadow-[5px_5px_0px_0px_#111]">
-            <h1 class="text-3xl font-bold mb-8 text-center">Slipbox</h1>
+            <h1 class="text-3xl font-bold mb-8 text-center">SLIPBOX</h1>
 
             {error && (
               <div class="bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 mb-6">
