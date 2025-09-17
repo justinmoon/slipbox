@@ -19,6 +19,10 @@ jobs:
         run: |
           nix build .#server --impure --option sandbox false
 
+      - name: Run CI tests with Nix
+        run: |
+          nix run .#ci --impure --option sandbox false
+
       - name: Smoke test server starts
         run: |
           rm -rf /tmp/slipbox-test-$$
