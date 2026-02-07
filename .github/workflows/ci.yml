@@ -20,6 +20,7 @@ jobs:
           nix build .#server --impure --option sandbox false
 
       - name: Run CI tests with Nix
+        if: github.event_name == 'pull_request'
         run: |
           nix run .#ci --impure --option sandbox false
 
